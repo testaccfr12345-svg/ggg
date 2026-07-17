@@ -1696,6 +1696,123 @@
         font-size: 9.5px;
       }
     }
+
+    /* Menu lives outside the header so it cannot resize or clip the logo frame. */
+    .header-row {
+      overflow: hidden !important;
+    }
+
+    .menu-backdrop {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 80 !important;
+      background: rgba(0, 0, 0, 0.72) !important;
+      backdrop-filter: blur(5px);
+    }
+
+    .menu-panel {
+      position: fixed !important;
+      top: 84px !important;
+      right: max(14px, calc((100vw - 1060px) / 2)) !important;
+      left: auto !important;
+      z-index: 90 !important;
+      width: min(350px, calc(100vw - 28px)) !important;
+      max-height: calc(100dvh - 100px) !important;
+      overflow-y: auto !important;
+      opacity: 0;
+      visibility: hidden;
+      transform: none !important;
+      border-radius: 17px !important;
+      transition:
+        opacity 180ms ease,
+        visibility 180ms ease !important;
+    }
+
+    .menu-panel.open {
+      opacity: 1 !important;
+      visibility: visible !important;
+      transform: none !important;
+    }
+
+    /* Nothing jumps, lifts, scales, or slides when tapped or hovered. */
+    button,
+    .button,
+    .vip-button,
+    .copy-small,
+    .menu-toggle,
+    .menu-close,
+    .menu-tab {
+      -webkit-transform: none !important;
+      transform: none !important;
+    }
+
+    button:hover,
+    button:active,
+    button:focus,
+    .button:hover,
+    .button:active,
+    .button:focus,
+    .vip-button:hover,
+    .vip-button:active,
+    .vip-button:focus,
+    .copy-small:hover,
+    .copy-small:active,
+    .copy-small:focus,
+    .menu-toggle:hover,
+    .menu-toggle:active,
+    .menu-toggle:focus,
+    .menu-close:hover,
+    .menu-close:active,
+    .menu-close:focus,
+    .menu-tab:hover,
+    .menu-tab:active,
+    .menu-tab:focus {
+      -webkit-transform: none !important;
+      transform: none !important;
+    }
+
+    .menu-tab:hover .menu-tab-arrow,
+    .menu-tab:active .menu-tab-arrow {
+      transform: none !important;
+    }
+
+    /* Copy transition: text fades only; the button never moves. */
+    .copy-small {
+      min-width: 76px !important;
+      overflow: hidden;
+      transition:
+        color 170ms ease,
+        border-color 170ms ease,
+        background-color 170ms ease !important;
+    }
+
+    .copy-label {
+      display: inline-block;
+      opacity: 1;
+      transform: none !important;
+      transition: opacity 145ms ease;
+    }
+
+    .copy-label.is-fading {
+      opacity: 0;
+    }
+
+    .copy-small.copy-out,
+    .copy-small.copy-in {
+      opacity: 1 !important;
+      transform: none !important;
+      animation: none !important;
+    }
+
+    @media (max-width: 800px) {
+      .menu-panel {
+        top: 76px !important;
+        right: 14px !important;
+        left: 14px !important;
+        width: auto !important;
+        max-height: calc(100dvh - 90px) !important;
+      }
+    }
 </style>
 </head>
 <body><div aria-hidden="true" class="paint-background"></div>
@@ -1714,8 +1831,10 @@
 <span></span>
 <span></span>
 </button>
-<div class="menu-backdrop" hidden="" id="menuBackdrop"></div>
-<nav aria-label="Page navigation" class="menu-panel" hidden="" id="menuPanel">
+
+
+</div>
+</header><div class="menu-backdrop" hidden="" id="menuBackdrop"></div><nav aria-label="Page navigation" class="menu-panel" hidden="" id="menuPanel">
 <div class="menu-head">
 <div>
 <span class="menu-kicker">Tapbound</span>
@@ -1750,8 +1869,6 @@
 </a>
 </div>
 </nav>
-</div>
-</header>
 <main id="top">
 <section class="hero">
 <div class="container">
@@ -1824,9 +1941,7 @@
 <div class="stable-status">Stable</div>
 </div>
 </div>
-<button class="copy-small" data-script="project-lazarus" type="button">
-                  Copy
-                </button>
+<button class="copy-small" data-script="project-lazarus" type="button"><span class="copy-label">Copy</span></button>
 </div>
 <div class="code-row">
 <span class="line-number">1</span>
@@ -1842,9 +1957,7 @@
 <div class="stable-status">Stable</div>
 </div>
 </div>
-<button class="copy-small" data-script="flee-the-facility" type="button">
-                  Copy
-                </button>
+<button class="copy-small" data-script="flee-the-facility" type="button"><span class="copy-label">Copy</span></button>
 </div>
 <div class="code-row">
 <span class="line-number">1</span>
@@ -1953,7 +2066,8 @@
 
         await copyText(loader);
 
-        const originalText = button.dataset.originalText || button.textContent.trim();
+        const label = button.querySelector(".copy-label");
+        const originalText = button.dataset.originalText || (label ? label.textContent.trim() : "Copy");
         button.dataset.originalText = originalText;
         button.disabled = true;
 
@@ -1961,33 +2075,35 @@
         clearTimeout(button.copySwapTimer);
         clearTimeout(button.copyBackTimer);
 
-        button.classList.remove("copy-in", "copied");
-        button.classList.add("copy-out");
+        if (label) {
+          label.classList.add("is-fading");
 
-        button.copySwapTimer = setTimeout(() => {
+          button.copySwapTimer = setTimeout(() => {
+            label.textContent = "Copied ✓";
+            button.classList.add("copied");
+            label.classList.remove("is-fading");
+          }, 145);
+
+          button.copyResetTimer = setTimeout(() => {
+            label.classList.add("is-fading");
+
+            button.copyBackTimer = setTimeout(() => {
+              label.textContent = originalText;
+              button.classList.remove("copied");
+              label.classList.remove("is-fading");
+              button.disabled = false;
+            }, 145);
+          }, 1550);
+        } else {
           button.textContent = "Copied ✓";
-          button.classList.remove("copy-out");
-          button.classList.add("copied", "copy-in");
+          button.classList.add("copied");
 
-          setTimeout(() => {
-            button.classList.remove("copy-in");
-          }, 220);
-        }, 120);
-
-        button.copyResetTimer = setTimeout(() => {
-          button.classList.add("copy-out");
-
-          button.copyBackTimer = setTimeout(() => {
+          button.copyResetTimer = setTimeout(() => {
             button.textContent = originalText;
-            button.classList.remove("copy-out", "copied");
-            button.classList.add("copy-in");
+            button.classList.remove("copied");
             button.disabled = false;
-
-            setTimeout(() => {
-              button.classList.remove("copy-in");
-            }, 220);
-          }, 120);
-        }, 1550);
+          }, 1550);
+        }
 
         showToast(scriptNames[scriptId] + " copied");
       });
@@ -2000,7 +2116,7 @@
     menuClose.addEventListener("click", () => setMenu(false));
     menuBackdrop.addEventListener("click", () => setMenu(false));
 
-    document.querySelectorAll(".menu-link").forEach((link) => {
+    document.querySelectorAll(".menu-tab, .menu-link").forEach((link) => {
       link.addEventListener("click", () => setMenu(false));
     });
 
