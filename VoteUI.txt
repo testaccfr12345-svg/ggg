@@ -3,6 +3,7 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
+local GuiService = game:GetService("GuiService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -143,20 +144,63 @@ task.defer(fit)
 
 local current = nil
 
-table.insert(connections, UserInputService.InputEnded:Connect(function(input)
-	if not current then return end
+local function isPress(input)
+	return input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1
+end
+
+local function pointerPosition(input)
+	if input.UserInputType == Enum.UserInputType.Touch then
+		local inset = GuiService:GetGuiInset()
+		return Vector2.new(input.Position.X, input.Position.Y) + inset
+	end
+	return UserInputService:GetMouseLocation()
+end
+
+local function cardAt(position)
+	if not current then return nil end
 	for _, card in pairs(current.cards) do
-		if card.held == input then
-			card.held = nil
-			if current.heldCard == card then current.heldCard = nil end
+		local topLeft = card.frame.AbsolutePosition
+		local size = card.frame.AbsoluteSize
+		if position.X >= topLeft.X and position.X <= topLeft.X + size.X
+			and position.Y >= topLeft.Y and position.Y <= topLeft.Y + size.Y then
+			return card
 		end
 	end
-	current.refresh()
+	return nil
+end
+
+local function updateHeld()
+	if not current then return end
+	local target = nil
+	if current.pointer and current.phase == "Voting" then
+		target = cardAt(pointerPosition(current.pointer))
+	end
+	if target ~= current.heldCard then
+		if current.heldCard then current.heldCard.held = nil end
+		current.heldCard = target
+		if target then target.held = true end
+		current.refresh()
+	end
+end
+
+table.insert(connections, UserInputService.InputBegan:Connect(function(input)
+	if not current or current.phase ~= "Voting" or current.pointer or not isPress(input) then return end
+	current.pointer = input
+	updateHeld()
+end))
+
+table.insert(connections, UserInputService.InputEnded:Connect(function(input)
+	if not current or input ~= current.pointer then return end
+	local released = current.phase == "Voting" and cardAt(pointerPosition(input))
+	current.pointer = nil
+	updateHeld()
+	if released then current.vote(released.name) end
 end))
 
 table.insert(connections, RunService.RenderStepped:Connect(function()
 	if not alive or not current then return end
 	local now = os.clock()
+	if current.pointer then updateHeld() end
 	if current.phase ~= "Voting" then return end
 	local remaining = math.max(0, current.endsAt - now)
 	if remaining <= 3 and not current.dangerShown then
@@ -304,6 +348,8 @@ local function runVote(titleText, options, resultText)
 		round.refresh()
 	end
 
+	round.vote = vote
+
 	for index, option in ipairs(options) do
 		local baseX = startX + (index - 1) * (CARD_W + CARD_GAP) + CARD_W / 2
 		local baseY = CARD_Y + CARD_H / 2
@@ -362,7 +408,7 @@ local function runVote(titleText, options, resultText)
 		})
 		local info = {
 			frame = holder, scale = cardScale, float = float, glow = glow, body = body,
-			baseX = baseX, baseY = baseY, hovered = false, held = nil,
+			name = option.name, baseX = baseX, baseY = baseY, hovered = false, held = nil,
 			idleOffset = index * 1.7,
 		}
 
@@ -440,24 +486,6 @@ local function runVote(titleText, options, resultText)
 			end
 		end)
 		button.MouseLeave:Connect(function() info.hovered = false round.refresh() end)
-		button.InputBegan:Connect(function(input)
-			local kind = input.UserInputType
-			if round.phase == "Voting" and (kind == Enum.UserInputType.Touch or kind == Enum.UserInputType.MouseButton1) then
-				if round.heldCard and round.heldCard ~= info then return end
-				if not info.held then
-					info.held = input
-					round.heldCard = info
-					round.refresh()
-				end
-			end
-		end)
-		button.Activated:Connect(function()
-			if round.heldCard and round.heldCard ~= info then return end
-			info.held = nil
-			round.heldCard = nil
-			vote(option.name)
-			round.refresh()
-		end)
 
 	end
 
@@ -470,6 +498,7 @@ local function runVote(titleText, options, resultText)
 		for _, card in pairs(round.cards) do
 			card.hovered, card.held = false, nil
 			round.heldCard = nil
+			round.pointer = nil
 			card.button.Active = false
 		end
 		round.refresh()
