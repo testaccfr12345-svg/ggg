@@ -274,11 +274,27 @@ local function runVote(titleText, options, resultText)
 			local voting = round.phase == "Voting"
 			local hovering = card.hovered and voting
 			local holding = card.held ~= nil and voting
+			local size, lift = 1, 0
+			if finished then
+				size, lift = winner and 1.08 or 0.95, winner and -8 or 4
+			elseif holding then
+				size, lift = 0.96, 3
+			elseif picked then
+				size, lift = 1.05, -6
+			elseif hovering then
+				size, lift = 1.03, -4
+			end
 			local outlined = winner or (not finished and (picked or hovering or holding))
 			local shade = (finished and not winner) and 0.45 or 1
-			local signature = tostring(outlined) .. ":" .. shade
+			local signature = size .. ":" .. tostring(outlined) .. ":" .. shade
 			if signature ~= card.signature then
 				card.signature = signature
+				if card.scaleTween then card.scaleTween:Cancel() end
+				if card.positionTween then card.positionTween:Cancel() end
+				card.scaleTween = tween(card.scale, holding and 0.07 or 0.2, { Scale = size },
+					holding and Enum.EasingStyle.Quad or Enum.EasingStyle.Back)
+				card.positionTween = tween(card.frame, 0.18,
+					{ Position = UDim2.fromOffset(card.baseX, card.baseY + lift) }, Enum.EasingStyle.Back)
 				tween(card.glow, 0.15, { Transparency = outlined and 0 or 1 })
 				tween(card.dimmer, 0.2, { BackgroundTransparency = shade })
 			end
