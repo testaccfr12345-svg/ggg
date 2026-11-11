@@ -533,11 +533,185 @@ local function runVote(titleText, options, resultText)
 	return winner
 end
 
+local FAKE_OPPONENT = { userId = 1, displayName = "Opponent", name = "opponent" }
+
+local function colorOf(list, name)
+	for _, option in ipairs(list) do
+		if option.name == name then return option.color end
+	end
+	return YELLOW
+end
+
+local function loadHeadshot(image, userId)
+	task.spawn(function()
+		for _ = 1, 3 do
+			local ok, url, isReady = pcall(function()
+				return Players:GetUserThumbnailAsync(userId,
+					Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+			end)
+			if ok and image.Parent then image.Image = url end
+			if (ok and isReady) or not image.Parent then return end
+			task.wait(0.5)
+		end
+	end)
+end
+
+local function playerPanel(page, centerX, color, userId, displayName, username)
+	local holder = create("Frame", "PlayerPanel", page, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(centerX, 250),
+		Size = UDim2.fromOffset(280, 330),
+		BackgroundTransparency = 1,
+		ZIndex = 2,
+	})
+	local shadow = create("Frame", "Shadow", holder, {
+		Position = UDim2.fromOffset(0, 9),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.55,
+		BorderSizePixel = 0,
+		ZIndex = 1,
+	})
+	create("UICorner", "Round", shadow, { CornerRadius = UDim.new(0, 18) })
+	local edge = create("Frame", "Edge", holder, {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = color:Lerp(Color3.new(0, 0, 0), 0.38),
+		BorderSizePixel = 0,
+		ZIndex = 2,
+	})
+	create("UICorner", "Round", edge, { CornerRadius = UDim.new(0, 18) })
+	create("UIStroke", "Border", edge, { Color = DARK, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+	local body = create("Frame", "Body", holder, {
+		Size = UDim2.new(1, 0, 1, -10),
+		BackgroundColor3 = color,
+		BorderSizePixel = 0,
+		ZIndex = 2,
+	})
+	create("UICorner", "Round", body, { CornerRadius = UDim.new(0, 18) })
+	create("UIGradient", "Depth", body, {
+		Rotation = 90,
+		Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(215, 215, 215)),
+	})
+	local headshot = create("ImageLabel", "Headshot", holder, {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromOffset(140, 22),
+		Size = UDim2.fromOffset(200, 200),
+		BackgroundColor3 = CREAM,
+		BorderSizePixel = 0,
+		Image = "",
+		ZIndex = 4,
+	})
+	create("UICorner", "Round", headshot, { CornerRadius = UDim.new(0, 22) })
+	create("UIStroke", "Border", headshot, { Color = DARK, Thickness = 4, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+	loadHeadshot(headshot, userId)
+	local nameLabel = label("DisplayName", holder, displayName, 8, 230, 264, 46, 38, Color3.new(1, 1, 1), 3.5)
+	nameLabel.TextWrapped = false
+	nameLabel.TextScaled = true
+	create("UITextSizeConstraint", "MaxSize", nameLabel, { MaxTextSize = 38 })
+	label("Username", holder, "@" .. username, 8, 276, 264, 26, 20, CREAM, 2)
+	return holder
+end
+
+local function runVersus(category, difficulty)
+	local page = create("Frame", "VersusPage", canvas, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+	})
+	local pageScale = create("UIScale", "PageScale", page, { Scale = 1 })
+
+	local mine = playerPanel(page, 330, Color3.fromRGB(52, 128, 232),
+		player.UserId, player.DisplayName, player.Name)
+	local theirs = playerPanel(page, 950, Color3.fromRGB(222, 52, 52),
+		FAKE_OPPONENT.userId, FAKE_OPPONENT.displayName, FAKE_OPPONENT.name)
+	mine.Position = UDim2.fromOffset(-260, 250)
+	theirs.Position = UDim2.fromOffset(1540, 250)
+
+	local versus = label("Versus", page, "VS", 540, 180, 200, 140, 120, Color3.new(1, 1, 1), 6)
+	versus.ZIndex = 8
+	create("UIGradient", "VersusGradient", versus, {
+		Rotation = 90,
+		Color = ColorSequence.new(Color3.fromRGB(255, 238, 90), Color3.fromRGB(255, 140, 20)),
+	})
+	local versusScale = create("UIScale", "VersusPop", versus, { Scale = 0 })
+
+	local info = create("Frame", "MatchInfo", page, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(640, 466),
+		Size = UDim2.fromOffset(420, 54),
+		BackgroundColor3 = DARK,
+		BackgroundTransparency = 0.25,
+		BorderSizePixel = 0,
+		ZIndex = 5,
+	})
+	create("UICorner", "Round", info, { CornerRadius = UDim.new(1, 0) })
+	local infoScale = create("UIScale", "InfoPop", info, { Scale = 0 })
+	local infoText = create("TextLabel", "Text", info, {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Font = FONT,
+		RichText = true,
+		TextSize = 30,
+		TextColor3 = Color3.new(1, 1, 1),
+		ZIndex = 6,
+		Text = string.format('<font color="#%s">%s</font>  •  <font color="#%s">%s</font>',
+			colorOf(CATEGORY_OPTIONS, category):Lerp(Color3.new(1, 1, 1), 0.25):ToHex(), string.upper(category),
+			colorOf(DIFFICULTY_OPTIONS, difficulty):Lerp(Color3.new(1, 1, 1), 0.25):ToHex(), string.upper(difficulty)),
+	})
+	stroke(infoText, 2.5)
+
+	local countdown = label("Countdown", page, "", 340, 516, 600, 46, 32, CREAM, 2.5)
+
+	tween(mine, 0.45, { Position = UDim2.fromOffset(330, 250) }, Enum.EasingStyle.Back)
+	tween(theirs, 0.45, { Position = UDim2.fromOffset(950, 250) }, Enum.EasingStyle.Back)
+	task.wait(0.4)
+	if not alive then return end
+	versusScale.Scale = 3
+	tween(versusScale, 0.22, { Scale = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	task.wait(0.22)
+	if not alive then return end
+	for i = 1, 8 do
+		local power = (9 - i) * 1.6
+		page.Position = UDim2.new(0.5, random:NextNumber(-power, power), 0.5, random:NextNumber(-power, power))
+		task.wait(0.03)
+	end
+	page.Position = UDim2.fromScale(0.5, 0.5)
+	tween(infoScale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+	task.wait(0.5)
+
+	local countdownScale = create("UIScale", "CountdownPop", countdown, { Scale = 1 })
+	for n = 3, 1, -1 do
+		if not alive then return end
+		countdown.Text = "Starting in " .. n
+		countdownScale.Scale = 1.3
+		tween(countdownScale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
+		task.wait(1)
+	end
+	if not alive then return end
+	countdown.Text = "GO!"
+	countdown.TextColor3 = RESULT_GREEN
+	countdownScale.Scale = 1.5
+	tween(countdownScale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
+	task.wait(0.6)
+
+	tween(pageScale, 0.09, { Scale = 1.03 })
+	task.wait(0.09)
+	tween(pageScale, 0.25, { Scale = 0.85 })
+	tween(page, 0.25, { Position = UDim2.fromScale(0.5, 1.6) },
+		Enum.EasingStyle.Quad, Enum.EasingDirection.In).Completed:Wait()
+	page:Destroy()
+end
+
 local category = runVote("VOTE FOR A CATEGORY!", CATEGORY_OPTIONS, "PLAYING %s!")
 gui:SetAttribute("SelectedCategory", category)
 
 local difficulty = alive and runVote("VOTE FOR A DIFFICULTY!", DIFFICULTY_OPTIONS, "%s IT IS!")
 gui:SetAttribute("SelectedDifficulty", difficulty)
+
+if alive and category and difficulty then
+	runVersus(category, difficulty)
+end
 
 tween(root, 0.3, { BackgroundTransparency = 1 })
 tween(blur, 0.3, { Size = 0 }).Completed:Wait()
