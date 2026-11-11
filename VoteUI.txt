@@ -1,3 +1,17 @@
+local IMAGES = {
+	CardBase = "rbxassetid://0",
+	GlowOutline = "rbxassetid://0",
+	Shadow = "rbxassetid://0",
+	Star = "rbxassetid://0",
+}
+
+local SOUNDS = {
+	Hover = { id = "rbxasset://sounds/clickfast.wav", volume = 0.25 },
+	Click = { id = "rbxasset://sounds/button.wav", volume = 0.6 },
+	Tick = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5 },
+	Win = { id = "rbxasset://sounds/victory.wav", volume = 0.6 },
+}
+
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -11,6 +25,7 @@ local DURATION = 7
 local BAR_WIDTH = 396
 local CARD_W, CARD_H, CARD_GAP, CARD_Y = 240, 310, 20, 180
 local YELLOW = Color3.fromRGB(255, 222, 30)
+local DANGER = Color3.fromRGB(255, 64, 64)
 local DARK = Color3.fromRGB(14, 16, 28)
 local CREAM = Color3.fromRGB(255, 240, 225)
 local RESULT_GREEN = Color3.fromRGB(104, 255, 59)
@@ -38,9 +53,9 @@ local CATEGORY_OPTIONS = {
 }
 
 local DIFFICULTY_OPTIONS = {
-	{ name = "Easy", color = Color3.fromRGB(80, 196, 60), desc = "Relaxed questions for everyone" },
-	{ name = "Medium", color = Color3.fromRGB(240, 186, 30), desc = "A fair challenge" },
-	{ name = "Hard", color = Color3.fromRGB(222, 52, 52), desc = "Only for the real experts" },
+	{ name = "Easy", color = Color3.fromRGB(80, 196, 60), desc = "Relaxed questions for everyone", stars = 1 },
+	{ name = "Medium", color = Color3.fromRGB(240, 186, 30), desc = "A fair challenge", stars = 2 },
+	{ name = "Hard", color = Color3.fromRGB(222, 52, 52), desc = "Only for the real experts", stars = 3 },
 }
 
 local function tween(object, duration, properties, style, direction)
@@ -96,6 +111,19 @@ local gui = create("ScreenGui", "CategoryVoteUI", playerGui, {
 	DisplayOrder = 10,
 })
 
+local sounds = {}
+for name, info in pairs(SOUNDS) do
+	sounds[name] = create("Sound", name .. "Sound", gui, { SoundId = info.id, Volume = info.volume })
+end
+
+local function playSound(name, pitch)
+	local sound = sounds[name]
+	if not sound then return end
+	sound.PlaybackSpeed = pitch or 1
+	sound.TimePosition = 0
+	sound:Play()
+end
+
 local blur = Lighting:FindFirstChild("VoteBlur") or create("BlurEffect", "VoteBlur", Lighting, { Size = 0 })
 blur.Size = 0
 blur.Enabled = true
@@ -107,7 +135,7 @@ local root = create("Frame", "Root", gui, {
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 })
-tween(root, 0.35, { BackgroundTransparency = 0.82 })
+tween(root, 0.35, { BackgroundTransparency = 0.8 })
 
 local canvas = create("Frame", "ReferenceCanvas", root, {
 	AnchorPoint = Vector2.new(0.5, 0.5),
@@ -148,15 +176,26 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
 	if not alive or not current then return end
 	local now = os.clock()
 	for _, card in pairs(current.cards) do
+		local t = now * 2.2 + card.idleOffset
+		card.float.Position = UDim2.fromOffset(0, math.sin(t) * 3)
+		local sweep = ((now + card.idleOffset * 0.6) % 3.2) / 1.1
+		card.shine.Offset = Vector2.new(sweep * 2.4 - 1.2, 0)
 		if card.icon then
-			local t = now * 2.7 + card.idleOffset
 			local kick = 0
 			if card.iconKick then
 				local age = now - card.iconKick
 				if age < 0.42 then kick = math.sin(age / 0.42 * math.pi) * math.exp(-age * 4) end
 			end
-			card.icon.Position = UDim2.fromOffset(card.iconX, card.iconY + math.sin(t) * 2.2 - kick * 5)
+			card.icon.Position = UDim2.fromOffset(card.iconX, card.iconY + math.sin(t * 1.2) * 2.2 - kick * 5)
 			card.iconScale.Scale = 1 + math.sin(t + 0.6) * 0.012 + kick * 0.06
+		end
+		if card.starRow then
+			local kick = 0
+			if card.iconKick then
+				local age = now - card.iconKick
+				if age < 0.42 then kick = math.sin(age / 0.42 * math.pi) * math.exp(-age * 4) end
+			end
+			card.starScale.Scale = 1 + math.sin(t * 1.3) * 0.03 + kick * 0.12
 		end
 	end
 	if current.phase ~= "Voting" then return end
@@ -165,6 +204,16 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
 	current.fill.Visible = ratio > 0
 	current.fill.Size = UDim2.fromOffset(BAR_WIDTH * ratio, 14)
 	current.footer.Text = current.myVote and "You can change your vote" or "No votes = random pick"
+	local second = math.ceil(remaining)
+	if remaining > 0 and second <= 3 then
+		if current.lastSecond ~= second then
+			current.lastSecond = second
+			current.danger()
+			current.countdown(second)
+		end
+		local shake = (3.2 - remaining) * 1.4
+		current.track.Position = UDim2.fromOffset(440 + random:NextNumber(-shake, shake), 146 + random:NextNumber(-shake, shake) * 0.5)
+	end
 	if remaining <= 0 then current.finish() end
 end))
 
@@ -178,7 +227,7 @@ local function addPortrait(card, userId)
 	})
 	create("UICorner", "Circle", avatar, { CornerRadius = UDim.new(1, 0) })
 	create("UIStroke", "AvatarOutline", avatar, {
-		Color = DARK, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Color = DARK, Thickness = 2.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 	})
 	local pop = create("UIScale", "PopIn", avatar, { Scale = 0.1 })
 	tween(pop, 0.28, { Scale = 1 }, Enum.EasingStyle.Back)
@@ -232,7 +281,7 @@ local function runVote(titleText, options, resultText)
 		ZIndex = 2,
 	})
 	create("UICorner", "Round", track, { CornerRadius = UDim.new(1, 0) })
-	create("UIStroke", "TrackBorder", track, { Color = DARK, Thickness = 1.5 })
+	create("UIStroke", "TrackBorder", track, { Color = DARK, Thickness = 2 })
 	local fill = create("Frame", "CountdownFill", track, {
 		Position = UDim2.fromOffset(2, 2),
 		Size = UDim2.fromOffset(BAR_WIDTH, 14),
@@ -242,6 +291,24 @@ local function runVote(titleText, options, resultText)
 	})
 	create("UICorner", "Round", fill, { CornerRadius = UDim.new(1, 0) })
 	round.fill = fill
+	round.track = track
+
+	local number = label("CountdownNumber", page, "", 852, 122, 70, 66, 60, Color3.new(1, 1, 1), 3.5)
+	number.Visible = false
+	local numberScale = create("UIScale", "NumberPop", number, { Scale = 1 })
+
+	round.danger = function()
+		tween(fill, 0.25, { BackgroundColor3 = DANGER })
+	end
+
+	round.countdown = function(second)
+		number.Visible = true
+		number.Text = tostring(second)
+		number.TextColor3 = second == 1 and DANGER or Color3.new(1, 1, 1)
+		numberScale.Scale = 1.8
+		tween(numberScale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+		playSound("Tick", 1 + (3 - second) * 0.15)
+	end
 
 	local footer = label("Footer", page, "No votes = random pick", 240, 526, 800, 46, 30, CREAM, 2.5)
 	local footerScale = create("UIScale", "FooterPop", footer, { Scale = 1 })
@@ -262,7 +329,7 @@ local function runVote(titleText, options, resultText)
 			if finished then
 				size, lift = winner and 1.08 or 0.95, winner and -8 or 4
 			elseif holding then
-				size, lift = 0.97, 2
+				size, lift = 0.96, 3
 			elseif picked then
 				size, lift = 1.05, -6
 			elseif hovering then
@@ -279,10 +346,7 @@ local function runVote(titleText, options, resultText)
 					holding and Enum.EasingStyle.Quad or Enum.EasingStyle.Back)
 				card.positionTween = tween(card.frame, 0.18,
 					{ Position = UDim2.fromOffset(card.baseX, card.baseY + lift) }, Enum.EasingStyle.Back)
-				tween(card.border, 0.12, {
-					Color = outlined and YELLOW or DARK,
-					Thickness = outlined and 4 or 2.5,
-				})
+				tween(card.glow, 0.15, { ImageTransparency = outlined and 0 or 1 })
 				tween(card.dimmer, 0.2, { BackgroundTransparency = shade })
 			end
 			card.frame.ZIndex = winner and 6 or ((picked or hovering or holding) and 4 or 2)
@@ -297,40 +361,80 @@ local function runVote(titleText, options, resultText)
 		local card = round.cards[name]
 		round.portrait = addPortrait(card, player.UserId)
 		card.iconKick = os.clock()
+		playSound("Click")
 		round.refresh()
 	end
 
 	for index, option in ipairs(options) do
 		local baseX = startX + (index - 1) * (CARD_W + CARD_GAP) + CARD_W / 2
 		local baseY = CARD_Y + CARD_H / 2
-		local card = create("Frame", option.name .. "Card", page, {
+		local holder = create("Frame", option.name .. "Card", page, {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromOffset(baseX, baseY + 34),
 			Size = UDim2.fromOffset(CARD_W, CARD_H),
-			BackgroundColor3 = option.color,
-			BorderSizePixel = 0,
+			BackgroundTransparency = 1,
 			ZIndex = 2,
 		})
-		create("UICorner", "Round", card, { CornerRadius = UDim.new(0, 16) })
-		local border = create("UIStroke", "Border", card, {
-			Color = DARK, Thickness = 2.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		local cardScale = create("UIScale", "CardScale", holder, { Scale = 0.6 })
+		local float = create("Frame", "Float", holder, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			ZIndex = 2,
 		})
-		create("UIGradient", "Shine", card, {
-			Rotation = 90,
-			Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(200, 200, 200)),
+		create("ImageLabel", "Shadow", float, {
+			Position = UDim2.fromOffset(-20, -14),
+			Size = UDim2.fromOffset(CARD_W + 40, CARD_H + 40),
+			BackgroundTransparency = 1,
+			Image = IMAGES.Shadow,
+			ZIndex = 1,
 		})
-		local cardScale = create("UIScale", "CardScale", card, { Scale = 0.6 })
+		local body = create("ImageLabel", "Body", float, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Image = IMAGES.CardBase,
+			ImageColor3 = option.color,
+			ScaleType = Enum.ScaleType.Stretch,
+			ZIndex = 2,
+		})
+		local shineFrame = create("Frame", "ShineSweep", float, {
+			Position = UDim2.fromOffset(4, 4),
+			Size = UDim2.fromOffset(CARD_W - 8, CARD_H - 14),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BorderSizePixel = 0,
+			ZIndex = 3,
+		})
+		create("UICorner", "Round", shineFrame, { CornerRadius = UDim.new(0, 14) })
+		local shine = create("UIGradient", "ShineGradient", shineFrame, {
+			Rotation = 20,
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.42, 1),
+				NumberSequenceKeypoint.new(0.5, 0.78),
+				NumberSequenceKeypoint.new(0.58, 1),
+				NumberSequenceKeypoint.new(1, 1),
+			}),
+			Offset = Vector2.new(-1.2, 0),
+		})
+		local glow = create("ImageLabel", "Glow", float, {
+			Position = UDim2.fromOffset(-20, -20),
+			Size = UDim2.fromOffset(CARD_W + 40, CARD_H + 40),
+			BackgroundTransparency = 1,
+			Image = IMAGES.GlowOutline,
+			ImageColor3 = YELLOW,
+			ImageTransparency = 1,
+			ZIndex = 8,
+		})
 
 		local info = {
-			frame = card, scale = cardScale, border = border,
+			frame = holder, scale = cardScale, float = float, glow = glow, shine = shine, body = body,
 			baseX = baseX, baseY = baseY, hovered = false, held = nil,
 			idleOffset = index * 1.7,
 		}
 
 		if option.icon then
 			local iconW, iconH = 170, 120
-			info.iconX, info.iconY = CARD_W / 2, 20 + iconH / 2
-			local slot = create("Frame", "Icon", card, {
+			info.iconX, info.iconY = CARD_W / 2, 18 + iconH / 2
+			local slot = create("Frame", "Icon", float, {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromOffset(info.iconX, info.iconY),
 				Size = UDim2.fromOffset(iconW, iconH),
@@ -350,15 +454,40 @@ local function runVote(titleText, options, resultText)
 				ScaleType = Enum.ScaleType.Stretch,
 				ZIndex = 4,
 			})
-			label("CardTitle", card, string.upper(option.name), 8, 146, CARD_W - 16, 46, 40, Color3.new(1, 1, 1), 3)
-			label("Description", card, option.desc, 16, 192, CARD_W - 32, 44, 18, Color3.new(1, 1, 1), 1.8)
+			label("CardTitle", float, string.upper(option.name), 8, 142, CARD_W - 16, 48, 44, Color3.new(1, 1, 1), 3.5)
+			label("Description", float, option.desc, 14, 190, CARD_W - 28, 50, 21, Color3.new(1, 1, 1), 2.2)
 		else
-			label("CardTitle", card, string.upper(option.name), 8, 78, CARD_W - 16, 64, 56, Color3.new(1, 1, 1), 3.5)
-			label("Description", card, option.desc, 16, 150, CARD_W - 32, 50, 22, Color3.new(1, 1, 1), 2)
+			local starSize = 58
+			local starRow = create("Frame", "Stars", float, {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromOffset(CARD_W / 2, 70),
+				Size = UDim2.fromOffset(option.stars * starSize + (option.stars - 1) * 4, starSize),
+				BackgroundTransparency = 1,
+				ZIndex = 4,
+			})
+			create("UIListLayout", "Layout", starRow, {
+				FillDirection = Enum.FillDirection.Horizontal,
+				HorizontalAlignment = Enum.HorizontalAlignment.Center,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				Padding = UDim.new(0, 4),
+			})
+			for _ = 1, option.stars do
+				create("ImageLabel", "Star", starRow, {
+					Size = UDim2.fromOffset(starSize, starSize),
+					BackgroundTransparency = 1,
+					Image = IMAGES.Star,
+					ImageColor3 = Color3.fromRGB(255, 214, 40),
+					ZIndex = 4,
+				})
+			end
+			info.starRow = starRow
+			info.starScale = create("UIScale", "StarScale", starRow, { Scale = 1 })
+			label("CardTitle", float, string.upper(option.name), 8, 112, CARD_W - 16, 60, 54, Color3.new(1, 1, 1), 3.5)
+			label("Description", float, option.desc, 14, 174, CARD_W - 28, 56, 23, Color3.new(1, 1, 1), 2.2)
 		end
 
-		local row = create("Frame", "VoterAvatars", card, {
-			Position = UDim2.fromOffset(10, 248),
+		local row = create("Frame", "VoterAvatars", float, {
+			Position = UDim2.fromOffset(10, 244),
 			Size = UDim2.fromOffset(CARD_W - 20, 46),
 			BackgroundTransparency = 1,
 			ZIndex = 6,
@@ -371,17 +500,17 @@ local function runVote(titleText, options, resultText)
 		})
 		info.row = row
 
-		local dimmer = create("Frame", "Dimmer", card, {
+		local dimmer = create("Frame", "Dimmer", float, {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundColor3 = Color3.new(0, 0, 0),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			ZIndex = 9,
 		})
-		create("UICorner", "Round", dimmer, { CornerRadius = UDim.new(0, 16) })
+		create("UICorner", "Round", dimmer, { CornerRadius = UDim.new(0, 17) })
 		info.dimmer = dimmer
 
-		local button = create("TextButton", "VoteButton", card, {
+		local button = create("TextButton", "VoteButton", holder, {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 			Text = "",
@@ -392,7 +521,11 @@ local function runVote(titleText, options, resultText)
 		round.cards[option.name] = info
 
 		button.MouseEnter:Connect(function()
-			if UserInputService.MouseEnabled and round.phase == "Voting" then info.hovered = true round.refresh() end
+			if UserInputService.MouseEnabled and round.phase == "Voting" then
+				info.hovered = true
+				playSound("Hover", 1.1)
+				round.refresh()
+			end
 		end)
 		button.MouseLeave:Connect(function() info.hovered = false round.refresh() end)
 		button.InputBegan:Connect(function(input)
@@ -407,10 +540,10 @@ local function runVote(titleText, options, resultText)
 			round.refresh()
 		end)
 
-		task.delay((index - 1) * 0.05, function()
+		task.delay((index - 1) * 0.06, function()
 			if not alive then return end
-			tween(cardScale, 0.28, { Scale = 1 }, Enum.EasingStyle.Back)
-			tween(card, 0.28, { Position = UDim2.fromOffset(baseX, baseY) }, Enum.EasingStyle.Back)
+			tween(cardScale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+			tween(holder, 0.3, { Position = UDim2.fromOffset(baseX, baseY) }, Enum.EasingStyle.Back)
 		end)
 	end
 
@@ -418,6 +551,8 @@ local function runVote(titleText, options, resultText)
 		if round.phase ~= "Voting" then return end
 		round.phase = "Finished"
 		fill.Visible = false
+		number.Visible = false
+		track.Position = UDim2.fromOffset(440, 146)
 		local winner = round.myVote or options[random:NextInteger(1, #options)].name
 		round.winner = winner
 		for _, card in pairs(round.cards) do
@@ -426,9 +561,10 @@ local function runVote(titleText, options, resultText)
 		end
 		round.refresh()
 		round.cards[winner].iconKick = os.clock()
+		playSound("Win")
 		footer.Text = string.format(resultText, string.upper(winner))
 		footer.TextColor3 = RESULT_GREEN
-		footer.TextSize = 36
+		footer.TextSize = 38
 		footerScale.Scale = 0.5
 		tween(footerScale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
 		task.delay(1.6, function()
@@ -466,4 +602,3 @@ tween(root, 0.3, { BackgroundTransparency = 1 })
 tween(blur, 0.3, { Size = 0 }).Completed:Wait()
 blur:Destroy()
 gui.Enabled = false
-
