@@ -556,7 +556,9 @@ local function loadHeadshot(image, userId)
 	end)
 end
 
-local function playerPanel(page, centerX, color, userId, displayName, username)
+local CARD_CREAM = Color3.fromRGB(255, 244, 230)
+
+local function playerPanel(page, centerX, userId, displayName, username)
 	local holder = create("Frame", "PlayerPanel", page, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromOffset(centerX, 250),
@@ -575,7 +577,7 @@ local function playerPanel(page, centerX, color, userId, displayName, username)
 	create("UICorner", "Round", shadow, { CornerRadius = UDim.new(0, 18) })
 	local edge = create("Frame", "Edge", holder, {
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = color:Lerp(Color3.new(0, 0, 0), 0.38),
+		BackgroundColor3 = Color3.fromRGB(196, 178, 160),
 		BorderSizePixel = 0,
 		ZIndex = 2,
 	})
@@ -583,7 +585,7 @@ local function playerPanel(page, centerX, color, userId, displayName, username)
 	create("UIStroke", "Border", edge, { Color = DARK, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 	local body = create("Frame", "Body", holder, {
 		Size = UDim2.new(1, 0, 1, -10),
-		BackgroundColor3 = color,
+		BackgroundColor3 = CARD_CREAM,
 		BorderSizePixel = 0,
 		ZIndex = 2,
 	})
@@ -596,7 +598,7 @@ local function playerPanel(page, centerX, color, userId, displayName, username)
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.fromOffset(140, 22),
 		Size = UDim2.fromOffset(200, 200),
-		BackgroundColor3 = CREAM,
+		BackgroundColor3 = Color3.fromRGB(226, 212, 196),
 		BorderSizePixel = 0,
 		Image = "",
 		ZIndex = 4,
@@ -608,7 +610,7 @@ local function playerPanel(page, centerX, color, userId, displayName, username)
 	nameLabel.TextWrapped = false
 	nameLabel.TextScaled = true
 	create("UITextSizeConstraint", "MaxSize", nameLabel, { MaxTextSize = 38 })
-	label("Username", holder, "@" .. username, 8, 276, 264, 26, 20, CREAM, 2)
+	label("Username", holder, "@" .. username, 8, 276, 264, 26, 20, Color3.fromRGB(110, 96, 84))
 	return holder
 end
 
@@ -621,10 +623,44 @@ local function runVersus(category, difficulty)
 	})
 	local pageScale = create("UIScale", "PageScale", page, { Scale = 1 })
 
-	local mine = playerPanel(page, 330, Color3.fromRGB(52, 128, 232),
-		player.UserId, player.DisplayName, player.Name)
-	local theirs = playerPanel(page, 950, Color3.fromRGB(222, 52, 52),
-		FAKE_OPPONENT.userId, FAKE_OPPONENT.displayName, FAKE_OPPONENT.name)
+	local pivot = create("Frame", "SplitPivot", page, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(640, 296),
+		Size = UDim2.fromOffset(0, 0),
+		Rotation = 12,
+		BackgroundTransparency = 1,
+		ZIndex = 1,
+	})
+	local leftHalf = create("Frame", "LeftHalf", pivot, {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.fromOffset(-1900, 0),
+		Size = UDim2.fromOffset(1900, 2000),
+		BackgroundColor3 = Color3.fromRGB(24, 28, 48),
+		BackgroundTransparency = 0.12,
+		BorderSizePixel = 0,
+		ZIndex = 1,
+	})
+	local rightHalf = create("Frame", "RightHalf", pivot, {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.fromOffset(1900, 0),
+		Size = UDim2.fromOffset(1900, 2000),
+		BackgroundColor3 = Color3.fromRGB(12, 14, 26),
+		BackgroundTransparency = 0.12,
+		BorderSizePixel = 0,
+		ZIndex = 1,
+	})
+	local seam = create("Frame", "Seam", pivot, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromOffset(8, 0),
+		BackgroundColor3 = YELLOW,
+		BorderSizePixel = 0,
+		ZIndex = 2,
+	})
+	create("UIStroke", "SeamBorder", seam, { Color = DARK, Thickness = 2 })
+
+	local mine = playerPanel(page, 330, player.UserId, player.DisplayName, player.Name)
+	local theirs = playerPanel(page, 950, FAKE_OPPONENT.userId, FAKE_OPPONENT.displayName, FAKE_OPPONENT.name)
 	mine.Position = UDim2.fromOffset(-260, 250)
 	theirs.Position = UDim2.fromOffset(1540, 250)
 
@@ -661,39 +697,19 @@ local function runVersus(category, difficulty)
 	})
 	stroke(infoText, 2.5)
 
-	local countdown = label("Countdown", page, "", 340, 516, 600, 46, 32, CREAM, 2.5)
-
+	tween(leftHalf, 0.4, { Position = UDim2.fromOffset(0, 0) }, Enum.EasingStyle.Quart)
+	tween(rightHalf, 0.4, { Position = UDim2.fromOffset(0, 0) }, Enum.EasingStyle.Quart)
+	task.wait(0.25)
+	if not alive then return end
+	tween(seam, 0.3, { Size = UDim2.fromOffset(8, 1400) }, Enum.EasingStyle.Quart)
 	tween(mine, 0.45, { Position = UDim2.fromOffset(330, 250) }, Enum.EasingStyle.Back)
 	tween(theirs, 0.45, { Position = UDim2.fromOffset(950, 250) }, Enum.EasingStyle.Back)
 	task.wait(0.4)
 	if not alive then return end
-	versusScale.Scale = 3
-	tween(versusScale, 0.22, { Scale = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-	task.wait(0.22)
-	if not alive then return end
-	for i = 1, 8 do
-		local power = (9 - i) * 1.6
-		page.Position = UDim2.new(0.5, random:NextNumber(-power, power), 0.5, random:NextNumber(-power, power))
-		task.wait(0.03)
-	end
-	page.Position = UDim2.fromScale(0.5, 0.5)
+	tween(versusScale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+	task.wait(0.15)
 	tween(infoScale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
-	task.wait(0.5)
-
-	local countdownScale = create("UIScale", "CountdownPop", countdown, { Scale = 1 })
-	for n = 3, 1, -1 do
-		if not alive then return end
-		countdown.Text = "Starting in " .. n
-		countdownScale.Scale = 1.3
-		tween(countdownScale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
-		task.wait(1)
-	end
-	if not alive then return end
-	countdown.Text = "GO!"
-	countdown.TextColor3 = RESULT_GREEN
-	countdownScale.Scale = 1.5
-	tween(countdownScale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
-	task.wait(0.6)
+	task.wait(2.5)
 
 	tween(pageScale, 0.09, { Scale = 1.03 })
 	task.wait(0.09)
