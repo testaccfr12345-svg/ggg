@@ -9,7 +9,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 local DURATION = 7
 local BAR_WIDTH = 396
-local CARD_W, CARD_H, CARD_GAP, CARD_Y = 240, 310, 20, 192
+local CARD_W, CARD_H, CARD_GAP, CARD_Y = 240, 310, 34, 192
 local YELLOW = Color3.fromRGB(255, 222, 30)
 local DANGER = Color3.fromRGB(255, 64, 64)
 local DARK = Color3.fromRGB(14, 16, 28)
@@ -146,7 +146,10 @@ local current = nil
 table.insert(connections, UserInputService.InputEnded:Connect(function(input)
 	if not current then return end
 	for _, card in pairs(current.cards) do
-		if card.held == input then card.held = nil end
+		if card.held == input then
+			card.held = nil
+			if current.heldCard == card then current.heldCard = nil end
+		end
 	end
 	current.refresh()
 end))
@@ -155,15 +158,9 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
 	if not alive or not current then return end
 	local now = os.clock()
 	for _, card in pairs(current.cards) do
-		local t = now * 1.6 + card.idleOffset
+		local t = now * 2.4 + card.idleOffset
 		if card.icon then
-			local kick = 0
-			if card.iconKick then
-				local age = now - card.iconKick
-				if age < 0.42 then kick = math.sin(age / 0.42 * math.pi) * math.exp(-age * 4) end
-			end
-			card.icon.Rotation = math.sin(t) * 4
-			card.iconScale.Scale = 1 + math.sin(t * 2) * 0.03 + kick * 0.15
+			card.icon.Position = UDim2.fromOffset(card.iconX, card.iconY + math.sin(t) * 4)
 		end
 	end
 	if current.phase ~= "Voting" then return end
@@ -278,13 +275,13 @@ local function runVote(titleText, options, resultText)
 			if finished then
 				size, lift = winner and 1.08 or 0.95, winner and -8 or 4
 			elseif holding then
-				size, lift = 0.96, 3
+				size, lift = 1.04, -3
 			elseif picked then
 				size, lift = 1.05, -6
 			elseif hovering then
 				size, lift = 1.03, -4
 			end
-			local outlined = winner or (not finished and (picked or hovering or holding))
+			local outlined = winner or (not finished and (picked or hovering))
 			local shade = (finished and not winner) and 0.45 or 1
 			local signature = size .. ":" .. tostring(outlined) .. ":" .. shade
 			if signature ~= card.signature then
@@ -295,7 +292,7 @@ local function runVote(titleText, options, resultText)
 					holding and Enum.EasingStyle.Quad or Enum.EasingStyle.Back)
 				card.positionTween = tween(card.frame, 0.18,
 					{ Position = UDim2.fromOffset(card.baseX, card.baseY + lift) }, Enum.EasingStyle.Back)
-				tween(card.glow, 0.15, { Transparency = outlined and 0 or 1 })
+				tween(card.glow, 0.12, { Color = outlined and YELLOW or DARK, Thickness = outlined and 4 or 3 })
 				tween(card.dimmer, 0.2, { BackgroundTransparency = shade })
 			end
 			card.frame.ZIndex = winner and 6 or ((picked or hovering or holding) and 4 or 2)
@@ -345,7 +342,7 @@ local function runVote(titleText, options, resultText)
 			ZIndex = 2,
 		})
 		create("UICorner", "Round", edge, { CornerRadius = UDim.new(0, 18) })
-		create("UIStroke", "Border", edge, { Color = DARK, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+		local glow = create("UIStroke", "Border", edge, { Color = DARK, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 		local body = create("Frame", "Body", float, {
 			Size = UDim2.new(1, 0, 1, -10),
 			BackgroundColor3 = option.color,
@@ -368,17 +365,6 @@ local function runVote(titleText, options, resultText)
 		create("UIGradient", "Fade", gloss, {
 			Rotation = 90,
 			Transparency = NumberSequence.new(0.8, 1),
-		})
-		local glowFrame = create("Frame", "Glow", float, {
-			Position = UDim2.fromOffset(-5, -5),
-			Size = UDim2.new(1, 10, 1, 10),
-			BackgroundTransparency = 1,
-			ZIndex = 8,
-		})
-		create("UICorner", "Round", glowFrame, { CornerRadius = UDim.new(0, 22) })
-		local glow = create("UIStroke", "GlowStroke", glowFrame, {
-			Color = YELLOW, Thickness = 5, Transparency = 1,
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 		})
 		local info = {
 			frame = holder, scale = cardScale, float = float, glow = glow, body = body,
@@ -457,11 +443,18 @@ local function runVote(titleText, options, resultText)
 		button.InputBegan:Connect(function(input)
 			local kind = input.UserInputType
 			if round.phase == "Voting" and (kind == Enum.UserInputType.Touch or kind == Enum.UserInputType.MouseButton1) then
-				if not info.held then info.held = input round.refresh() end
+				if round.heldCard and round.heldCard ~= info then return end
+				if not info.held then
+					info.held = input
+					round.heldCard = info
+					round.refresh()
+				end
 			end
 		end)
 		button.Activated:Connect(function()
+			if round.heldCard and round.heldCard ~= info then return end
 			info.held = nil
+			round.heldCard = nil
 			vote(option.name)
 			round.refresh()
 		end)
@@ -476,6 +469,7 @@ local function runVote(titleText, options, resultText)
 		round.winner = winner
 		for _, card in pairs(round.cards) do
 			card.hovered, card.held = false, nil
+			round.heldCard = nil
 			card.button.Active = false
 		end
 		round.refresh()
