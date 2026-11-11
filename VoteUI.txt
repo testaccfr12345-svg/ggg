@@ -157,12 +157,6 @@ end))
 table.insert(connections, RunService.RenderStepped:Connect(function()
 	if not alive or not current then return end
 	local now = os.clock()
-	for _, card in pairs(current.cards) do
-		local t = now * 2.4 + card.idleOffset
-		if card.icon then
-			card.icon.Position = UDim2.fromOffset(card.iconX, card.iconY + math.sin(t) * 4)
-		end
-	end
 	if current.phase ~= "Voting" then return end
 	local remaining = math.max(0, current.endsAt - now)
 	if remaining <= 3 and not current.dangerShown then
@@ -386,7 +380,13 @@ local function runVote(titleText, options, resultText)
 				ZIndex = 4,
 			})
 			info.icon = slot
-			info.iconScale = create("UIScale", "IconScale", slot, { Scale = 1 })
+			slot.Position = UDim2.fromOffset(info.iconX, info.iconY + 2)
+			task.delay(index * 0.35, function()
+				if not slot.Parent then return end
+				TweenService:Create(slot,
+					TweenInfo.new(2.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+					{ Position = UDim2.fromOffset(info.iconX, info.iconY - 2) }):Play()
+			end)
 			create("ImageLabel", "Artwork", slot, {
 				Position = UDim2.fromScale(-bounds[1] / cropW, -bounds[2] / cropH),
 				Size = UDim2.fromScale(1 / cropW, 1 / cropH),
