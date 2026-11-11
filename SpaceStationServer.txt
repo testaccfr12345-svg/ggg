@@ -11,6 +11,7 @@ local ORANGE = Color3.fromRGB(255, 140, 40)
 local PINK = Color3.fromRGB(255, 80, 170)
 local GREEN = Color3.fromRGB(80, 255, 140)
 local RED = Color3.fromRGB(255, 70, 90)
+local YELLOW = Color3.fromRGB(255, 210, 60)
 local METAL = Color3.fromRGB(78, 84, 102)
 local DARK = Color3.fromRGB(30, 34, 46)
 local WHITE = Color3.fromRGB(235, 240, 250)
@@ -124,9 +125,11 @@ local function textLabel(parent, text, size, position, textSize, color, font)
 	label.Text = text
 	label.TextSize = textSize
 	label.TextColor3 = color
-	label.Font = font or Enum.Font.GothamBold
-	label.TextStrokeTransparency = 0.4
-	label.TextStrokeColor3 = Color3.new(0, 0, 0)
+	label.Font = font or Enum.Font.FredokaOne
+	local outline = Instance.new("UIStroke")
+	outline.Thickness = 2.5
+	outline.Color = Color3.fromRGB(18, 20, 38)
+	outline.Parent = label
 	label.Parent = parent
 	return label
 end
@@ -139,7 +142,7 @@ local function formatNumber(n)
 	local value = n
 	while value >= 1000 and index < #suffixes do
 		value = value / 1000
-		index += 1
+		index = index + 1
 	end
 	if value >= 100 then
 		return string.format("%.0f%s", value, suffixes[index])
@@ -155,9 +158,9 @@ for _, child in ipairs(workspace:GetChildren()) do
 	if child:IsA("SpawnLocation") then child:Destroy() end
 end
 
-workspace.Gravity = 110
-workspace.FallenPartsDestroyHeight = -150
+workspace.Gravity = 130
 
+pcall(function()
 for _, child in ipairs(Lighting:GetChildren()) do
 	if child:IsA("Sky") or child:IsA("Atmosphere") or child:IsA("BloomEffect") or child:IsA("ColorCorrectionEffect") then
 		child:Destroy()
@@ -170,7 +173,7 @@ Lighting.OutdoorAmbient = Color3.fromRGB(95, 105, 150)
 Lighting.EnvironmentDiffuseScale = 0.4
 Lighting.EnvironmentSpecularScale = 0.6
 local sky = Instance.new("Sky")
-sky.StarCount = 5000
+sky.StarCount = 3000
 sky.CelestialBodiesShown = false
 sky.Parent = Lighting
 local bloom = Instance.new("BloomEffect")
@@ -183,6 +186,7 @@ grade.Contrast = 0.1
 grade.Saturation = 0.15
 grade.TintColor = Color3.fromRGB(235, 240, 255)
 grade.Parent = Lighting
+end)
 
 local world = Instance.new("Folder")
 world.Name = "SpaceStationWorld"
@@ -205,13 +209,49 @@ for i = 1, 12 do
 	local angle = i / 12 * math.pi * 2
 	local position = Vector3.new(math.cos(angle) * 28, 1, math.sin(angle) * 28)
 	cylinder(world, 3, 0.6, CFrame.new(position + Vector3.new(0, 1.5, 0)), METAL)
-	ball(world, 1.2, CFrame.new(position + Vector3.new(0, 3.4, 0)), CYAN, Enum.Material.Neon, { CanCollide = false })
+	local lamp = ball(world, 1.2, CFrame.new(position + Vector3.new(0, 3.4, 0)), CYAN, Enum.Material.Neon, { CanCollide = false })
+	local glow = Instance.new("PointLight")
+	glow.Color = CYAN
+	glow.Range = 18
+	glow.Brightness = 1.5
+	glow.Parent = lamp
 end
+
+local worldSpinners = {}
+for i = 1, 16 do
+	local pivot = CFrame.new(0, 12, 0)
+	local offset = CFrame.Angles(0, i / 16 * math.pi * 2, 0) * CFrame.new(22, 0, 0)
+	local segment = box(world, Vector3.new(1.2, 1.2, 5), pivot * offset, i % 2 == 0 and CYAN or PURPLE, Enum.Material.Neon, { CanCollide = false })
+	table.insert(worldSpinners, { part = segment, pivot = pivot, offset = offset, speed = Vector3.new(0, 0.35, 0) })
+end
+
+local setCheckpoint
+
+local function makeCheckpoint(parent, cf, name, spawnCF)
+	local pad = cylinder(parent, 0.3, 7, cf, YELLOW, Enum.Material.Neon, { CanCollide = false })
+	cylinder(parent, 7, 0.4, cf * CFrame.new(3, 3.5, 0), WHITE)
+	box(parent, Vector3.new(0.2, 1.8, 2.6), cf * CFrame.new(3, 6, -1.4), YELLOW, Enum.Material.Neon, { CanCollide = false })
+	local glow = Instance.new("PointLight")
+	glow.Color = YELLOW
+	glow.Range = 14
+	glow.Brightness = 2
+	glow.Parent = pad
+	local tag = billboard(pad, UDim2.fromOffset(200, 36), Vector3.new(0, 9, 0), 70)
+	textLabel(tag, "CHECKPOINT", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 20, YELLOW)
+	local entry = { name = name, spawn = spawnCF }
+	pad.Touched:Connect(function(hit)
+		local toucher = hit.Parent and Players:GetPlayerFromCharacter(hit.Parent)
+		if toucher and setCheckpoint then setCheckpoint(toucher, entry) end
+	end)
+	return entry
+end
+
+local hubCheckpoint = makeCheckpoint(world, CFrame.new(0, 1.2, 0), "HUB", CFrame.new(0, 6, 0))
 
 local titleAnchor = box(world, Vector3.new(1, 1, 1), CFrame.new(0, 16, 0), WHITE, nil, { Transparency = 1, CanCollide = false })
 local titleGui = billboard(titleAnchor, UDim2.fromOffset(520, 120), Vector3.new(0, 0, 0), 400)
-textLabel(titleGui, "SPACE STATION", UDim2.fromScale(1, 0.6), UDim2.fromScale(0, 0), 46, CYAN, Enum.Font.Michroma)
-textLabel(titleGui, "T Y C O O N", UDim2.fromScale(1, 0.4), UDim2.fromScale(0, 0.6), 26, WHITE, Enum.Font.Michroma)
+textLabel(titleGui, "SPACE STATION", UDim2.fromScale(1, 0.6), UDim2.fromScale(0, 0), 46, CYAN, Enum.Font.FredokaOne)
+textLabel(titleGui, "T Y C O O N", UDim2.fromScale(1, 0.4), UDim2.fromScale(0, 0.6), 26, WHITE, Enum.Font.FredokaOne)
 
 local rng = Random.new(42)
 for _ = 1, 45 do
@@ -258,10 +298,12 @@ for i = 1, PLOT_COUNT do
 
 	local signAnchor = box(folder, Vector3.new(1, 1, 1), cf * CFrame.new(0, 13, -34), WHITE, nil, { Transparency = 1, CanCollide = false })
 	local signGui = billboard(signAnchor, UDim2.fromOffset(360, 70), Vector3.new(0, 0, 0), 220)
-	local sign = textLabel(signGui, "EMPTY DOCK", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 28, CYAN, Enum.Font.Michroma)
+	local sign = textLabel(signGui, "EMPTY DOCK", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 28, CYAN, Enum.Font.FredokaOne)
 
 	plots[i] = {
 		index = i, cf = cf, folder = folder, items = items, buttons = buttons,
+		checkpoint = makeCheckpoint(folder, cf * CFrame.new(0, 1.15, -35.5), "STATION " .. i,
+			cf * CFrame.new(0, 5, -35.5) * CFrame.Angles(0, math.pi, 0)),
 		sign = sign, owner = nil, spinners = {}, fills = {}, blinkers = {}, buttonParts = {},
 	}
 end
@@ -454,6 +496,13 @@ for _, item in ipairs(GENERATORS) do table.insert(ORDER, item.id) end
 
 local profiles = {}
 
+setCheckpoint = function(player, entry)
+	local profile = profiles[player]
+	if not profile or profile.checkpoint == entry then return end
+	profile.checkpoint = entry
+	remote:FireClient(player, "Checkpoint", entry.name)
+end
+
 local function upgradeCost(kind, level)
 	local data = UPGRADES[kind]
 	return math.floor(data.base * data.growth ^ level)
@@ -463,11 +512,11 @@ local function stats(profile)
 	local multiplier = 1 + profile.rebirths * 0.5
 	local rate = 0
 	for _, item in ipairs(GENERATORS) do
-		if profile.items[item.id] then rate += item.rate end
+		if profile.items[item.id] then rate = rate + item.rate end
 	end
 	local capacity = BASE_CAPACITY
 	for _, item in ipairs(STATION) do
-		if profile.items[item.id] and item.capacity then capacity += item.capacity end
+		if profile.items[item.id] and item.capacity then capacity = capacity + item.capacity end
 	end
 	capacity = math.floor(capacity * (1 + profile.upgrades.Capacity * 0.5))
 	return {
@@ -564,9 +613,9 @@ local function refreshButtons(plot)
 			local rim = box(plot.buttons, Vector3.new(7, 0.4, 7), at(plot, x, 0.2, -33), DARK, Enum.Material.Metal)
 			rim.CanTouch = false
 			local gui = billboard(pad, UDim2.fromOffset(220, 74), Vector3.new(0, 4, 0), 90)
-			textLabel(gui, string.upper(nextItem.name), UDim2.new(1, 0, 0.5, 0), UDim2.fromScale(0, 0), 20, WHITE, Enum.Font.Michroma)
+			textLabel(gui, string.upper(nextItem.name), UDim2.new(1, 0, 0.5, 0), UDim2.fromScale(0, 0), 20, WHITE, Enum.Font.FredokaOne)
 			local priceText = nextItem.price == 0 and "FREE" or ("$" .. formatNumber(nextItem.price))
-			local price = textLabel(gui, priceText, UDim2.new(1, 0, 0.5, 0), UDim2.fromScale(0, 0.5), 24, GREEN, Enum.Font.GothamBlack)
+			local price = textLabel(gui, priceText, UDim2.new(1, 0, 0.5, 0), UDim2.fromScale(0, 0.5), 24, GREEN, Enum.Font.FredokaOne)
 			table.insert(plot.buttonParts, { pad = pad, price = price, item = nextItem })
 			local itemId = nextItem.id
 			pad.Touched:Connect(function(hit)
@@ -591,7 +640,7 @@ buy = function(player, id)
 		notify(player, "Need $" .. formatNumber(item.price - profile.cash) .. " more for " .. item.name, "bad")
 		return
 	end
-	profile.cash -= item.price
+	profile.cash = profile.cash - item.price
 	profile.items[id] = true
 	buildItem(profile.plot, id, true)
 	refreshButtons(profile.plot)
@@ -608,26 +657,31 @@ local function sell(player, auto)
 	local profile = profiles[player]
 	if not profile or profile.energy < 1 then return end
 	local amount = math.floor(profile.energy * profile.stats.sell)
-	profile.cash += amount
+	profile.cash = profile.cash + amount
 	profile.energy = 0
 	publish(player)
 	remote:FireClient(player, "Sold", amount, auto == true)
 end
 
+local function teleportTo(player, entry)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not entry then return end
+	character:PivotTo(entry.spawn)
+	root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+end
+
 local function teleportHome(player)
 	local profile = profiles[player]
-	local character = player.Character
-	if not profile or not profile.plot or not character then return end
-	local root = character:FindFirstChild("HumanoidRootPart")
-	if root then
-		character:PivotTo(profile.plot.cf * CFrame.new(0, 5, -35) * CFrame.Angles(0, math.pi, 0))
-	end
+	if not profile then return end
+	if profile.plot then profile.checkpoint = profile.plot.checkpoint end
+	teleportTo(player, profile.checkpoint or hubCheckpoint)
 end
 
 local function rebirth(player)
 	local profile = profiles[player]
 	if not profile or not profile.items.WarpGate then return end
-	profile.rebirths += 1
+	profile.rebirths = profile.rebirths + 1
 	profile.cash = 0
 	profile.energy = 0
 	profile.items = {}
@@ -649,7 +703,7 @@ local function upgrade(player, kind)
 		notify(player, "Not enough credits", "bad")
 		return
 	end
-	profile.cash -= cost
+	profile.cash = profile.cash - cost
 	profile.upgrades[kind] = level + 1
 	publish(player)
 	remote:FireClient(player, "Upgraded", kind, level + 1)
@@ -751,6 +805,7 @@ local function onPlayerAdded(player)
 	profile.stats = stats(profile)
 
 	if not plot then
+		profile.checkpoint = hubCheckpoint
 		notify(player, "Server is full of stations, try another server", "bad")
 		publish(player)
 		return
@@ -758,6 +813,7 @@ local function onPlayerAdded(player)
 
 	plot.owner = player
 	profile.plot = plot
+	profile.checkpoint = plot.checkpoint
 	plot.sign.Text = string.upper(player.DisplayName) .. "'S STATION"
 	player:SetAttribute("PlotIndex", plot.index)
 	for _, id in ipairs(ORDER) do
@@ -769,7 +825,7 @@ local function onPlayerAdded(player)
 	player.CharacterAdded:Connect(function(character)
 		character:WaitForChild("HumanoidRootPart", 10)
 		task.wait(0.2)
-		teleportHome(player)
+		teleportTo(player, profile.checkpoint or hubCheckpoint)
 	end)
 	if player.Character then
 		task.defer(teleportHome, player)
@@ -849,13 +905,28 @@ task.spawn(function()
 	end
 end)
 
-RunService.Heartbeat:Connect(function()
+local fallTimer = 0
+RunService.Heartbeat:Connect(function(dt)
 	local t = os.clock()
+	for _, s in ipairs(worldSpinners) do
+		s.part.CFrame = s.pivot * CFrame.Angles(0, s.speed.Y * t, 0) * s.offset
+	end
 	for _, plot in ipairs(plots) do
 		for _, s in ipairs(plot.spinners) do
 			if s.part.Parent then
 				s.part.CFrame = s.pivot * CFrame.Angles(s.speed.X * t, s.speed.Y * t, s.speed.Z * t) * s.offset
 			end
+		end
+	end
+	fallTimer = fallTimer + dt
+	if fallTimer < 0.2 then return end
+	fallTimer = 0
+	for player, profile in pairs(profiles) do
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if root and root.Position.Y < -25 then
+			teleportTo(player, profile.checkpoint or hubCheckpoint)
+			remote:FireClient(player, "Fell")
 		end
 	end
 end)
