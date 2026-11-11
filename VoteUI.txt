@@ -1,7 +1,3 @@
-local IMAGES = {
-	Star = "rbxassetid://0",
-}
-
 local SOUNDS = {
 	Hover = { id = "rbxasset://sounds/clickfast.wav", volume = 0.25 },
 	Click = { id = "rbxasset://sounds/button.wav", volume = 0.6 },
@@ -32,15 +28,21 @@ local alive = true
 local thumbnailCache = {}
 
 local ICONS = {
-	Animals = "rbxassetid://88030459510458",
-	Countries = "rbxassetid://114664915919686",
-	Space = "rbxassetid://114694977492856",
+	Animals = "rbxassetid://123075200307928",
+	Countries = "rbxassetid://131264505882614",
+	Space = "rbxassetid://110664843204682",
+	Easy = "rbxassetid://133252098903353",
+	Medium = "rbxassetid://73804519354322",
+	Hard = "rbxassetid://73511049481732",
 }
 
 local ICON_BOUNDS = {
-	Animals = { 146 / 1254, 245 / 1254, 1097 / 1254, 1031 / 1254 },
-	Countries = { 115 / 1254, 336 / 1254, 1144 / 1254, 940 / 1254 },
-	Space = { 136 / 1254, 311 / 1254, 1109 / 1254, 944 / 1254 },
+	Animals = { 31 / 1254, 83 / 1254, 1213 / 1254, 1226 / 1254 },
+	Countries = { 12 / 1254, 269 / 1254, 1249 / 1254, 1074 / 1254 },
+	Space = { 35 / 1254, 155 / 1254, 1217 / 1254, 1099 / 1254 },
+	Easy = { 20 / 1254, 157 / 1254, 1231 / 1254, 1142 / 1254 },
+	Medium = { 36 / 1254, 109 / 1254, 1214 / 1254, 1176 / 1254 },
+	Hard = { 26 / 1254, 105 / 1254, 1225 / 1254, 1195 / 1254 },
 }
 
 local CATEGORY_OPTIONS = {
@@ -50,9 +52,9 @@ local CATEGORY_OPTIONS = {
 }
 
 local DIFFICULTY_OPTIONS = {
-	{ name = "Easy", color = Color3.fromRGB(80, 196, 60), desc = "Relaxed questions for everyone", stars = 1 },
-	{ name = "Medium", color = Color3.fromRGB(240, 186, 30), desc = "A fair challenge", stars = 2 },
-	{ name = "Hard", color = Color3.fromRGB(222, 52, 52), desc = "Only for the real experts", stars = 3 },
+	{ name = "Easy", color = Color3.fromRGB(80, 196, 60), desc = "Relaxed questions for everyone", icon = true },
+	{ name = "Medium", color = Color3.fromRGB(240, 186, 30), desc = "A fair challenge", icon = true },
+	{ name = "Hard", color = Color3.fromRGB(222, 52, 52), desc = "Only for the real experts", icon = true },
 }
 
 local function tween(object, duration, properties, style, direction)
@@ -185,14 +187,6 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
 			end
 			card.icon.Position = UDim2.fromOffset(card.iconX, card.iconY + math.sin(t * 1.2) * 2.2 - kick * 5)
 			card.iconScale.Scale = 1 + math.sin(t + 0.6) * 0.012 + kick * 0.06
-		end
-		if card.starRow then
-			local kick = 0
-			if card.iconKick then
-				local age = now - card.iconKick
-				if age < 0.42 then kick = math.sin(age / 0.42 * math.pi) * math.exp(-age * 4) end
-			end
-			card.starScale.Scale = 1 + math.sin(t * 1.3) * 0.03 + kick * 0.12
 		end
 	end
 	if current.phase ~= "Voting" then return end
@@ -455,8 +449,11 @@ local function runVote(titleText, options, resultText)
 		}
 
 		if option.icon then
-			local iconW, iconH = 170, 120
-			info.iconX, info.iconY = CARD_W / 2, 18 + iconH / 2
+			local bounds = ICON_BOUNDS[option.name]
+			local cropW, cropH = bounds[3] - bounds[1], bounds[4] - bounds[2]
+			local fitBy = math.min(190 / cropW, 125 / cropH)
+			local iconW, iconH = cropW * fitBy, cropH * fitBy
+			info.iconX, info.iconY = CARD_W / 2, 80
 			local slot = create("Frame", "Icon", float, {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromOffset(info.iconX, info.iconY),
@@ -467,8 +464,6 @@ local function runVote(titleText, options, resultText)
 			})
 			info.icon = slot
 			info.iconScale = create("UIScale", "IconScale", slot, { Scale = 1 })
-			local bounds = ICON_BOUNDS[option.name]
-			local cropW, cropH = bounds[3] - bounds[1], bounds[4] - bounds[2]
 			create("ImageLabel", "Artwork", slot, {
 				Position = UDim2.fromScale(-bounds[1] / cropW, -bounds[2] / cropH),
 				Size = UDim2.fromScale(1 / cropW, 1 / cropH),
@@ -479,34 +474,6 @@ local function runVote(titleText, options, resultText)
 			})
 			label("CardTitle", float, string.upper(option.name), 8, 142, CARD_W - 16, 48, 44, Color3.new(1, 1, 1), 3.5)
 			label("Description", float, option.desc, 14, 190, CARD_W - 28, 50, 21, Color3.new(1, 1, 1), 2.2)
-		else
-			local starSize = 58
-			local starRow = create("Frame", "Stars", float, {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.fromOffset(CARD_W / 2, 70),
-				Size = UDim2.fromOffset(option.stars * starSize + (option.stars - 1) * 4, starSize),
-				BackgroundTransparency = 1,
-				ZIndex = 4,
-			})
-			create("UIListLayout", "Layout", starRow, {
-				FillDirection = Enum.FillDirection.Horizontal,
-				HorizontalAlignment = Enum.HorizontalAlignment.Center,
-				VerticalAlignment = Enum.VerticalAlignment.Center,
-				Padding = UDim.new(0, 4),
-			})
-			for _ = 1, option.stars do
-				create("ImageLabel", "Star", starRow, {
-					Size = UDim2.fromOffset(starSize, starSize),
-					BackgroundTransparency = 1,
-					Image = IMAGES.Star,
-					ImageColor3 = Color3.fromRGB(255, 214, 40),
-					ZIndex = 4,
-				})
-			end
-			info.starRow = starRow
-			info.starScale = create("UIScale", "StarScale", starRow, { Scale = 1 })
-			label("CardTitle", float, string.upper(option.name), 8, 112, CARD_W - 16, 60, 54, Color3.new(1, 1, 1), 3.5)
-			label("Description", float, option.desc, 14, 174, CARD_W - 28, 56, 23, Color3.new(1, 1, 1), 2.2)
 		end
 
 		local row = create("Frame", "VoterAvatars", float, {
