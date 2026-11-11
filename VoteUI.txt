@@ -1,0 +1,469 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local DURATION = 7
+local BAR_WIDTH = 396
+local CARD_W, CARD_H, CARD_GAP, CARD_Y = 240, 310, 20, 180
+local YELLOW = Color3.fromRGB(255, 222, 30)
+local DARK = Color3.fromRGB(14, 16, 28)
+local CREAM = Color3.fromRGB(255, 240, 225)
+local RESULT_GREEN = Color3.fromRGB(104, 255, 59)
+local FONT = Enum.Font.FredokaOne
+local random = Random.new()
+local alive = true
+local thumbnailCache = {}
+
+local ICONS = {
+	Animals = "rbxassetid://88030459510458",
+	Countries = "rbxassetid://114664915919686",
+	Space = "rbxassetid://114694977492856",
+}
+
+local ICON_BOUNDS = {
+	Animals = { 146 / 1254, 245 / 1254, 1097 / 1254, 1031 / 1254 },
+	Countries = { 115 / 1254, 336 / 1254, 1144 / 1254, 940 / 1254 },
+	Space = { 136 / 1254, 311 / 1254, 1109 / 1254, 944 / 1254 },
+}
+
+local CATEGORY_OPTIONS = {
+	{ name = "Animals", color = Color3.fromRGB(240, 128, 34), desc = "Guess animals from around the world", icon = true },
+	{ name = "Countries", color = Color3.fromRGB(52, 128, 232), desc = "Countries from all over the world", icon = true },
+	{ name = "Space", color = Color3.fromRGB(122, 66, 214), desc = "Planets, stars and more", icon = true },
+}
+
+local DIFFICULTY_OPTIONS = {
+	{ name = "Easy", color = Color3.fromRGB(80, 196, 60), desc = "Relaxed questions for everyone" },
+	{ name = "Medium", color = Color3.fromRGB(240, 186, 30), desc = "A fair challenge" },
+	{ name = "Hard", color = Color3.fromRGB(222, 52, 52), desc = "Only for the real experts" },
+}
+
+local function tween(object, duration, properties, style, direction)
+	local animation = TweenService:Create(object,
+		TweenInfo.new(duration, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out), properties)
+	animation:Play()
+	return animation
+end
+
+local function create(className, name, parent, properties)
+	local instance = Instance.new(className)
+	instance.Name = name
+	for key, value in pairs(properties or {}) do
+		instance[key] = value
+	end
+	instance.Parent = parent
+	return instance
+end
+
+local function stroke(parent, thickness, color)
+	return create("UIStroke", "Outline", parent, {
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+		Color = color or DARK,
+		Thickness = thickness,
+		LineJoinMode = Enum.LineJoinMode.Round,
+	})
+end
+
+local function label(name, parent, value, x, y, width, height, size, color, outline)
+	local text = create("TextLabel", name, parent, {
+		Position = UDim2.fromOffset(x, y),
+		Size = UDim2.fromOffset(width, height),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Font = FONT,
+		Text = value,
+		TextSize = size,
+		TextColor3 = color,
+		TextWrapped = true,
+		ZIndex = 6,
+	})
+	if outline then stroke(text, outline) end
+	return text
+end
+
+local previous = playerGui:FindFirstChild("CategoryVoteUI")
+if previous then previous:Destroy() end
+
+local gui = create("ScreenGui", "CategoryVoteUI", playerGui, {
+	IgnoreGuiInset = true,
+	ResetOnSpawn = false,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	DisplayOrder = 10,
+})
+
+local blur = Lighting:FindFirstChild("VoteBlur") or create("BlurEffect", "VoteBlur", Lighting, { Size = 0 })
+blur.Size = 0
+blur.Enabled = true
+tween(blur, 0.35, { Size = 18 })
+
+local root = create("Frame", "Root", gui, {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.new(0, 0, 0),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+})
+tween(root, 0.35, { BackgroundTransparency = 0.82 })
+
+local canvas = create("Frame", "ReferenceCanvas", root, {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(1280, 592),
+	BackgroundTransparency = 1,
+})
+local fitScale = create("UIScale", "FitToScreen", canvas, { Scale = 1 })
+
+local function fit()
+	local size = root.AbsoluteSize
+	if size.X > 0 and size.Y > 0 then
+		fitScale.Scale = math.min(size.X / 1280, size.Y / 592)
+	end
+end
+
+local connections = {}
+gui.Destroying:Connect(function()
+	alive = false
+	for _, connection in ipairs(connections) do connection:Disconnect() end
+	if blur.Parent then blur:Destroy() end
+end)
+table.insert(connections, root:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit))
+fit()
+task.defer(fit)
+
+local current = nil
+
+table.insert(connections, UserInputService.InputEnded:Connect(function(input)
+	if not current then return end
+	for _, card in pairs(current.cards) do
+		if card.held == input then card.held = nil end
+	end
+	current.refresh()
+end))
+
+table.insert(connections, RunService.RenderStepped:Connect(function()
+	if not alive or not current then return end
+	local now = os.clock()
+	for _, card in pairs(current.cards) do
+		if card.icon then
+			local t = now * 2.7 + card.idleOffset
+			local kick = 0
+			if card.iconKick then
+				local age = now - card.iconKick
+				if age < 0.42 then kick = math.sin(age / 0.42 * math.pi) * math.exp(-age * 4) end
+			end
+			card.icon.Position = UDim2.fromOffset(card.iconX, card.iconY + math.sin(t) * 2.2 - kick * 5)
+			card.iconScale.Scale = 1 + math.sin(t + 0.6) * 0.012 + kick * 0.06
+		end
+	end
+	if current.phase ~= "Voting" then return end
+	local remaining = math.max(0, current.endsAt - now)
+	local ratio = math.clamp(remaining / DURATION, 0, 1)
+	current.fill.Visible = ratio > 0
+	current.fill.Size = UDim2.fromOffset(BAR_WIDTH * ratio, 14)
+	current.footer.Text = current.myVote and "You can change your vote" or "No votes = random pick"
+	if remaining <= 0 then current.finish() end
+end))
+
+local function addPortrait(card, userId)
+	local avatar = create("ImageLabel", "Voter_" .. userId, card.row, {
+		Size = UDim2.fromOffset(42, 42),
+		BackgroundColor3 = CREAM,
+		BorderSizePixel = 0,
+		Image = "",
+		ZIndex = 7,
+	})
+	create("UICorner", "Circle", avatar, { CornerRadius = UDim.new(1, 0) })
+	create("UIStroke", "AvatarOutline", avatar, {
+		Color = DARK, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	})
+	local pop = create("UIScale", "PopIn", avatar, { Scale = 0.1 })
+	tween(pop, 0.28, { Scale = 1 }, Enum.EasingStyle.Back)
+	task.spawn(function()
+		local content = thumbnailCache[userId]
+		if not content then
+			for _ = 1, 3 do
+				local ok, url, isReady = pcall(function()
+					return Players:GetUserThumbnailAsync(userId,
+						Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+				end)
+				if ok then
+					content = url
+					if isReady then thumbnailCache[userId] = url break end
+				end
+				if not avatar.Parent then return end
+				task.wait(0.5)
+			end
+		end
+		if avatar.Parent and content then avatar.Image = content end
+	end)
+	return avatar
+end
+
+local function runVote(titleText, options, resultText)
+	local round = { phase = "Entering", cards = {}, myVote = nil }
+	local done = Instance.new("BindableEvent")
+
+	local page = create("Frame", "Page", canvas, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+	})
+	local pageScale = create("UIScale", "PageScale", page, { Scale = 1 })
+
+	local title = label("Title", page, titleText, 240, 62, 800, 72, 56, Color3.new(1, 1, 1), 3.5)
+	title.TextWrapped = false
+	create("UIGradient", "TitleGradient", title, {
+		Rotation = 90,
+		Color = ColorSequence.new(Color3.fromRGB(255, 238, 90), Color3.fromRGB(255, 176, 30)),
+	})
+	local titleScale = create("UIScale", "TitlePop", title, { Scale = 0.6 })
+	tween(titleScale, 0.32, { Scale = 1 }, Enum.EasingStyle.Back)
+
+	local track = create("Frame", "TimerTrack", page, {
+		Position = UDim2.fromOffset(440, 146),
+		Size = UDim2.fromOffset(400, 18),
+		BackgroundColor3 = Color3.fromRGB(32, 32, 38),
+		BorderSizePixel = 0,
+		ZIndex = 2,
+	})
+	create("UICorner", "Round", track, { CornerRadius = UDim.new(1, 0) })
+	create("UIStroke", "TrackBorder", track, { Color = DARK, Thickness = 1.5 })
+	local fill = create("Frame", "CountdownFill", track, {
+		Position = UDim2.fromOffset(2, 2),
+		Size = UDim2.fromOffset(BAR_WIDTH, 14),
+		BackgroundColor3 = YELLOW,
+		BorderSizePixel = 0,
+		ZIndex = 3,
+	})
+	create("UICorner", "Round", fill, { CornerRadius = UDim.new(1, 0) })
+	round.fill = fill
+
+	local footer = label("Footer", page, "No votes = random pick", 240, 526, 800, 46, 30, CREAM, 2.5)
+	local footerScale = create("UIScale", "FooterPop", footer, { Scale = 1 })
+	round.footer = footer
+
+	local totalWidth = #options * CARD_W + (#options - 1) * CARD_GAP
+	local startX = (1280 - totalWidth) / 2
+
+	round.refresh = function()
+		for name, card in pairs(round.cards) do
+			local finished = round.phase == "Finished"
+			local winner = finished and round.winner == name
+			local picked = round.myVote == name
+			local voting = round.phase == "Voting"
+			local hovering = card.hovered and voting
+			local holding = card.held ~= nil and voting
+			local size, lift = 1, 0
+			if finished then
+				size, lift = winner and 1.08 or 0.95, winner and -8 or 4
+			elseif holding then
+				size, lift = 0.97, 2
+			elseif picked then
+				size, lift = 1.05, -6
+			elseif hovering then
+				size, lift = 1.03, -4
+			end
+			local outlined = winner or (not finished and (picked or hovering or holding))
+			local shade = (finished and not winner) and 0.45 or 1
+			local signature = size .. ":" .. tostring(outlined) .. ":" .. shade
+			if signature ~= card.signature then
+				card.signature = signature
+				if card.scaleTween then card.scaleTween:Cancel() end
+				if card.positionTween then card.positionTween:Cancel() end
+				card.scaleTween = tween(card.scale, holding and 0.07 or 0.2, { Scale = size },
+					holding and Enum.EasingStyle.Quad or Enum.EasingStyle.Back)
+				card.positionTween = tween(card.frame, 0.18,
+					{ Position = UDim2.fromOffset(card.baseX, card.baseY + lift) }, Enum.EasingStyle.Back)
+				tween(card.border, 0.12, {
+					Color = outlined and YELLOW or DARK,
+					Thickness = outlined and 4 or 2.5,
+				})
+				tween(card.dimmer, 0.2, { BackgroundTransparency = shade })
+			end
+			card.frame.ZIndex = winner and 6 or ((picked or hovering or holding) and 4 or 2)
+		end
+	end
+
+	local function vote(name)
+		if round.phase ~= "Voting" or os.clock() >= round.endsAt then return end
+		if round.myVote == name then return end
+		if round.portrait then round.portrait:Destroy() end
+		round.myVote = name
+		local card = round.cards[name]
+		round.portrait = addPortrait(card, player.UserId)
+		card.iconKick = os.clock()
+		round.refresh()
+	end
+
+	for index, option in ipairs(options) do
+		local baseX = startX + (index - 1) * (CARD_W + CARD_GAP) + CARD_W / 2
+		local baseY = CARD_Y + CARD_H / 2
+		local card = create("Frame", option.name .. "Card", page, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromOffset(baseX, baseY + 34),
+			Size = UDim2.fromOffset(CARD_W, CARD_H),
+			BackgroundColor3 = option.color,
+			BorderSizePixel = 0,
+			ZIndex = 2,
+		})
+		create("UICorner", "Round", card, { CornerRadius = UDim.new(0, 16) })
+		local border = create("UIStroke", "Border", card, {
+			Color = DARK, Thickness = 2.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		})
+		create("UIGradient", "Shine", card, {
+			Rotation = 90,
+			Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(200, 200, 200)),
+		})
+		local cardScale = create("UIScale", "CardScale", card, { Scale = 0.6 })
+
+		local info = {
+			frame = card, scale = cardScale, border = border,
+			baseX = baseX, baseY = baseY, hovered = false, held = nil,
+			idleOffset = index * 1.7,
+		}
+
+		if option.icon then
+			local iconW, iconH = 170, 120
+			info.iconX, info.iconY = CARD_W / 2, 20 + iconH / 2
+			local slot = create("Frame", "Icon", card, {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromOffset(info.iconX, info.iconY),
+				Size = UDim2.fromOffset(iconW, iconH),
+				BackgroundTransparency = 1,
+				ClipsDescendants = true,
+				ZIndex = 4,
+			})
+			info.icon = slot
+			info.iconScale = create("UIScale", "IconScale", slot, { Scale = 1 })
+			local bounds = ICON_BOUNDS[option.name]
+			local cropW, cropH = bounds[3] - bounds[1], bounds[4] - bounds[2]
+			create("ImageLabel", "Artwork", slot, {
+				Position = UDim2.fromScale(-bounds[1] / cropW, -bounds[2] / cropH),
+				Size = UDim2.fromScale(1 / cropW, 1 / cropH),
+				BackgroundTransparency = 1,
+				Image = ICONS[option.name],
+				ScaleType = Enum.ScaleType.Stretch,
+				ZIndex = 4,
+			})
+			label("CardTitle", card, string.upper(option.name), 8, 146, CARD_W - 16, 46, 40, Color3.new(1, 1, 1), 3)
+			label("Description", card, option.desc, 16, 192, CARD_W - 32, 44, 18, Color3.new(1, 1, 1), 1.8)
+		else
+			label("CardTitle", card, string.upper(option.name), 8, 78, CARD_W - 16, 64, 56, Color3.new(1, 1, 1), 3.5)
+			label("Description", card, option.desc, 16, 150, CARD_W - 32, 50, 22, Color3.new(1, 1, 1), 2)
+		end
+
+		local row = create("Frame", "VoterAvatars", card, {
+			Position = UDim2.fromOffset(10, 248),
+			Size = UDim2.fromOffset(CARD_W - 20, 46),
+			BackgroundTransparency = 1,
+			ZIndex = 6,
+		})
+		create("UIListLayout", "Layout", row, {
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			Padding = UDim.new(0, 8),
+		})
+		info.row = row
+
+		local dimmer = create("Frame", "Dimmer", card, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			ZIndex = 9,
+		})
+		create("UICorner", "Round", dimmer, { CornerRadius = UDim.new(0, 16) })
+		info.dimmer = dimmer
+
+		local button = create("TextButton", "VoteButton", card, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Text = "",
+			AutoButtonColor = false,
+			ZIndex = 10,
+		})
+		info.button = button
+		round.cards[option.name] = info
+
+		button.MouseEnter:Connect(function()
+			if UserInputService.MouseEnabled and round.phase == "Voting" then info.hovered = true round.refresh() end
+		end)
+		button.MouseLeave:Connect(function() info.hovered = false round.refresh() end)
+		button.InputBegan:Connect(function(input)
+			local kind = input.UserInputType
+			if round.phase == "Voting" and (kind == Enum.UserInputType.Touch or kind == Enum.UserInputType.MouseButton1) then
+				if not info.held then info.held = input round.refresh() end
+			end
+		end)
+		button.Activated:Connect(function()
+			info.held = nil
+			vote(option.name)
+			round.refresh()
+		end)
+
+		task.delay((index - 1) * 0.05, function()
+			if not alive then return end
+			tween(cardScale, 0.28, { Scale = 1 }, Enum.EasingStyle.Back)
+			tween(card, 0.28, { Position = UDim2.fromOffset(baseX, baseY) }, Enum.EasingStyle.Back)
+		end)
+	end
+
+	round.finish = function()
+		if round.phase ~= "Voting" then return end
+		round.phase = "Finished"
+		fill.Visible = false
+		local winner = round.myVote or options[random:NextInteger(1, #options)].name
+		round.winner = winner
+		for _, card in pairs(round.cards) do
+			card.hovered, card.held = false, nil
+			card.button.Active = false
+		end
+		round.refresh()
+		round.cards[winner].iconKick = os.clock()
+		footer.Text = string.format(resultText, string.upper(winner))
+		footer.TextColor3 = RESULT_GREEN
+		footer.TextSize = 36
+		footerScale.Scale = 0.5
+		tween(footerScale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+		task.delay(1.6, function()
+			if not alive then done:Fire(winner) return end
+			tween(pageScale, 0.09, { Scale = 1.03 })
+			task.wait(0.09)
+			tween(pageScale, 0.25, { Scale = 0.85 })
+			local exit = tween(page, 0.25, { Position = UDim2.fromScale(0.5, 1.6) },
+				Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			exit.Completed:Wait()
+			done:Fire(winner)
+		end)
+	end
+
+	current = round
+	task.wait(0.4)
+	round.phase = "Voting"
+	round.endsAt = os.clock() + DURATION
+	round.refresh()
+
+	local winner = done.Event:Wait()
+	done:Destroy()
+	current = nil
+	page:Destroy()
+	return winner
+end
+
+local category = runVote("VOTE FOR A CATEGORY!", CATEGORY_OPTIONS, "PLAYING %s!")
+gui:SetAttribute("SelectedCategory", category)
+
+local difficulty = alive and runVote("VOTE FOR A DIFFICULTY!", DIFFICULTY_OPTIONS, "%s IT IS!")
+gui:SetAttribute("SelectedDifficulty", difficulty)
+
+tween(root, 0.3, { BackgroundTransparency = 1 })
+tween(blur, 0.3, { Size = 0 }).Completed:Wait()
+blur:Destroy()
+gui.Enabled = false
+
