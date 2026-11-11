@@ -1,0 +1,861 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local DataStoreService = game:GetService("DataStoreService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+
+local CYAN = Color3.fromRGB(0, 220, 255)
+local PURPLE = Color3.fromRGB(170, 80, 255)
+local ORANGE = Color3.fromRGB(255, 140, 40)
+local PINK = Color3.fromRGB(255, 80, 170)
+local GREEN = Color3.fromRGB(80, 255, 140)
+local RED = Color3.fromRGB(255, 70, 90)
+local METAL = Color3.fromRGB(78, 84, 102)
+local DARK = Color3.fromRGB(30, 34, 46)
+local WHITE = Color3.fromRGB(235, 240, 250)
+local GLASS = Color3.fromRGB(150, 210, 255)
+
+local PLOT_COUNT = 6
+local PLOT_RADIUS = 125
+local PLOT_SIZE = 76
+local BASE_CAPACITY = 100
+local CHARGE_COOLDOWN = 0.07
+
+local store = nil
+pcall(function()
+	store = DataStoreService:GetDataStore("SpaceStationTycoon_v1")
+end)
+
+local remote = Instance.new("RemoteEvent")
+remote.Name = "StationRemote"
+remote.Parent = ReplicatedStorage
+
+local GENERATORS = {
+	{ id = "Solar1", name = "Solar Panel", price = 15, rate = 1 },
+	{ id = "Solar2", name = "Solar Panel II", price = 60, rate = 3 },
+	{ id = "Solar3", name = "Solar Panel III", price = 250, rate = 8 },
+	{ id = "Turbine", name = "Ion Turbine", price = 800, rate = 20 },
+	{ id = "Fusion1", name = "Fusion Core", price = 2500, rate = 60 },
+	{ id = "Fusion2", name = "Fusion Core II", price = 8000, rate = 150 },
+	{ id = "Antimatter", name = "Antimatter Reactor", price = 25000, rate = 400 },
+	{ id = "DarkMatter", name = "Dark Matter Engine", price = 80000, rate = 1000 },
+}
+
+local STATION = {
+	{ id = "Floor", name = "Station Floor", price = 0 },
+	{ id = "Battery1", name = "Battery Bank", price = 40, capacity = 150 },
+	{ id = "Railings", name = "Glass Railings", price = 120 },
+	{ id = "Battery2", name = "Battery Bank II", price = 400, capacity = 600 },
+	{ id = "Antenna", name = "Auto-Sell Antenna", price = 1000 },
+	{ id = "Dome", name = "Glass Dome", price = 3000 },
+	{ id = "Battery3", name = "Battery Bank III", price = 9000, capacity = 5000 },
+	{ id = "LandingPad", name = "Rocket Pad", price = 20000 },
+	{ id = "Observatory", name = "Observatory", price = 50000 },
+	{ id = "WarpGate", name = "Warp Gate", price = 150000 },
+}
+
+local ITEM_BY_ID = {}
+local PREVIOUS = {}
+for index, item in ipairs(GENERATORS) do
+	ITEM_BY_ID[item.id] = item
+	PREVIOUS[item.id] = index == 1 and "Floor" or GENERATORS[index - 1].id
+end
+for index, item in ipairs(STATION) do
+	ITEM_BY_ID[item.id] = item
+	PREVIOUS[item.id] = index > 1 and STATION[index - 1].id or nil
+end
+
+local UPGRADES = {
+	Capacity = { base = 60, growth = 1.7 },
+	Charge = { base = 25, growth = 1.65 },
+	Sell = { base = 120, growth = 1.8 },
+}
+local MAX_UPGRADE_LEVEL = 50
+
+local UPRIGHT = CFrame.Angles(0, 0, math.rad(90))
+
+local function block(parent, shape, size, cf, color, material, extra)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.Shape = shape or Enum.PartType.Block
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if extra then
+		for key, value in pairs(extra) do
+			p[key] = value
+		end
+	end
+	p.Parent = parent
+	return p
+end
+
+local function box(parent, size, cf, color, material, extra)
+	return block(parent, Enum.PartType.Block, size, cf, color, material, extra)
+end
+
+local function cylinder(parent, height, diameter, cf, color, material, extra)
+	return block(parent, Enum.PartType.Cylinder, Vector3.new(height, diameter, diameter), cf * UPRIGHT, color, material, extra)
+end
+
+local function ball(parent, diameter, cf, color, material, extra)
+	return block(parent, Enum.PartType.Ball, Vector3.new(diameter, diameter, diameter), cf, color, material, extra)
+end
+
+local function billboard(adornee, size, offset, maxDistance)
+	local gui = Instance.new("BillboardGui")
+	gui.Size = size
+	gui.StudsOffset = offset
+	gui.MaxDistance = maxDistance or 120
+	gui.LightInfluence = 0
+	gui.Parent = adornee
+	return gui
+end
+
+local function textLabel(parent, text, size, position, textSize, color, font)
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = size
+	label.Position = position
+	label.Text = text
+	label.TextSize = textSize
+	label.TextColor3 = color
+	label.Font = font or Enum.Font.GothamBold
+	label.TextStrokeTransparency = 0.4
+	label.TextStrokeColor3 = Color3.new(0, 0, 0)
+	label.Parent = parent
+	return label
+end
+
+local function formatNumber(n)
+	n = math.floor(n)
+	if n < 1000 then return tostring(n) end
+	local suffixes = { "", "K", "M", "B", "T", "Qa", "Qi" }
+	local index = 1
+	local value = n
+	while value >= 1000 and index < #suffixes do
+		value = value / 1000
+		index += 1
+	end
+	if value >= 100 then
+		return string.format("%.0f%s", value, suffixes[index])
+	elseif value >= 10 then
+		return string.format("%.1f%s", value, suffixes[index])
+	end
+	return string.format("%.2f%s", value, suffixes[index])
+end
+
+local oldBaseplate = workspace:FindFirstChild("Baseplate")
+if oldBaseplate then oldBaseplate:Destroy() end
+for _, child in ipairs(workspace:GetChildren()) do
+	if child:IsA("SpawnLocation") then child:Destroy() end
+end
+
+workspace.Gravity = 110
+workspace.FallenPartsDestroyHeight = -150
+
+for _, child in ipairs(Lighting:GetChildren()) do
+	if child:IsA("Sky") or child:IsA("Atmosphere") or child:IsA("BloomEffect") or child:IsA("ColorCorrectionEffect") then
+		child:Destroy()
+	end
+end
+Lighting.ClockTime = 0
+Lighting.Brightness = 1.5
+Lighting.Ambient = Color3.fromRGB(70, 78, 110)
+Lighting.OutdoorAmbient = Color3.fromRGB(95, 105, 150)
+Lighting.EnvironmentDiffuseScale = 0.4
+Lighting.EnvironmentSpecularScale = 0.6
+local sky = Instance.new("Sky")
+sky.StarCount = 5000
+sky.CelestialBodiesShown = false
+sky.Parent = Lighting
+local bloom = Instance.new("BloomEffect")
+bloom.Intensity = 0.7
+bloom.Size = 28
+bloom.Threshold = 0.85
+bloom.Parent = Lighting
+local grade = Instance.new("ColorCorrectionEffect")
+grade.Contrast = 0.1
+grade.Saturation = 0.15
+grade.TintColor = Color3.fromRGB(235, 240, 255)
+grade.Parent = Lighting
+
+local world = Instance.new("Folder")
+world.Name = "SpaceStationWorld"
+world.Parent = workspace
+
+cylinder(world, 2, 64, CFrame.new(0, 0, 0), METAL, Enum.Material.DiamondPlate)
+cylinder(world, 1.6, 66, CFrame.new(0, -0.1, 0), CYAN, Enum.Material.Neon)
+cylinder(world, 0.2, 20, CFrame.new(0, 1.05, 0), CYAN, Enum.Material.Neon, { CanCollide = false })
+local spawn = Instance.new("SpawnLocation")
+spawn.Anchored = true
+spawn.Size = Vector3.new(14, 0.4, 14)
+spawn.CFrame = CFrame.new(0, 1.2, 0)
+spawn.Transparency = 1
+spawn.CanCollide = false
+spawn.Neutral = true
+spawn.Duration = 0
+spawn.Parent = world
+
+for i = 1, 12 do
+	local angle = i / 12 * math.pi * 2
+	local position = Vector3.new(math.cos(angle) * 28, 1, math.sin(angle) * 28)
+	cylinder(world, 3, 0.6, CFrame.new(position + Vector3.new(0, 1.5, 0)), METAL)
+	ball(world, 1.2, CFrame.new(position + Vector3.new(0, 3.4, 0)), CYAN, Enum.Material.Neon, { CanCollide = false })
+end
+
+local titleAnchor = box(world, Vector3.new(1, 1, 1), CFrame.new(0, 16, 0), WHITE, nil, { Transparency = 1, CanCollide = false })
+local titleGui = billboard(titleAnchor, UDim2.fromOffset(520, 120), Vector3.new(0, 0, 0), 400)
+textLabel(titleGui, "SPACE STATION", UDim2.fromScale(1, 0.6), UDim2.fromScale(0, 0), 46, CYAN, Enum.Font.Michroma)
+textLabel(titleGui, "T Y C O O N", UDim2.fromScale(1, 0.4), UDim2.fromScale(0, 0.6), 26, WHITE, Enum.Font.Michroma)
+
+local rng = Random.new(42)
+for _ = 1, 45 do
+	local angle = rng:NextNumber(0, math.pi * 2)
+	local distance = rng:NextNumber(230, 420)
+	local position = Vector3.new(math.cos(angle) * distance, rng:NextNumber(-60, 140), math.sin(angle) * distance)
+	local size = rng:NextNumber(6, 26)
+	ball(world, size, CFrame.new(position), Color3.fromRGB(rng:NextInteger(70, 105), rng:NextInteger(62, 90), rng:NextInteger(70, 95)), Enum.Material.Slate, { CanCollide = false })
+end
+local planet = ball(world, 320, CFrame.new(700, 160, -520), Color3.fromRGB(215, 120, 70), Enum.Material.Sand, { CanCollide = false, CastShadow = false })
+block(world, Enum.PartType.Cylinder, Vector3.new(1, 560, 560), planet.CFrame * CFrame.Angles(0, 0, math.rad(70)) * CFrame.Angles(math.rad(15), 0, 0), Color3.fromRGB(240, 200, 150), Enum.Material.SmoothPlastic, { CanCollide = false, Transparency = 0.55, CastShadow = false })
+ball(world, 90, CFrame.new(-560, 240, 600), Color3.fromRGB(110, 150, 255), Enum.Material.Glacier, { CanCollide = false, CastShadow = false })
+
+local plots = {}
+for i = 1, PLOT_COUNT do
+	local angle = (i - 1) / PLOT_COUNT * math.pi * 2
+	local center = Vector3.new(math.cos(angle) * PLOT_RADIUS, 0, math.sin(angle) * PLOT_RADIUS)
+	local cf = CFrame.lookAt(center, Vector3.new(0, 0, 0))
+	local folder = Instance.new("Folder")
+	folder.Name = "Plot" .. i
+	folder.Parent = world
+	box(folder, Vector3.new(PLOT_SIZE, 2, PLOT_SIZE), cf, DARK, Enum.Material.DiamondPlate)
+	local half = PLOT_SIZE / 2
+	box(folder, Vector3.new(PLOT_SIZE, 0.2, 0.8), cf * CFrame.new(0, 1.05, -half + 0.4), CYAN, Enum.Material.Neon, { CanCollide = false })
+	box(folder, Vector3.new(PLOT_SIZE, 0.2, 0.8), cf * CFrame.new(0, 1.05, half - 0.4), CYAN, Enum.Material.Neon, { CanCollide = false })
+	box(folder, Vector3.new(0.8, 0.2, PLOT_SIZE), cf * CFrame.new(-half + 0.4, 1.05, 0), CYAN, Enum.Material.Neon, { CanCollide = false })
+	box(folder, Vector3.new(0.8, 0.2, PLOT_SIZE), cf * CFrame.new(half - 0.4, 1.05, 0), CYAN, Enum.Material.Neon, { CanCollide = false })
+
+	local bridgeStart = (cf * CFrame.new(0, 0, -half)).Position
+	local direction = Vector3.new(-center.X, 0, -center.Z).Unit
+	local bridgeEnd = direction * -31
+	local length = (bridgeStart - bridgeEnd).Magnitude
+	local bridgeCF = CFrame.lookAt((bridgeStart + bridgeEnd) / 2, bridgeEnd) * CFrame.new(0, 0.5, 0)
+	box(folder, Vector3.new(10, 1, length), bridgeCF, METAL, Enum.Material.DiamondPlate)
+	box(folder, Vector3.new(0.4, 0.3, length), bridgeCF * CFrame.new(-5, 0.6, 0), CYAN, Enum.Material.Neon, { CanCollide = false })
+	box(folder, Vector3.new(0.4, 0.3, length), bridgeCF * CFrame.new(5, 0.6, 0), CYAN, Enum.Material.Neon, { CanCollide = false })
+
+	local items = Instance.new("Folder")
+	items.Name = "Items"
+	items.Parent = folder
+	local buttons = Instance.new("Folder")
+	buttons.Name = "Buttons"
+	buttons.Parent = folder
+
+	local signAnchor = box(folder, Vector3.new(1, 1, 1), cf * CFrame.new(0, 13, -34), WHITE, nil, { Transparency = 1, CanCollide = false })
+	local signGui = billboard(signAnchor, UDim2.fromOffset(360, 70), Vector3.new(0, 0, 0), 220)
+	local sign = textLabel(signGui, "EMPTY DOCK", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 28, CYAN, Enum.Font.Michroma)
+
+	plots[i] = {
+		index = i, cf = cf, folder = folder, items = items, buttons = buttons,
+		sign = sign, owner = nil, spinners = {}, fills = {}, blinkers = {}, buttonParts = {},
+	}
+end
+
+local function at(plot, x, y, z)
+	return plot.cf * CFrame.new(x, 1 + y, z)
+end
+
+local function spinner(plot, part, pivot, offset, speed)
+	table.insert(plot.spinners, { part = part, pivot = pivot, offset = offset, speed = speed })
+end
+
+local function orbiters(plot, model, pivot, count, radius, size, color, speed, tilt)
+	for i = 1, count do
+		local angle = i / count * math.pi * 2
+		local offset = CFrame.Angles(0, angle, 0) * CFrame.new(radius, 0, 0)
+		local p = box(model, Vector3.new(size, size, size), pivot * (tilt or CFrame.identity) * offset, color, Enum.Material.Neon, { CanCollide = false })
+		spinner(plot, p, pivot * (tilt or CFrame.identity), offset, Vector3.new(0, speed, 0))
+	end
+end
+
+local function solar(plot, model, x, z, frameColor)
+	cylinder(model, 3, 0.8, at(plot, x, 1.5, z), METAL)
+	box(model, Vector3.new(3, 0.4, 3), at(plot, x, 0.2, z), DARK)
+	local panelCF = at(plot, x, 3.3, z) * CFrame.Angles(math.rad(-25), 0, 0)
+	box(model, Vector3.new(8.4, 0.25, 6.4), panelCF * CFrame.new(0, -0.1, 0), frameColor, Enum.Material.Metal)
+	box(model, Vector3.new(8, 0.3, 6), panelCF, Color3.fromRGB(25, 45, 115), Enum.Material.Glass, { Reflectance = 0.25 })
+	for _, offset in ipairs({ -1.5, 0, 1.5 }) do
+		box(model, Vector3.new(8, 0.32, 0.12), panelCF * CFrame.new(0, 0, offset), CYAN, Enum.Material.Neon, { CanCollide = false })
+	end
+	local light = ball(model, 0.7, at(plot, x, 0.9, z - 1.6), GREEN, Enum.Material.Neon, { CanCollide = false })
+	table.insert(plot.blinkers, light)
+end
+
+local function battery(plot, model, z, height)
+	box(model, Vector3.new(6, 0.8, 6), at(plot, 24, 0.4, z), METAL, Enum.Material.Metal)
+	box(model, Vector3.new(5, height, 5), at(plot, 24, 0.8 + height / 2, z), Color3.fromRGB(60, 90, 130), Enum.Material.Glass, { Transparency = 0.55 })
+	box(model, Vector3.new(6, 0.8, 6), at(plot, 24, 1.2 + height, z), METAL, Enum.Material.Metal)
+	cylinder(model, 0.8, 1.6, at(plot, 24, 2 + height, z), CYAN, Enum.Material.Neon)
+	local bottom = at(plot, 24, 0.8, z)
+	local fill = box(model, Vector3.new(4.2, 0.1, 4.2), bottom * CFrame.new(0, 0.05, 0), GREEN, Enum.Material.Neon, { CanCollide = false })
+	table.insert(plot.fills, { part = fill, bottom = bottom, height = height - 0.2 })
+end
+
+local function fusion(plot, model, x, color)
+	local z = 29
+	cylinder(model, 1.2, 8, at(plot, x, 0.6, z), METAL, Enum.Material.Metal)
+	cylinder(model, 0.3, 8.4, at(plot, x, 1.25, z), color, Enum.Material.Neon, { CanCollide = false })
+	for i = 1, 4 do
+		local angle = i / 4 * math.pi * 2 + math.pi / 4
+		cylinder(model, 7, 0.6, at(plot, x + math.cos(angle) * 3, 4.5, z + math.sin(angle) * 3), DARK, Enum.Material.Metal)
+	end
+	cylinder(model, 0.8, 8, at(plot, x, 8.4, z), METAL, Enum.Material.Metal)
+	local core = at(plot, x, 4.8, z)
+	ball(model, 3.6, core, color, Enum.Material.Neon, { CanCollide = false })
+	orbiters(plot, model, core, 6, 3.2, 0.6, color, 2.4)
+end
+
+local BUILD = {}
+
+BUILD.Floor = function(plot, model)
+	box(model, Vector3.new(64, 0.4, 64), at(plot, 0, 0.2, 4), METAL, Enum.Material.DiamondPlate)
+	box(model, Vector3.new(64, 0.2, 0.6), at(plot, 0, 0.45, -28), CYAN, Enum.Material.Neon, { CanCollide = false })
+	box(model, Vector3.new(64, 0.2, 0.6), at(plot, 0, 0.45, 36), CYAN, Enum.Material.Neon, { CanCollide = false })
+	box(model, Vector3.new(0.6, 0.2, 64), at(plot, -32, 0.45, 4), CYAN, Enum.Material.Neon, { CanCollide = false })
+	box(model, Vector3.new(0.6, 0.2, 64), at(plot, 32, 0.45, 4), CYAN, Enum.Material.Neon, { CanCollide = false })
+end
+
+BUILD.Solar1 = function(plot, model) solar(plot, model, -24, -18, METAL) end
+BUILD.Solar2 = function(plot, model) solar(plot, model, -24, -6, Color3.fromRGB(140, 150, 170)) end
+BUILD.Solar3 = function(plot, model) solar(plot, model, -24, 6, Color3.fromRGB(230, 180, 60)) end
+
+BUILD.Turbine = function(plot, model)
+	cylinder(model, 1, 6, at(plot, -24, 0.5, 20), METAL, Enum.Material.Metal)
+	box(model, Vector3.new(1.2, 12, 1.2), at(plot, -24, 7, 20), WHITE)
+	local hub = at(plot, -24, 13, 18.8)
+	ball(model, 2, hub, CYAN, Enum.Material.Neon, { CanCollide = false })
+	for i = 1, 3 do
+		local offset = CFrame.Angles(0, 0, i / 3 * math.pi * 2) * CFrame.new(0, 3.2, 0)
+		local blade = box(model, Vector3.new(1, 6, 0.3), hub * offset, WHITE, Enum.Material.SmoothPlastic, { CanCollide = false })
+		spinner(plot, blade, hub, offset, Vector3.new(0, 0, 1.8))
+	end
+end
+
+BUILD.Fusion1 = function(plot, model) fusion(plot, model, -16, ORANGE) end
+BUILD.Fusion2 = function(plot, model) fusion(plot, model, -4, PINK) end
+
+BUILD.Antimatter = function(plot, model)
+	local x, z = 9, 29
+	cylinder(model, 1.4, 8, at(plot, x, 0.7, z), DARK, Enum.Material.Metal)
+	cylinder(model, 9, 4.4, at(plot, x, 5.9, z), Color3.fromRGB(180, 140, 255), Enum.Material.Glass, { Transparency = 0.6, CanCollide = false })
+	cylinder(model, 1, 6, at(plot, x, 10.9, z), DARK, Enum.Material.Metal)
+	local core = at(plot, x, 5.9, z)
+	ball(model, 2.6, core, PURPLE, Enum.Material.Neon, { CanCollide = false })
+	orbiters(plot, model, core, 8, 3.6, 0.5, PURPLE, 3, CFrame.Angles(math.rad(70), 0, 0))
+end
+
+BUILD.DarkMatter = function(plot, model)
+	local x, z = 22, 29
+	cylinder(model, 1, 7, at(plot, x, 0.5, z), DARK, Enum.Material.Metal)
+	cylinder(model, 0.3, 7.4, at(plot, x, 1.15, z), PURPLE, Enum.Material.Neon, { CanCollide = false })
+	local core = at(plot, x, 7, z)
+	ball(model, 4.4, core, Color3.fromRGB(12, 6, 24), Enum.Material.Glass, { CanCollide = false, Reflectance = 0.3 })
+	ball(model, 2.2, core, PURPLE, Enum.Material.Neon, { CanCollide = false, Transparency = 0.2 })
+	orbiters(plot, model, core, 6, 4, 0.9, Color3.fromRGB(120, 60, 255), -1.6)
+	orbiters(plot, model, core, 6, 5, 0.6, CYAN, 1.2, CFrame.Angles(0, 0, math.rad(60)))
+end
+
+BUILD.Battery1 = function(plot, model) battery(plot, model, -18, 6) end
+BUILD.Battery2 = function(plot, model) battery(plot, model, -6, 8) end
+BUILD.Battery3 = function(plot, model) battery(plot, model, 6, 10) end
+
+BUILD.Railings = function(plot, model)
+	local segments = {
+		{ 0, 35.6, 64, 0 },
+		{ -31.6, 4, 64, 90 },
+		{ 31.6, 4, 64, 90 },
+		{ -19, -27.6, 26, 0 },
+		{ 19, -27.6, 26, 0 },
+	}
+	for _, s in ipairs(segments) do
+		local cf = at(plot, s[1], 1.5, s[2]) * CFrame.Angles(0, math.rad(s[4]), 0)
+		box(model, Vector3.new(s[3], 3, 0.25), cf, GLASS, Enum.Material.Glass, { Transparency = 0.65 })
+		box(model, Vector3.new(s[3], 0.3, 0.5), cf * CFrame.new(0, 1.6, 0), CYAN, Enum.Material.Neon, { CanCollide = false })
+	end
+end
+
+BUILD.Antenna = function(plot, model)
+	local x, z = 24, 19
+	box(model, Vector3.new(4, 1, 4), at(plot, x, 0.5, z), METAL, Enum.Material.Metal)
+	cylinder(model, 14, 0.6, at(plot, x, 8, z), WHITE)
+	local dish = at(plot, x, 12, z - 0.6) * CFrame.Angles(math.rad(-30), 0, 0)
+	block(model, Enum.PartType.Cylinder, Vector3.new(0.5, 6, 6), dish * CFrame.Angles(0, math.rad(90), 0), WHITE, Enum.Material.SmoothPlastic, { CanCollide = false })
+	local light = ball(model, 1, at(plot, x, 15.3, z), RED, Enum.Material.Neon, { CanCollide = false })
+	table.insert(plot.blinkers, light)
+end
+
+BUILD.Dome = function(plot, model)
+	ball(model, 28, at(plot, 0, 0, 4), GLASS, Enum.Material.Glass, { Transparency = 0.75, CanCollide = false, CastShadow = false })
+	for i = 1, 20 do
+		local angle = i / 20 * math.pi * 2
+		box(model, Vector3.new(1.2, 0.4, 1.2), at(plot, math.cos(angle) * 14, 0.6, 4 + math.sin(angle) * 14), CYAN, Enum.Material.Neon, { CanCollide = false })
+	end
+end
+
+BUILD.Observatory = function(plot, model)
+	cylinder(model, 2, 5, at(plot, 0, 1, 4), METAL, Enum.Material.Metal)
+	local pivot = at(plot, 0, 3.6, 4)
+	local tubeOffset = CFrame.Angles(math.rad(40), 0, 0) * CFrame.new(0, 0, -1)
+	local tube = block(model, Enum.PartType.Cylinder, Vector3.new(9, 1.8, 1.8), pivot * tubeOffset * CFrame.Angles(0, math.rad(90), 0), WHITE, Enum.Material.SmoothPlastic, { CanCollide = false })
+	spinner(plot, tube, pivot, tubeOffset * CFrame.Angles(0, math.rad(90), 0), Vector3.new(0, 0.3, 0))
+	local lensOffset = CFrame.Angles(math.rad(40), 0, 0) * CFrame.new(0, 0, -5.5) * CFrame.Angles(0, math.rad(90), 0)
+	local lens = block(model, Enum.PartType.Cylinder, Vector3.new(0.3, 1.9, 1.9), pivot * lensOffset, CYAN, Enum.Material.Neon, { CanCollide = false })
+	spinner(plot, lens, pivot, lensOffset, Vector3.new(0, 0.3, 0))
+end
+
+BUILD.LandingPad = function(plot, model)
+	local x, z = -12, -16
+	cylinder(model, 0.2, 12, at(plot, x, 0.5, z), ORANGE, Enum.Material.Neon, { CanCollide = false })
+	cylinder(model, 0.5, 11.4, at(plot, x, 0.7, z), DARK, Enum.Material.Metal)
+	box(model, Vector3.new(0.6, 0.1, 5), at(plot, x - 1.5, 1, z), ORANGE, Enum.Material.Neon, { CanCollide = false })
+	box(model, Vector3.new(0.6, 0.1, 5), at(plot, x + 1.5, 1, z), ORANGE, Enum.Material.Neon, { CanCollide = false })
+	box(model, Vector3.new(3, 0.1, 0.6), at(plot, x, 1, z), ORANGE, Enum.Material.Neon, { CanCollide = false })
+	local rx, rz = x + 3.5, z + 2.5
+	cylinder(model, 8, 2.6, at(plot, rx, 5, rz), WHITE)
+	ball(model, 2.6, at(plot, rx, 9, rz), RED)
+	ball(model, 1, at(plot, rx, 6.5, rz - 1.2), CYAN, Enum.Material.Neon, { CanCollide = false })
+	for i = 1, 3 do
+		local angle = i / 3 * math.pi * 2
+		box(model, Vector3.new(0.3, 2.6, 1.6), at(plot, rx + math.cos(angle) * 1.6, 1.8, rz + math.sin(angle) * 1.6) * CFrame.Angles(0, -angle, 0), RED)
+	end
+	cylinder(model, 0.6, 1.6, at(plot, rx, 0.8, rz), ORANGE, Enum.Material.Neon, { CanCollide = false })
+end
+
+BUILD.WarpGate = function(plot, model)
+	local x, z = 12, -16
+	box(model, Vector3.new(10, 1, 3), at(plot, x, 0.5, z), DARK, Enum.Material.Metal)
+	local center = at(plot, x, 6.5, z)
+	block(model, Enum.PartType.Cylinder, Vector3.new(0.3, 9, 9), center * CFrame.Angles(0, math.rad(90), 0), PURPLE, Enum.Material.Neon, { Transparency = 0.35, CanCollide = false })
+	for i = 1, 18 do
+		local offset = CFrame.Angles(0, 0, i / 18 * math.pi * 2) * CFrame.new(0, 5, 0)
+		local segment = box(model, Vector3.new(1.8, 1, 1.2), center * offset, i % 2 == 0 and METAL or CYAN, i % 2 == 0 and Enum.Material.Metal or Enum.Material.Neon, { CanCollide = false })
+		spinner(plot, segment, center, offset, Vector3.new(0, 0, 0.6))
+	end
+end
+
+local ORDER = {}
+for _, item in ipairs(STATION) do table.insert(ORDER, item.id) end
+for _, item in ipairs(GENERATORS) do table.insert(ORDER, item.id) end
+
+local profiles = {}
+
+local function upgradeCost(kind, level)
+	local data = UPGRADES[kind]
+	return math.floor(data.base * data.growth ^ level)
+end
+
+local function stats(profile)
+	local multiplier = 1 + profile.rebirths * 0.5
+	local rate = 0
+	for _, item in ipairs(GENERATORS) do
+		if profile.items[item.id] then rate += item.rate end
+	end
+	local capacity = BASE_CAPACITY
+	for _, item in ipairs(STATION) do
+		if profile.items[item.id] and item.capacity then capacity += item.capacity end
+	end
+	capacity = math.floor(capacity * (1 + profile.upgrades.Capacity * 0.5))
+	return {
+		multiplier = multiplier,
+		rate = rate * multiplier,
+		capacity = capacity,
+		charge = (1 + profile.upgrades.Charge * 2) * multiplier,
+		sell = (1 + profile.upgrades.Sell * 0.2) * multiplier,
+		autoSell = profile.items.Antenna == true,
+	}
+end
+
+local function publish(player)
+	local profile = profiles[player]
+	if not profile then return end
+	local s = stats(profile)
+	profile.stats = s
+	player:SetAttribute("Credits", profile.cash)
+	player:SetAttribute("Energy", profile.energy)
+	player:SetAttribute("Capacity", s.capacity)
+	player:SetAttribute("Rate", s.rate)
+	player:SetAttribute("ChargePower", s.charge)
+	player:SetAttribute("SellValue", s.sell)
+	player:SetAttribute("Multiplier", s.multiplier)
+	player:SetAttribute("Rebirths", profile.rebirths)
+	player:SetAttribute("AutoSell", s.autoSell)
+	player:SetAttribute("CanRebirth", profile.items.WarpGate == true)
+	for kind in pairs(UPGRADES) do
+		player:SetAttribute(kind .. "Level", profile.upgrades[kind])
+		player:SetAttribute(kind .. "Cost", upgradeCost(kind, profile.upgrades[kind]))
+	end
+	if profile.leaderCash then profile.leaderCash.Value = math.floor(profile.cash) end
+	if profile.leaderRebirths then profile.leaderRebirths.Value = profile.rebirths end
+end
+
+local function notify(player, text, kind)
+	remote:FireClient(player, "Notify", text, kind or "info")
+end
+
+local function isAvailable(profile, id)
+	local previous = PREVIOUS[id]
+	return previous == nil or profile.items[previous] == true
+end
+
+local function clearPlot(plot)
+	plot.items:ClearAllChildren()
+	plot.buttons:ClearAllChildren()
+	plot.spinners = {}
+	plot.fills = {}
+	plot.blinkers = {}
+	plot.buttonParts = {}
+end
+
+local function buildItem(plot, id, animate)
+	local builder = BUILD[id]
+	if not builder then return end
+	local model = Instance.new("Model")
+	model.Name = id
+	model.Parent = plot.items
+	builder(plot, model)
+	if not animate then return end
+	for _, p in ipairs(model:GetDescendants()) do
+		if p:IsA("BasePart") then
+			local final = p.CFrame
+			local transparency = p.Transparency
+			p.CFrame = final * CFrame.new(0, -5, 0)
+			p.Transparency = 1
+			TweenService:Create(p, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				CFrame = final, Transparency = transparency,
+			}):Play()
+		end
+	end
+end
+
+local buy
+
+local function refreshButtons(plot)
+	plot.buttons:ClearAllChildren()
+	plot.buttonParts = {}
+	local owner = plot.owner
+	local profile = owner and profiles[owner]
+	if not profile then return end
+	for slot, chain in ipairs({ GENERATORS, STATION }) do
+		local nextItem = nil
+		for _, item in ipairs(chain) do
+			if not profile.items[item.id] then
+				nextItem = item
+				break
+			end
+		end
+		if nextItem and isAvailable(profile, nextItem.id) then
+			local x = slot == 1 and -9 or 9
+			local pad = box(plot.buttons, Vector3.new(6, 0.6, 6), at(plot, x, 0.3, -33), GREEN, Enum.Material.Neon)
+			local rim = box(plot.buttons, Vector3.new(7, 0.4, 7), at(plot, x, 0.2, -33), DARK, Enum.Material.Metal)
+			rim.CanTouch = false
+			local gui = billboard(pad, UDim2.fromOffset(220, 74), Vector3.new(0, 4, 0), 90)
+			textLabel(gui, string.upper(nextItem.name), UDim2.new(1, 0, 0.5, 0), UDim2.fromScale(0, 0), 20, WHITE, Enum.Font.Michroma)
+			local priceText = nextItem.price == 0 and "FREE" or ("$" .. formatNumber(nextItem.price))
+			local price = textLabel(gui, priceText, UDim2.new(1, 0, 0.5, 0), UDim2.fromScale(0, 0.5), 24, GREEN, Enum.Font.GothamBlack)
+			table.insert(plot.buttonParts, { pad = pad, price = price, item = nextItem })
+			local itemId = nextItem.id
+			pad.Touched:Connect(function(hit)
+				local character = hit.Parent
+				local toucher = character and Players:GetPlayerFromCharacter(character)
+				if toucher and toucher == plot.owner then
+					buy(toucher, itemId)
+				end
+			end)
+		end
+	end
+end
+
+buy = function(player, id)
+	local profile = profiles[player]
+	local item = ITEM_BY_ID[id]
+	if not profile or not item or profile.items[id] or not isAvailable(profile, id) then return end
+	local now = os.clock()
+	if profile.lastDenied and now - profile.lastDenied < 1.5 and profile.cash < item.price then return end
+	if profile.cash < item.price then
+		profile.lastDenied = now
+		notify(player, "Need $" .. formatNumber(item.price - profile.cash) .. " more for " .. item.name, "bad")
+		return
+	end
+	profile.cash -= item.price
+	profile.items[id] = true
+	buildItem(profile.plot, id, true)
+	refreshButtons(profile.plot)
+	publish(player)
+	remote:FireClient(player, "Built", item.name)
+	if id == "WarpGate" then
+		notify(player, "Warp Gate online! You can now REBIRTH", "good")
+	elseif id == "Antenna" then
+		notify(player, "Energy now auto-sells when your battery is full", "good")
+	end
+end
+
+local function sell(player, auto)
+	local profile = profiles[player]
+	if not profile or profile.energy < 1 then return end
+	local amount = math.floor(profile.energy * profile.stats.sell)
+	profile.cash += amount
+	profile.energy = 0
+	publish(player)
+	remote:FireClient(player, "Sold", amount, auto == true)
+end
+
+local function teleportHome(player)
+	local profile = profiles[player]
+	local character = player.Character
+	if not profile or not profile.plot or not character then return end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if root then
+		character:PivotTo(profile.plot.cf * CFrame.new(0, 5, -35) * CFrame.Angles(0, math.pi, 0))
+	end
+end
+
+local function rebirth(player)
+	local profile = profiles[player]
+	if not profile or not profile.items.WarpGate then return end
+	profile.rebirths += 1
+	profile.cash = 0
+	profile.energy = 0
+	profile.items = {}
+	profile.upgrades = { Capacity = 0, Charge = 0, Sell = 0 }
+	clearPlot(profile.plot)
+	refreshButtons(profile.plot)
+	publish(player)
+	remote:FireClient(player, "Rebirthed", profile.rebirths, profile.stats.multiplier)
+	teleportHome(player)
+end
+
+local function upgrade(player, kind)
+	local profile = profiles[player]
+	if not profile or not UPGRADES[kind] then return end
+	local level = profile.upgrades[kind]
+	if level >= MAX_UPGRADE_LEVEL then return end
+	local cost = upgradeCost(kind, level)
+	if profile.cash < cost then
+		notify(player, "Not enough credits", "bad")
+		return
+	end
+	profile.cash -= cost
+	profile.upgrades[kind] = level + 1
+	publish(player)
+	remote:FireClient(player, "Upgraded", kind, level + 1)
+end
+
+remote.OnServerEvent:Connect(function(player, action, argument)
+	local profile = profiles[player]
+	if not profile or type(action) ~= "string" then return end
+	if action == "Charge" then
+		local now = os.clock()
+		if profile.lastCharge and now - profile.lastCharge < CHARGE_COOLDOWN then return end
+		profile.lastCharge = now
+		local s = profile.stats
+		profile.energy = math.min(s.capacity, profile.energy + s.charge)
+		player:SetAttribute("Energy", profile.energy)
+		if s.autoSell and profile.energy >= s.capacity then sell(player, true) end
+	elseif action == "Sell" then
+		sell(player, false)
+	elseif action == "Upgrade" and type(argument) == "string" then
+		upgrade(player, argument)
+	elseif action == "Rebirth" then
+		rebirth(player)
+	elseif action == "Home" then
+		teleportHome(player)
+	end
+end)
+
+local function loadData(player)
+	local data = nil
+	local ok = true
+	if store then
+		ok = pcall(function()
+			data = store:GetAsync("player_" .. player.UserId)
+		end)
+	end
+	local profile = {
+		cash = 0, energy = 0, rebirths = 0, items = {},
+		upgrades = { Capacity = 0, Charge = 0, Sell = 0 },
+		canSave = ok and store ~= nil,
+	}
+	if type(data) == "table" then
+		profile.cash = tonumber(data.cash) or 0
+		profile.rebirths = tonumber(data.rebirths) or 0
+		if type(data.items) == "table" then
+			for _, id in ipairs(data.items) do
+				if ITEM_BY_ID[id] then profile.items[id] = true end
+			end
+		end
+		if type(data.upgrades) == "table" then
+			for kind in pairs(UPGRADES) do
+				profile.upgrades[kind] = math.clamp(tonumber(data.upgrades[kind]) or 0, 0, MAX_UPGRADE_LEVEL)
+			end
+		end
+	end
+	return profile
+end
+
+local function saveData(player)
+	local profile = profiles[player]
+	if not profile or not profile.canSave then return end
+	local items = {}
+	for id in pairs(profile.items) do table.insert(items, id) end
+	local data = {
+		cash = math.floor(profile.cash),
+		rebirths = profile.rebirths,
+		items = items,
+		upgrades = profile.upgrades,
+	}
+	pcall(function()
+		store:SetAsync("player_" .. player.UserId, data)
+	end)
+end
+
+local function onPlayerAdded(player)
+	local profile = loadData(player)
+	if not player.Parent then return end
+
+	local plot = nil
+	for _, candidate in ipairs(plots) do
+		if not candidate.owner then
+			plot = candidate
+			break
+		end
+	end
+
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	local cashValue = Instance.new("NumberValue")
+	cashValue.Name = "Credits"
+	cashValue.Parent = leaderstats
+	local rebirthValue = Instance.new("IntValue")
+	rebirthValue.Name = "Rebirths"
+	rebirthValue.Parent = leaderstats
+	leaderstats.Parent = player
+	profile.leaderCash = cashValue
+	profile.leaderRebirths = rebirthValue
+
+	profiles[player] = profile
+	profile.stats = stats(profile)
+
+	if not plot then
+		notify(player, "Server is full of stations, try another server", "bad")
+		publish(player)
+		return
+	end
+
+	plot.owner = player
+	profile.plot = plot
+	plot.sign.Text = string.upper(player.DisplayName) .. "'S STATION"
+	player:SetAttribute("PlotIndex", plot.index)
+	for _, id in ipairs(ORDER) do
+		if profile.items[id] then buildItem(plot, id, false) end
+	end
+	refreshButtons(plot)
+	publish(player)
+
+	player.CharacterAdded:Connect(function(character)
+		character:WaitForChild("HumanoidRootPart", 10)
+		task.wait(0.2)
+		teleportHome(player)
+	end)
+	if player.Character then
+		task.defer(teleportHome, player)
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in ipairs(Players:GetPlayers()) do
+	task.spawn(onPlayerAdded, player)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	saveData(player)
+	local profile = profiles[player]
+	if profile and profile.plot then
+		clearPlot(profile.plot)
+		profile.plot.owner = nil
+		profile.plot.sign.Text = "EMPTY DOCK"
+	end
+	profiles[player] = nil
+end)
+
+game:BindToClose(function()
+	for _, player in ipairs(Players:GetPlayers()) do
+		task.spawn(saveData, player)
+	end
+	task.wait(3)
+end)
+
+task.spawn(function()
+	while true do
+		task.wait(60)
+		for _, player in ipairs(Players:GetPlayers()) do
+			task.spawn(saveData, player)
+		end
+	end
+end)
+
+task.spawn(function()
+	local blink = false
+	while true do
+		task.wait(1)
+		blink = not blink
+		for player, profile in pairs(profiles) do
+			local s = profile.stats
+			if s and s.rate > 0 then
+				profile.energy = math.min(s.capacity, profile.energy + s.rate)
+			end
+			if s and s.autoSell and profile.energy >= s.capacity then
+				sell(player, true)
+			else
+				publish(player)
+			end
+			local plot = profile.plot
+			if plot then
+				local ratio = s and s.capacity > 0 and math.clamp(profile.energy / s.capacity, 0, 1) or 0
+				for _, fill in ipairs(plot.fills) do
+					if fill.part.Parent then
+						local height = math.max(0.1, fill.height * ratio)
+						fill.part.Size = Vector3.new(4.2, height, 4.2)
+						fill.part.CFrame = fill.bottom * CFrame.new(0, height / 2, 0)
+						fill.part.Color = ratio >= 1 and RED or GREEN
+					end
+				end
+				for _, light in ipairs(plot.blinkers) do
+					if light.Parent then light.Transparency = blink and 0 or 0.8 end
+				end
+				for _, entry in ipairs(plot.buttonParts) do
+					if entry.pad.Parent then
+						local affordable = profile.cash >= entry.item.price
+						entry.pad.Color = affordable and GREEN or RED
+						entry.price.TextColor3 = affordable and GREEN or RED
+					end
+				end
+			end
+		end
+	end
+end)
+
+RunService.Heartbeat:Connect(function()
+	local t = os.clock()
+	for _, plot in ipairs(plots) do
+		for _, s in ipairs(plot.spinners) do
+			if s.part.Parent then
+				s.part.CFrame = s.pivot * CFrame.Angles(s.speed.X * t, s.speed.Y * t, s.speed.Z * t) * s.offset
+			end
+		end
+	end
+end)

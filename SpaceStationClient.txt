@@ -1,0 +1,558 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local remote = ReplicatedStorage:WaitForChild("StationRemote")
+
+local INK = Color3.fromRGB(8, 12, 24)
+local PANEL = Color3.fromRGB(14, 20, 38)
+local CYAN = Color3.fromRGB(0, 220, 255)
+local TEAL = Color3.fromRGB(0, 150, 220)
+local GREEN = Color3.fromRGB(90, 255, 150)
+local YELLOW = Color3.fromRGB(255, 210, 70)
+local RED = Color3.fromRGB(255, 80, 100)
+local PURPLE = Color3.fromRGB(170, 90, 255)
+local TEXT = Color3.fromRGB(225, 240, 255)
+local MUTED = Color3.fromRGB(125, 150, 185)
+local HEAD = Enum.Font.Michroma
+local BODY = Enum.Font.GothamBold
+
+local function new(className, props, parent)
+	local instance = Instance.new(className)
+	for key, value in pairs(props) do
+		instance[key] = value
+	end
+	instance.Parent = parent
+	return instance
+end
+
+local function tween(object, time, props, style, direction)
+	local t = TweenService:Create(object, TweenInfo.new(time, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out), props)
+	t:Play()
+	return t
+end
+
+local function formatNumber(n)
+	n = math.floor(n or 0)
+	if n < 1000 then return tostring(n) end
+	local suffixes = { "", "K", "M", "B", "T", "Qa", "Qi" }
+	local index = 1
+	local value = n
+	while value >= 1000 and index < #suffixes do
+		value = value / 1000
+		index += 1
+	end
+	if value >= 100 then
+		return string.format("%.0f%s", value, suffixes[index])
+	elseif value >= 10 then
+		return string.format("%.1f%s", value, suffixes[index])
+	end
+	return string.format("%.2f%s", value, suffixes[index])
+end
+
+local function label(parent, text, size, position, textSize, color, font, align)
+	return new("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = size,
+		Position = position,
+		Text = text,
+		TextSize = textSize,
+		TextColor3 = color,
+		Font = font or BODY,
+		TextXAlignment = align or Enum.TextXAlignment.Center,
+		ZIndex = 3,
+	}, parent)
+end
+
+local function glass(parent, size, position, anchor)
+	local frame = new("Frame", {
+		Size = size,
+		Position = position,
+		AnchorPoint = anchor or Vector2.new(0, 0),
+		BackgroundColor3 = PANEL,
+		BackgroundTransparency = 0.18,
+		BorderSizePixel = 0,
+		ZIndex = 2,
+	}, parent)
+	new("UICorner", { CornerRadius = UDim.new(0, 6) }, frame)
+	new("UIStroke", { Color = CYAN, Thickness = 1.5, Transparency = 0.45, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, frame)
+	new("UIGradient", {
+		Rotation = 90,
+		Transparency = NumberSequence.new(0, 0.15),
+		Color = ColorSequence.new(Color3.fromRGB(28, 40, 70), Color3.fromRGB(10, 14, 28)),
+	}, frame)
+	local tick = new("Frame", {
+		Size = UDim2.fromOffset(18, 3),
+		Position = UDim2.fromOffset(10, 0),
+		BackgroundColor3 = CYAN,
+		BorderSizePixel = 0,
+		ZIndex = 4,
+	}, frame)
+	new("UICorner", { CornerRadius = UDim.new(1, 0) }, tick)
+	return frame
+end
+
+local function pressable(button)
+	local scale = new("UIScale", { Scale = 1 }, button)
+	button.MouseButton1Down:Connect(function() tween(scale, 0.08, { Scale = 0.92 }) end)
+	button.MouseButton1Up:Connect(function() tween(scale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back) end)
+	button.MouseLeave:Connect(function() tween(scale, 0.2, { Scale = 1 }) end)
+	return scale
+end
+
+local function actionButton(parent, text, size, position, color, anchor)
+	local button = new("TextButton", {
+		Size = size,
+		Position = position,
+		AnchorPoint = anchor or Vector2.new(0, 0),
+		BackgroundColor3 = color,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Text = "",
+		ZIndex = 3,
+	}, parent)
+	new("UICorner", { CornerRadius = UDim.new(0, 6) }, button)
+	new("UIStroke", { Color = Color3.new(1, 1, 1), Thickness = 1.5, Transparency = 0.6, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, button)
+	new("UIGradient", {
+		Rotation = 90,
+		Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(170, 170, 170)),
+	}, button)
+	local text = label(button, text, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 15, INK, HEAD)
+	text.ZIndex = 4
+	pressable(button)
+	return button, text
+end
+
+local gui = new("ScreenGui", {
+	Name = "StationHUD",
+	ResetOnSpawn = false,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	IgnoreGuiInset = false,
+}, playerGui)
+
+local root = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, gui)
+local uiScale = new("UIScale", { Scale = 1 }, root)
+
+local function fit()
+	local size = gui.AbsoluteSize
+	if size.X <= 0 then return end
+	uiScale.Scale = math.clamp(math.min(size.X / 1150, size.Y / 640), 0.5, 1.25)
+end
+gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+fit()
+
+local wallet = glass(root, UDim2.fromOffset(300, 78), UDim2.new(0.5, 0, 0, 10), Vector2.new(0.5, 0))
+label(wallet, "CREDITS", UDim2.new(1, 0, 0, 18), UDim2.fromOffset(0, 8), 11, MUTED, HEAD)
+local creditsText = label(wallet, "$0", UDim2.new(1, 0, 0, 34), UDim2.fromOffset(0, 26), 30, TEXT, HEAD)
+local rateText = label(wallet, "+0 ENERGY / SEC", UDim2.new(1, 0, 0, 16), UDim2.fromOffset(0, 58), 11, CYAN, HEAD)
+local walletScale = new("UIScale", { Scale = 1 }, wallet)
+
+local battery = glass(root, UDim2.fromOffset(420, 34), UDim2.new(0.5, 0, 0, 96), Vector2.new(0.5, 0))
+local fillHolder = new("Frame", {
+	Size = UDim2.new(1, -12, 1, -12),
+	Position = UDim2.fromOffset(6, 6),
+	BackgroundColor3 = INK,
+	BorderSizePixel = 0,
+	ZIndex = 3,
+	ClipsDescendants = true,
+}, battery)
+new("UICorner", { CornerRadius = UDim.new(0, 4) }, fillHolder)
+local fill = new("Frame", {
+	Size = UDim2.fromScale(0, 1),
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	BorderSizePixel = 0,
+	ZIndex = 3,
+}, fillHolder)
+new("UICorner", { CornerRadius = UDim.new(0, 4) }, fill)
+local fillGradient = new("UIGradient", { Color = ColorSequence.new(TEAL, CYAN) }, fill)
+local energyText = label(battery, "ENERGY 0 / 100", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 13, TEXT, HEAD)
+energyText.ZIndex = 5
+energyText.TextStrokeTransparency = 0.3
+local autoTag = label(root, "AUTO-SELL ON", UDim2.fromOffset(200, 16), UDim2.new(0.5, -100, 0, 134), 10, GREEN, HEAD)
+autoTag.Visible = false
+
+local actions = new("Frame", {
+	Size = UDim2.fromOffset(150, 250),
+	Position = UDim2.new(1, -20, 0.44, 0),
+	AnchorPoint = Vector2.new(1, 0.5),
+	BackgroundTransparency = 1,
+}, root)
+
+local chargeButton = new("TextButton", {
+	Size = UDim2.fromOffset(140, 140),
+	Position = UDim2.fromOffset(5, 0),
+	BackgroundColor3 = CYAN,
+	BorderSizePixel = 0,
+	AutoButtonColor = false,
+	Text = "",
+	ZIndex = 3,
+}, actions)
+new("UICorner", { CornerRadius = UDim.new(1, 0) }, chargeButton)
+new("UIStroke", { Color = Color3.new(1, 1, 1), Thickness = 3, Transparency = 0.35, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, chargeButton)
+new("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(120, 245, 255), TEAL) }, chargeButton)
+local chargeRing = new("Frame", {
+	Size = UDim2.new(1, 16, 1, 16),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundTransparency = 1,
+	ZIndex = 2,
+}, chargeButton)
+new("UICorner", { CornerRadius = UDim.new(1, 0) }, chargeRing)
+local ringStroke = new("UIStroke", { Color = CYAN, Thickness = 2, Transparency = 0.5 }, chargeRing)
+label(chargeButton, "CHARGE", UDim2.new(1, 0, 0, 22), UDim2.fromOffset(0, 50), 17, INK, HEAD).ZIndex = 4
+local chargeAmount = label(chargeButton, "+1", UDim2.new(1, 0, 0, 18), UDim2.fromOffset(0, 76), 14, INK, BODY)
+chargeAmount.ZIndex = 4
+local chargeScale = pressable(chargeButton)
+
+local sellButton, sellLabel = actionButton(actions, "SELL", UDim2.fromOffset(150, 58), UDim2.fromOffset(0, 168), GREEN)
+sellLabel.Size = UDim2.new(1, 0, 0, 26)
+sellLabel.Position = UDim2.fromOffset(0, 6)
+local sellValue = label(sellButton, "$0", UDim2.new(1, 0, 0, 18), UDim2.fromOffset(0, 32), 14, INK, BODY)
+sellValue.ZIndex = 4
+
+local menu = new("Frame", {
+	Size = UDim2.fromOffset(130, 180),
+	Position = UDim2.new(0, 20, 0.44, 0),
+	AnchorPoint = Vector2.new(0, 0.5),
+	BackgroundTransparency = 1,
+}, root)
+new("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }, menu)
+
+local function menuButton(text, accent, order)
+	local button = new("TextButton", {
+		Size = UDim2.fromOffset(130, 50),
+		BackgroundColor3 = PANEL,
+		BackgroundTransparency = 0.15,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Text = "",
+		LayoutOrder = order,
+		ZIndex = 3,
+	}, menu)
+	new("UICorner", { CornerRadius = UDim.new(0, 6) }, button)
+	new("UIStroke", { Color = accent, Thickness = 1.5, Transparency = 0.3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, button)
+	local bar = new("Frame", {
+		Size = UDim2.new(0, 4, 1, -16),
+		Position = UDim2.fromOffset(8, 8),
+		BackgroundColor3 = accent,
+		BorderSizePixel = 0,
+		ZIndex = 4,
+	}, button)
+	new("UICorner", { CornerRadius = UDim.new(1, 0) }, bar)
+	label(button, text, UDim2.new(1, -20, 1, 0), UDim2.fromOffset(20, 0), 13, TEXT, HEAD, Enum.TextXAlignment.Left).ZIndex = 4
+	pressable(button)
+	return button
+end
+
+local upgradesButton = menuButton("UPGRADES", CYAN, 1)
+local rebirthButton = menuButton("REBIRTH", PURPLE, 2)
+local homeButton = menuButton("HOME", YELLOW, 3)
+local rebirthDot = new("Frame", {
+	Size = UDim2.fromOffset(12, 12),
+	Position = UDim2.new(1, -6, 0, -6),
+	BackgroundColor3 = PURPLE,
+	BorderSizePixel = 0,
+	Visible = false,
+	ZIndex = 5,
+}, rebirthButton)
+new("UICorner", { CornerRadius = UDim.new(1, 0) }, rebirthDot)
+
+local toasts = new("Frame", {
+	Size = UDim2.fromOffset(420, 200),
+	Position = UDim2.new(0.5, 0, 0, 156),
+	AnchorPoint = Vector2.new(0.5, 0),
+	BackgroundTransparency = 1,
+}, root)
+new("UIListLayout", { Padding = UDim.new(0, 6), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }, toasts)
+local toastCount = 0
+
+local TOAST_COLORS = { good = GREEN, bad = RED, info = CYAN, build = YELLOW, rebirth = PURPLE }
+
+local function toast(text, kind)
+	toastCount += 1
+	local color = TOAST_COLORS[kind] or CYAN
+	local frame = new("Frame", {
+		Size = UDim2.fromOffset(380, 34),
+		BackgroundColor3 = PANEL,
+		BackgroundTransparency = 0.12,
+		BorderSizePixel = 0,
+		LayoutOrder = toastCount,
+		ZIndex = 6,
+	}, toasts)
+	new("UICorner", { CornerRadius = UDim.new(0, 6) }, frame)
+	new("UIStroke", { Color = color, Thickness = 1.5, Transparency = 0.2 }, frame)
+	local textLabel = label(frame, text, UDim2.new(1, -20, 1, 0), UDim2.fromOffset(10, 0), 13, color, BODY)
+	textLabel.ZIndex = 7
+	textLabel.TextWrapped = true
+	local scale = new("UIScale", { Scale = 0.6 }, frame)
+	tween(scale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+	task.delay(2.6, function()
+		if not frame.Parent then return end
+		tween(frame, 0.3, { BackgroundTransparency = 1 })
+		tween(textLabel, 0.3, { TextTransparency = 1 })
+		tween(scale, 0.3, { Scale = 0.8 })
+		task.wait(0.3)
+		frame:Destroy()
+	end)
+	local children = {}
+	for _, child in ipairs(toasts:GetChildren()) do
+		if child:IsA("Frame") then table.insert(children, child) end
+	end
+	if #children > 4 then children[1]:Destroy() end
+end
+
+local function floatText(text, color, fromObject)
+	local position = fromObject.AbsolutePosition + fromObject.AbsoluteSize / 2 - root.AbsolutePosition
+	local s = uiScale.Scale
+	local floater = label(root, text, UDim2.fromOffset(160, 30), UDim2.fromOffset(position.X / s - 80, position.Y / s - 15), 22, color, HEAD)
+	floater.ZIndex = 9
+	floater.TextStrokeTransparency = 0.2
+	local drift = math.random(-40, 40)
+	tween(floater, 0.8, {
+		Position = floater.Position + UDim2.fromOffset(drift, -90),
+		TextTransparency = 1,
+		TextStrokeTransparency = 1,
+	})
+	task.delay(0.85, function() floater:Destroy() end)
+end
+
+local overlay = new("TextButton", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.new(0, 0, 0),
+	BackgroundTransparency = 1,
+	Text = "",
+	AutoButtonColor = false,
+	Visible = false,
+	ZIndex = 20,
+}, gui)
+
+local function modal(titleText, accent)
+	local frame = glass(overlay, UDim2.fromOffset(540, 380), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+	frame.ZIndex = 21
+	frame.Visible = false
+	frame.Active = true
+	new("UIScale", { Scale = 1 }, frame)
+	label(frame, titleText, UDim2.new(1, -60, 0, 50), UDim2.fromOffset(20, 6), 22, accent, HEAD, Enum.TextXAlignment.Left).ZIndex = 22
+	local close = new("TextButton", {
+		Size = UDim2.fromOffset(36, 36),
+		Position = UDim2.new(1, -46, 0, 10),
+		BackgroundColor3 = RED,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Text = "X",
+		Font = HEAD,
+		TextSize = 16,
+		TextColor3 = INK,
+		ZIndex = 22,
+	}, frame)
+	new("UICorner", { CornerRadius = UDim.new(0, 6) }, close)
+	pressable(close)
+	new("Frame", {
+		Size = UDim2.new(1, -40, 0, 1),
+		Position = UDim2.fromOffset(20, 56),
+		BackgroundColor3 = accent,
+		BackgroundTransparency = 0.5,
+		BorderSizePixel = 0,
+		ZIndex = 22,
+	}, frame)
+	return frame, close
+end
+
+local openPanel = nil
+
+local function closePanel()
+	if not openPanel then return end
+	local panel = openPanel
+	openPanel = nil
+	local scale = panel:FindFirstChildOfClass("UIScale")
+	tween(overlay, 0.2, { BackgroundTransparency = 1 })
+	tween(scale, 0.18, { Scale = 0.85 }).Completed:Connect(function()
+		if openPanel ~= panel then
+			panel.Visible = false
+			if not openPanel then overlay.Visible = false end
+		end
+	end)
+end
+
+local function showPanel(panel)
+	if openPanel == panel then closePanel() return end
+	if openPanel then openPanel.Visible = false end
+	openPanel = panel
+	overlay.Visible = true
+	panel.Visible = true
+	local scale = panel:FindFirstChildOfClass("UIScale")
+	scale.Scale = 0.7
+	tween(scale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+	tween(overlay, 0.2, { BackgroundTransparency = 0.45 })
+end
+
+overlay.Activated:Connect(closePanel)
+
+local upgradesPanel, upgradesClose = modal("UPGRADES", CYAN)
+upgradesClose.Activated:Connect(closePanel)
+
+local UPGRADE_INFO = {
+	{ kind = "Capacity", title = "BATTERY SIZE", effect = "+50% max energy" },
+	{ kind = "Charge", title = "CHARGE POWER", effect = "+2 energy per tap" },
+	{ kind = "Sell", title = "ENERGY PRICE", effect = "+20% sell value" },
+}
+
+local upgradeRows = {}
+for index, info in ipairs(UPGRADE_INFO) do
+	local row = new("Frame", {
+		Size = UDim2.new(1, -40, 0, 88),
+		Position = UDim2.fromOffset(20, 70 + (index - 1) * 98),
+		BackgroundColor3 = INK,
+		BackgroundTransparency = 0.3,
+		BorderSizePixel = 0,
+		ZIndex = 22,
+	}, upgradesPanel)
+	new("UICorner", { CornerRadius = UDim.new(0, 6) }, row)
+	new("UIStroke", { Color = CYAN, Thickness = 1, Transparency = 0.7 }, row)
+	local title = label(row, info.title, UDim2.new(0.6, 0, 0, 24), UDim2.fromOffset(16, 12), 15, TEXT, HEAD, Enum.TextXAlignment.Left)
+	title.ZIndex = 23
+	local level = label(row, "LV 0", UDim2.new(0.6, 0, 0, 18), UDim2.fromOffset(16, 38), 12, CYAN, HEAD, Enum.TextXAlignment.Left)
+	level.ZIndex = 23
+	local effect = label(row, info.effect, UDim2.new(0.6, 0, 0, 18), UDim2.fromOffset(16, 58), 12, MUTED, BODY, Enum.TextXAlignment.Left)
+	effect.ZIndex = 23
+	local buyButton, buyLabel = actionButton(row, "$0", UDim2.fromOffset(150, 52), UDim2.new(1, -166, 0.5, 0), GREEN, Vector2.new(0, 0.5))
+	buyButton.ZIndex = 23
+	buyLabel.ZIndex = 24
+	buyButton.Activated:Connect(function()
+		remote:FireServer("Upgrade", info.kind)
+	end)
+	upgradeRows[info.kind] = { level = level, button = buyButton, price = buyLabel }
+end
+
+local rebirthPanel, rebirthClose = modal("REBIRTH", PURPLE)
+rebirthClose.Activated:Connect(closePanel)
+local rebirthStats = label(rebirthPanel, "", UDim2.new(1, -40, 0, 70), UDim2.fromOffset(20, 72), 20, TEXT, HEAD)
+rebirthStats.ZIndex = 22
+rebirthStats.TextWrapped = true
+local rebirthInfo = label(rebirthPanel,
+	"Rebirthing resets your credits, buildings and upgrades. In return every rebirth gives +0.5x energy and sell multiplier forever.",
+	UDim2.new(1, -60, 0, 80), UDim2.fromOffset(30, 148), 14, MUTED, BODY)
+rebirthInfo.ZIndex = 22
+rebirthInfo.TextWrapped = true
+local rebirthRequirement = label(rebirthPanel, "REQUIRES: WARP GATE", UDim2.new(1, -40, 0, 20), UDim2.fromOffset(20, 236), 13, RED, HEAD)
+rebirthRequirement.ZIndex = 22
+local rebirthConfirm, rebirthConfirmLabel = actionButton(rebirthPanel, "REBIRTH", UDim2.fromOffset(240, 60), UDim2.new(0.5, 0, 1, -24), PURPLE, Vector2.new(0.5, 1))
+rebirthConfirm.ZIndex = 23
+rebirthConfirmLabel.ZIndex = 24
+rebirthConfirm.Activated:Connect(function()
+	if player:GetAttribute("CanRebirth") then
+		remote:FireServer("Rebirth")
+		closePanel()
+	else
+		toast("Build the Warp Gate first", "bad")
+	end
+end)
+
+upgradesButton.Activated:Connect(function() showPanel(upgradesPanel) end)
+rebirthButton.Activated:Connect(function() showPanel(rebirthPanel) end)
+homeButton.Activated:Connect(function()
+	remote:FireServer("Home")
+	toast("Warping home", "info")
+end)
+
+chargeButton.Activated:Connect(function()
+	remote:FireServer("Charge")
+	local energy = player:GetAttribute("Energy") or 0
+	local capacity = player:GetAttribute("Capacity") or 100
+	if energy >= capacity and not player:GetAttribute("AutoSell") then
+		floatText("FULL", RED, chargeButton)
+	else
+		floatText("+" .. formatNumber(player:GetAttribute("ChargePower") or 1), CYAN, chargeButton)
+	end
+	chargeScale.Scale = 0.9
+	tween(chargeScale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+	ringStroke.Transparency = 0
+	tween(ringStroke, 0.4, { Transparency = 0.5 })
+end)
+
+sellButton.Activated:Connect(function()
+	if (player:GetAttribute("Energy") or 0) < 1 then
+		toast("No energy to sell. Tap CHARGE or build generators", "bad")
+		return
+	end
+	remote:FireServer("Sell")
+end)
+
+local shownCredits = 0
+local targetCredits = 0
+local lastCredits = nil
+
+local function refresh()
+	local credits = player:GetAttribute("Credits") or 0
+	local energy = player:GetAttribute("Energy") or 0
+	local capacity = math.max(1, player:GetAttribute("Capacity") or 100)
+	local rate = player:GetAttribute("Rate") or 0
+	local sell = player:GetAttribute("SellValue") or 1
+	local rebirths = player:GetAttribute("Rebirths") or 0
+	local multiplier = player:GetAttribute("Multiplier") or 1
+	local canRebirth = player:GetAttribute("CanRebirth") == true
+
+	if lastCredits and credits > lastCredits then
+		walletScale.Scale = 1.08
+		tween(walletScale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+	end
+	lastCredits = credits
+	targetCredits = credits
+
+	local ratio = math.clamp(energy / capacity, 0, 1)
+	tween(fill, 0.25, { Size = UDim2.fromScale(ratio, 1) })
+	fillGradient.Color = ratio >= 1 and ColorSequence.new(Color3.fromRGB(200, 40, 60), RED) or ColorSequence.new(TEAL, CYAN)
+	energyText.Text = "ENERGY " .. formatNumber(energy) .. " / " .. formatNumber(capacity)
+	rateText.Text = "+" .. formatNumber(rate) .. " ENERGY / SEC"
+	chargeAmount.Text = "+" .. formatNumber(player:GetAttribute("ChargePower") or 1)
+	sellValue.Text = "$" .. formatNumber(energy * sell)
+	autoTag.Visible = player:GetAttribute("AutoSell") == true
+
+	for kind, row in pairs(upgradeRows) do
+		local level = player:GetAttribute(kind .. "Level") or 0
+		local cost = player:GetAttribute(kind .. "Cost") or 0
+		row.level.Text = "LV " .. level
+		row.price.Text = "$" .. formatNumber(cost)
+		row.button.BackgroundColor3 = credits >= cost and GREEN or Color3.fromRGB(90, 100, 120)
+	end
+
+	rebirthStats.Text = "REBIRTHS " .. rebirths .. "     MULTIPLIER x" .. string.format("%.1f", multiplier) .. "  >  x" .. string.format("%.1f", multiplier + 0.5)
+	rebirthRequirement.Text = canRebirth and "WARP GATE ONLINE - READY" or "REQUIRES: WARP GATE"
+	rebirthRequirement.TextColor3 = canRebirth and GREEN or RED
+	rebirthConfirm.BackgroundColor3 = canRebirth and PURPLE or Color3.fromRGB(70, 70, 90)
+	rebirthDot.Visible = canRebirth
+end
+
+player.AttributeChanged:Connect(refresh)
+refresh()
+
+RunService.RenderStepped:Connect(function(dt)
+	shownCredits += (targetCredits - shownCredits) * math.clamp(dt * 10, 0, 1)
+	if math.abs(targetCredits - shownCredits) < 1 then shownCredits = targetCredits end
+	creditsText.Text = "$" .. formatNumber(shownCredits)
+	chargeRing.Rotation = (chargeRing.Rotation + dt * 40) % 360
+end)
+
+remote.OnClientEvent:Connect(function(kind, a, b)
+	if kind == "Notify" then
+		toast(a, b)
+	elseif kind == "Built" then
+		toast("BUILT: " .. string.upper(a), "build")
+	elseif kind == "Sold" then
+		floatText("+$" .. formatNumber(a), GREEN, b and wallet or sellButton)
+		if not b then toast("Sold energy for $" .. formatNumber(a), "good") end
+	elseif kind == "Upgraded" then
+		toast(a .. " upgraded to LV " .. b, "good")
+	elseif kind == "Rebirthed" then
+		toast("REBIRTH " .. a .. "! Multiplier is now x" .. string.format("%.1f", b), "rebirth")
+	end
+end)
+
+task.delay(2, function()
+	toast("Step on the green pads at your station to build", "info")
+	task.wait(1)
+	toast("Tap CHARGE for energy, then SELL it for credits", "info")
+end)
