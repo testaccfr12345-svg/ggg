@@ -1,7 +1,4 @@
 local IMAGES = {
-	CardBase = "rbxassetid://0",
-	GlowOutline = "rbxassetid://0",
-	Shadow = "rbxassetid://0",
 	Star = "rbxassetid://0",
 }
 
@@ -346,7 +343,7 @@ local function runVote(titleText, options, resultText)
 					holding and Enum.EasingStyle.Quad or Enum.EasingStyle.Back)
 				card.positionTween = tween(card.frame, 0.18,
 					{ Position = UDim2.fromOffset(card.baseX, card.baseY + lift) }, Enum.EasingStyle.Back)
-				tween(card.glow, 0.15, { ImageTransparency = outlined and 0 or 1 })
+				tween(card.glow, 0.15, { Transparency = outlined and 0 or 1 })
 				tween(card.dimmer, 0.2, { BackgroundTransparency = shade })
 			end
 			card.frame.ZIndex = winner and 6 or ((picked or hovering or holding) and 4 or 2)
@@ -381,24 +378,49 @@ local function runVote(titleText, options, resultText)
 			BackgroundTransparency = 1,
 			ZIndex = 2,
 		})
-		create("ImageLabel", "Shadow", float, {
-			Position = UDim2.fromOffset(-20, -14),
-			Size = UDim2.fromOffset(CARD_W + 40, CARD_H + 40),
-			BackgroundTransparency = 1,
-			Image = IMAGES.Shadow,
+		local shadow = create("Frame", "Shadow", float, {
+			Position = UDim2.fromOffset(0, 9),
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 0.55,
+			BorderSizePixel = 0,
 			ZIndex = 1,
 		})
-		local body = create("ImageLabel", "Body", float, {
+		create("UICorner", "Round", shadow, { CornerRadius = UDim.new(0, 18) })
+		local edge = create("Frame", "Edge", float, {
 			Size = UDim2.fromScale(1, 1),
-			BackgroundTransparency = 1,
-			Image = IMAGES.CardBase,
-			ImageColor3 = option.color,
-			ScaleType = Enum.ScaleType.Stretch,
+			BackgroundColor3 = option.color:Lerp(Color3.new(0, 0, 0), 0.38),
+			BorderSizePixel = 0,
 			ZIndex = 2,
+		})
+		create("UICorner", "Round", edge, { CornerRadius = UDim.new(0, 18) })
+		create("UIStroke", "Border", edge, { Color = DARK, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+		local body = create("Frame", "Body", float, {
+			Size = UDim2.new(1, 0, 1, -10),
+			BackgroundColor3 = option.color,
+			BorderSizePixel = 0,
+			ZIndex = 2,
+		})
+		create("UICorner", "Round", body, { CornerRadius = UDim.new(0, 18) })
+		create("UIGradient", "Depth", body, {
+			Rotation = 90,
+			Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(215, 215, 215)),
+		})
+		local gloss = create("Frame", "Gloss", float, {
+			Position = UDim2.fromOffset(8, 6),
+			Size = UDim2.new(1, -16, 0.4, 0),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BorderSizePixel = 0,
+			ZIndex = 3,
+		})
+		create("UICorner", "Round", gloss, { CornerRadius = UDim.new(0, 14) })
+		create("UIGradient", "Fade", gloss, {
+			Rotation = 90,
+			Transparency = NumberSequence.new(0.8, 1),
 		})
 		local shineFrame = create("Frame", "ShineSweep", float, {
 			Position = UDim2.fromOffset(4, 4),
-			Size = UDim2.fromOffset(CARD_W - 8, CARD_H - 14),
+			Size = UDim2.fromOffset(CARD_W - 8, CARD_H - 18),
 			BackgroundColor3 = Color3.new(1, 1, 1),
 			BorderSizePixel = 0,
 			ZIndex = 3,
@@ -415,16 +437,17 @@ local function runVote(titleText, options, resultText)
 			}),
 			Offset = Vector2.new(-1.2, 0),
 		})
-		local glow = create("ImageLabel", "Glow", float, {
-			Position = UDim2.fromOffset(-20, -20),
-			Size = UDim2.fromOffset(CARD_W + 40, CARD_H + 40),
+		local glowFrame = create("Frame", "Glow", float, {
+			Position = UDim2.fromOffset(-5, -5),
+			Size = UDim2.new(1, 10, 1, 10),
 			BackgroundTransparency = 1,
-			Image = IMAGES.GlowOutline,
-			ImageColor3 = YELLOW,
-			ImageTransparency = 1,
 			ZIndex = 8,
 		})
-
+		create("UICorner", "Round", glowFrame, { CornerRadius = UDim.new(0, 22) })
+		local glow = create("UIStroke", "GlowStroke", glowFrame, {
+			Color = YELLOW, Thickness = 5, Transparency = 1,
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		})
 		local info = {
 			frame = holder, scale = cardScale, float = float, glow = glow, shine = shine, body = body,
 			baseX = baseX, baseY = baseY, hovered = false, held = nil,
