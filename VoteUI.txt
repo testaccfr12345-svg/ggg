@@ -1,10 +1,3 @@
-local SOUNDS = {
-	Hover = { id = "rbxasset://sounds/clickfast.wav", volume = 0.25 },
-	Click = { id = "rbxasset://sounds/button.wav", volume = 0.6 },
-	Tick = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5 },
-	Win = { id = "rbxasset://sounds/victory.wav", volume = 0.6 },
-}
-
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -16,7 +9,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 local DURATION = 7
 local BAR_WIDTH = 396
-local CARD_W, CARD_H, CARD_GAP, CARD_Y = 240, 310, 20, 180
+local CARD_W, CARD_H, CARD_GAP, CARD_Y = 240, 310, 20, 192
 local YELLOW = Color3.fromRGB(255, 222, 30)
 local DANGER = Color3.fromRGB(255, 64, 64)
 local DARK = Color3.fromRGB(14, 16, 28)
@@ -110,19 +103,6 @@ local gui = create("ScreenGui", "CategoryVoteUI", playerGui, {
 	DisplayOrder = 10,
 })
 
-local sounds = {}
-for name, info in pairs(SOUNDS) do
-	sounds[name] = create("Sound", name .. "Sound", gui, { SoundId = info.id, Volume = info.volume })
-end
-
-local function playSound(name, pitch)
-	local sound = sounds[name]
-	if not sound then return end
-	sound.PlaybackSpeed = pitch or 1
-	sound.TimePosition = 0
-	sound:Play()
-end
-
 local blur = Lighting:FindFirstChild("VoteBlur") or create("BlurEffect", "VoteBlur", Lighting, { Size = 0 })
 blur.Size = 0
 blur.Enabled = true
@@ -175,36 +155,27 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
 	if not alive or not current then return end
 	local now = os.clock()
 	for _, card in pairs(current.cards) do
-		local t = now * 2.2 + card.idleOffset
-		card.float.Position = UDim2.fromOffset(0, math.sin(t) * 3)
-		local sweep = ((now + card.idleOffset * 0.6) % 3.2) / 1.1
-		card.shine.Offset = Vector2.new(sweep * 2.4 - 1.2, 0)
+		local t = now * 1.6 + card.idleOffset
 		if card.icon then
 			local kick = 0
 			if card.iconKick then
 				local age = now - card.iconKick
 				if age < 0.42 then kick = math.sin(age / 0.42 * math.pi) * math.exp(-age * 4) end
 			end
-			card.icon.Position = UDim2.fromOffset(card.iconX, card.iconY + math.sin(t * 1.2) * 2.2 - kick * 5)
-			card.iconScale.Scale = 1 + math.sin(t + 0.6) * 0.012 + kick * 0.06
+			card.icon.Rotation = math.sin(t) * 4
+			card.iconScale.Scale = 1 + math.sin(t * 2) * 0.03 + kick * 0.15
 		end
 	end
 	if current.phase ~= "Voting" then return end
 	local remaining = math.max(0, current.endsAt - now)
+	if remaining <= 3 and not current.dangerShown then
+		current.dangerShown = true
+		current.danger()
+	end
 	local ratio = math.clamp(remaining / DURATION, 0, 1)
 	current.fill.Visible = ratio > 0
 	current.fill.Size = UDim2.fromOffset(BAR_WIDTH * ratio, 14)
 	current.footer.Text = current.myVote and "You can change your vote" or "No votes = random pick"
-	local second = math.ceil(remaining)
-	if remaining > 0 and second <= 3 then
-		if current.lastSecond ~= second then
-			current.lastSecond = second
-			current.danger()
-			current.countdown(second)
-		end
-		local shake = (3.2 - remaining) * 1.4
-		current.track.Position = UDim2.fromOffset(440 + random:NextNumber(-shake, shake), 146 + random:NextNumber(-shake, shake) * 0.5)
-	end
 	if remaining <= 0 then current.finish() end
 end))
 
@@ -284,24 +255,11 @@ local function runVote(titleText, options, resultText)
 	round.fill = fill
 	round.track = track
 
-	local number = label("CountdownNumber", page, "", 852, 122, 70, 66, 60, Color3.new(1, 1, 1), 3.5)
-	number.Visible = false
-	local numberScale = create("UIScale", "NumberPop", number, { Scale = 1 })
-
 	round.danger = function()
 		tween(fill, 0.25, { BackgroundColor3 = DANGER })
 	end
 
-	round.countdown = function(second)
-		number.Visible = true
-		number.Text = tostring(second)
-		number.TextColor3 = second == 1 and DANGER or Color3.new(1, 1, 1)
-		numberScale.Scale = 1.8
-		tween(numberScale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
-		playSound("Tick", 1 + (3 - second) * 0.15)
-	end
-
-	local footer = label("Footer", page, "No votes = random pick", 240, 526, 800, 46, 30, CREAM, 2.5)
+	local footer = label("Footer", page, "No votes = random pick", 240, 528, 800, 46, 30, CREAM, 2.5)
 	local footerScale = create("UIScale", "FooterPop", footer, { Scale = 1 })
 	round.footer = footer
 
@@ -316,27 +274,11 @@ local function runVote(titleText, options, resultText)
 			local voting = round.phase == "Voting"
 			local hovering = card.hovered and voting
 			local holding = card.held ~= nil and voting
-			local size, lift = 1, 0
-			if finished then
-				size, lift = winner and 1.08 or 0.95, winner and -8 or 4
-			elseif holding then
-				size, lift = 0.96, 3
-			elseif picked then
-				size, lift = 1.05, -6
-			elseif hovering then
-				size, lift = 1.03, -4
-			end
 			local outlined = winner or (not finished and (picked or hovering or holding))
 			local shade = (finished and not winner) and 0.45 or 1
-			local signature = size .. ":" .. tostring(outlined) .. ":" .. shade
+			local signature = tostring(outlined) .. ":" .. shade
 			if signature ~= card.signature then
 				card.signature = signature
-				if card.scaleTween then card.scaleTween:Cancel() end
-				if card.positionTween then card.positionTween:Cancel() end
-				card.scaleTween = tween(card.scale, holding and 0.07 or 0.2, { Scale = size },
-					holding and Enum.EasingStyle.Quad or Enum.EasingStyle.Back)
-				card.positionTween = tween(card.frame, 0.18,
-					{ Position = UDim2.fromOffset(card.baseX, card.baseY + lift) }, Enum.EasingStyle.Back)
 				tween(card.glow, 0.15, { Transparency = outlined and 0 or 1 })
 				tween(card.dimmer, 0.2, { BackgroundTransparency = shade })
 			end
@@ -352,7 +294,6 @@ local function runVote(titleText, options, resultText)
 		local card = round.cards[name]
 		round.portrait = addPortrait(card, player.UserId)
 		card.iconKick = os.clock()
-		playSound("Click")
 		round.refresh()
 	end
 
@@ -361,12 +302,12 @@ local function runVote(titleText, options, resultText)
 		local baseY = CARD_Y + CARD_H / 2
 		local holder = create("Frame", option.name .. "Card", page, {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromOffset(baseX, baseY + 34),
+			Position = UDim2.fromOffset(baseX, baseY),
 			Size = UDim2.fromOffset(CARD_W, CARD_H),
 			BackgroundTransparency = 1,
 			ZIndex = 2,
 		})
-		local cardScale = create("UIScale", "CardScale", holder, { Scale = 0.6 })
+		local cardScale = create("UIScale", "CardScale", holder, { Scale = 1 })
 		local float = create("Frame", "Float", holder, {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
@@ -412,25 +353,6 @@ local function runVote(titleText, options, resultText)
 			Rotation = 90,
 			Transparency = NumberSequence.new(0.8, 1),
 		})
-		local shineFrame = create("Frame", "ShineSweep", float, {
-			Position = UDim2.fromOffset(4, 4),
-			Size = UDim2.fromOffset(CARD_W - 8, CARD_H - 18),
-			BackgroundColor3 = Color3.new(1, 1, 1),
-			BorderSizePixel = 0,
-			ZIndex = 3,
-		})
-		create("UICorner", "Round", shineFrame, { CornerRadius = UDim.new(0, 14) })
-		local shine = create("UIGradient", "ShineGradient", shineFrame, {
-			Rotation = 20,
-			Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 1),
-				NumberSequenceKeypoint.new(0.42, 1),
-				NumberSequenceKeypoint.new(0.5, 0.78),
-				NumberSequenceKeypoint.new(0.58, 1),
-				NumberSequenceKeypoint.new(1, 1),
-			}),
-			Offset = Vector2.new(-1.2, 0),
-		})
 		local glowFrame = create("Frame", "Glow", float, {
 			Position = UDim2.fromOffset(-5, -5),
 			Size = UDim2.new(1, 10, 1, 10),
@@ -443,7 +365,7 @@ local function runVote(titleText, options, resultText)
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 		})
 		local info = {
-			frame = holder, scale = cardScale, float = float, glow = glow, shine = shine, body = body,
+			frame = holder, scale = cardScale, float = float, glow = glow, body = body,
 			baseX = baseX, baseY = baseY, hovered = false, held = nil,
 			idleOffset = index * 1.7,
 		}
@@ -451,15 +373,14 @@ local function runVote(titleText, options, resultText)
 		if option.icon then
 			local bounds = ICON_BOUNDS[option.name]
 			local cropW, cropH = bounds[3] - bounds[1], bounds[4] - bounds[2]
-			local fitBy = math.min(190 / cropW, 125 / cropH)
+			local fitBy = math.min(200 / cropW, 128 / cropH)
 			local iconW, iconH = cropW * fitBy, cropH * fitBy
-			info.iconX, info.iconY = CARD_W / 2, 80
+			info.iconX, info.iconY = CARD_W / 2, 82
 			local slot = create("Frame", "Icon", float, {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromOffset(info.iconX, info.iconY),
 				Size = UDim2.fromOffset(iconW, iconH),
 				BackgroundTransparency = 1,
-				ClipsDescendants = true,
 				ZIndex = 4,
 			})
 			info.icon = slot
@@ -472,12 +393,12 @@ local function runVote(titleText, options, resultText)
 				ScaleType = Enum.ScaleType.Stretch,
 				ZIndex = 4,
 			})
-			label("CardTitle", float, string.upper(option.name), 8, 142, CARD_W - 16, 48, 44, Color3.new(1, 1, 1), 3.5)
-			label("Description", float, option.desc, 14, 190, CARD_W - 28, 50, 21, Color3.new(1, 1, 1), 2.2)
+			label("CardTitle", float, string.upper(option.name), 8, 152, CARD_W - 16, 42, 40, Color3.new(1, 1, 1), 3.5)
+			label("Description", float, option.desc, 16, 196, CARD_W - 32, 44, 19, Color3.new(1, 1, 1), 2)
 		end
 
 		local row = create("Frame", "VoterAvatars", float, {
-			Position = UDim2.fromOffset(10, 244),
+			Position = UDim2.fromOffset(10, 246),
 			Size = UDim2.fromOffset(CARD_W - 20, 46),
 			BackgroundTransparency = 1,
 			ZIndex = 6,
@@ -513,7 +434,6 @@ local function runVote(titleText, options, resultText)
 		button.MouseEnter:Connect(function()
 			if UserInputService.MouseEnabled and round.phase == "Voting" then
 				info.hovered = true
-				playSound("Hover", 1.1)
 				round.refresh()
 			end
 		end)
@@ -530,19 +450,12 @@ local function runVote(titleText, options, resultText)
 			round.refresh()
 		end)
 
-		task.delay((index - 1) * 0.06, function()
-			if not alive then return end
-			tween(cardScale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
-			tween(holder, 0.3, { Position = UDim2.fromOffset(baseX, baseY) }, Enum.EasingStyle.Back)
-		end)
 	end
 
 	round.finish = function()
 		if round.phase ~= "Voting" then return end
 		round.phase = "Finished"
 		fill.Visible = false
-		number.Visible = false
-		track.Position = UDim2.fromOffset(440, 146)
 		local winner = round.myVote or options[random:NextInteger(1, #options)].name
 		round.winner = winner
 		for _, card in pairs(round.cards) do
@@ -551,7 +464,6 @@ local function runVote(titleText, options, resultText)
 		end
 		round.refresh()
 		round.cards[winner].iconKick = os.clock()
-		playSound("Win")
 		footer.Text = string.format(resultText, string.upper(winner))
 		footer.TextColor3 = RESULT_GREEN
 		footer.TextSize = 38
