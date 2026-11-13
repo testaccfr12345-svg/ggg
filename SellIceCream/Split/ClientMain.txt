@@ -1,5 +1,0 @@
-local G = {}
-local folder = script.Parent
-for i = 1, 2 do
-	require(folder:WaitForChild("IceCreamClient" .. i))(G)
-end

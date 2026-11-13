@@ -1,8 +1,8 @@
 SELL ICE CREAM! - SETUP GUIDE
 =============================
 
-8 SCRIPTS TO PASTE (exact place, type and name)
-The game is split into small pieces because Studio Lite can't paste one huge script.
+6 SCRIPTS TO PASTE (exact place, type and name)
+Only the server is split into pieces, because Studio Lite can't paste it as one big script.
 Names must match EXACTLY.
 
 ReplicatedStorage:
@@ -15,11 +15,9 @@ ServerScriptService:
   5) ServerMain.txt      -> Script        named  IceCreamServer
 
 StarterPlayer > StarterPlayerScripts:
-  6) Client1.txt         -> ModuleScript  named  IceCreamClient1
-  7) Client2.txt         -> ModuleScript  named  IceCreamClient2
-  8) ClientMain.txt      -> LocalScript   named  IceCreamClient
+  6) Client.txt          -> LocalScript   named  IceCreamClient
 
-The Main scripts load the numbered pieces in order. Do not put the pieces inside each other,
+ServerMain loads the 3 server pieces in order. Do not put the pieces inside each other,
 they all sit side by side in the same folder.
 
 How to add each one in Studio / Studio Lite:
