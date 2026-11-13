@@ -1,24 +1,21 @@
 SELL ICE CREAM! - SETUP GUIDE
 =============================
 
-6 SCRIPTS TO PASTE (exact place, type and name)
-Only the server is split into pieces, because Studio Lite can't paste it as one big script.
+4 SCRIPTS TO PASTE (exact place, type and name)
+The server is split in 2 because Studio Lite can't paste it as one big script.
 Names must match EXACTLY.
 
 ReplicatedStorage:
-  1) Config.txt          -> ModuleScript  named  Config
+  1) Config.txt     -> ModuleScript  named  Config
 
 ServerScriptService:
-  2) Server1.txt         -> ModuleScript  named  IceCreamServer1
-  3) Server2.txt         -> ModuleScript  named  IceCreamServer2
-  4) Server3.txt         -> ModuleScript  named  IceCreamServer3
-  5) ServerMain.txt      -> Script        named  IceCreamServer
+  2) Server1.txt    -> ModuleScript  named  IceCreamServer1
+  3) Server2.txt    -> Script        named  IceCreamServer
 
 StarterPlayer > StarterPlayerScripts:
-  6) Client.txt          -> LocalScript   named  IceCreamClient
+  4) Client.txt     -> LocalScript   named  IceCreamClient
 
-ServerMain loads the 3 server pieces in order. Do not put the pieces inside each other,
-they all sit side by side in the same folder.
+Server2 loads Server1 by itself. Keep both side by side in ServerScriptService.
 
 How to add each one in Studio / Studio Lite:
 - Find the place (ReplicatedStorage, ServerScriptService, StarterPlayer > StarterPlayerScripts) in the Explorer.

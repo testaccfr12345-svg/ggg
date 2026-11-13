@@ -710,21 +710,394 @@ refreshShop = function()
 	for player in pairs(profiles) do publish(player) end
 end
 
+local function refreshEntryAttributes(entry)
+	gameState:SetAttribute("Entry_" .. entry.name .. "_State", entry.state)
+	gameState:SetAttribute("Entry_" .. entry.name .. "_Health", math.floor(entry.health))
+	gameState:SetAttribute("Entry_" .. entry.name .. "_Max", entry.maxHealth)
+end
+
+local function setEntryVisual(entry)
+	if entry.kind == "door" then
+		local closedCF = entry.hinge * CFrame.new(entry.width / 2, 4.5, 0)
+		local target
+		if entry.state == "Open" then
+			target = entry.hinge * CFrame.Angles(0, math.rad(entry.name == "Back" and 100 or -100), 0) * CFrame.new(entry.width / 2, 4.5, 0)
+			entry.door.CanCollide = false
+			entry.door.Transparency = 0
+		elseif entry.state == "Broken" then
+			target = entry.hinge * CFrame.new(entry.width / 2, 0.4, 3) * CFrame.Angles(math.rad(-88), 0, 0)
+			entry.door.CanCollide = false
+			entry.door.Transparency = 0.2
+		else
+			target = closedCF
+			entry.door.CanCollide = true
+			entry.door.Transparency = 0
+		end
+		TweenService:Create(entry.door, TweenInfo.new(0.35, Enum.EasingStyle.Back), { CFrame = target }):Play()
+		local offset = target * CFrame.new(entry.width / 2 - 0.8, 0, 0.5)
+		entry.knob.CFrame = offset
+		entry.lockLight.CFrame = target * CFrame.new(entry.width / 2 - 0.8, 1.2, 0.45)
+		entry.lockLight.Color = entry.state == "Locked" and Color3.fromRGB(90, 230, 110) or RED
+		entry.lockLight.Transparency = entry.state == "Broken" and 1 or 0
+		entry.knob.Transparency = entry.state == "Broken" and 1 or 0
+	else
+		entry.glass.Transparency = entry.state == "Broken" and 1 or 0.35
+		entry.glass.CanCollide = entry.state ~= "Broken"
+		for _, board in ipairs(entry.boards) do
+			board.Transparency = entry.state == "Boarded" and 0 or 1
+			board.CanCollide = entry.state == "Boarded"
+		end
+	end
+	refreshEntryAttributes(entry)
+end
+
+local refreshPrompt
+
+local function resetEntries()
+	for _, entry in pairs(entries) do
+		entry.state = entry.startState
+		if entry.kind == "door" then
+			entry.maxHealth = (entry.name == "Front" and shopHasUpgrade("ReinforcedDoor")) and Config.ReinforcedDoorHealth or Config.DoorHealth
+		else
+			entry.maxHealth = Config.WindowBoardHealth
+		end
+		entry.health = entry.maxHealth
+		entry.crawl = 0
+		setEntryVisual(entry)
+		refreshPrompt(entry)
+	end
+end
+
+local repairing = {}
+
+refreshPrompt = function(entry)
+	local prompt = entry.prompt
+	if not prompt then return end
+	prompt.Enabled = state.phase == "Night"
+	local damaged = entry.health < entry.maxHealth
+	if entry.kind == "door" then
+		if entry.state == "Open" or entry.state == "Closed" then
+			prompt.ActionText = (entry.name == "Back" and not shopHasUpgrade("BackDoorLock")) and "Needs Back Door Lock" or "Lock Door"
+			prompt.HoldDuration = Config.LockHoldTime
+			entry.mode = "lock"
+		elseif entry.state == "Locked" and damaged then
+			prompt.ActionText = "Repair"
+			prompt.HoldDuration = 30
+			entry.mode = "repair"
+		else
+			prompt.Enabled = false
+			entry.mode = nil
+		end
+	else
+		if entry.state == "Glass" then
+			prompt.ActionText = shopHasUpgrade("WindowBoards") and "Board Window" or "Needs Window Boards"
+			prompt.HoldDuration = Config.BoardHoldTime
+			entry.mode = "board"
+		elseif entry.state == "Boarded" and damaged then
+			prompt.ActionText = "Repair"
+			prompt.HoldDuration = 30
+			entry.mode = "repair"
+		else
+			prompt.Enabled = false
+			entry.mode = nil
+		end
+	end
+end
+
+for _, name in ipairs(ENTRY_ORDER) do
+	local entry = entries[name]
+	local anchor = part(shopFolder, Vector3.new(1, 1, 1), CFrame.new(entry.inside + Vector3.new(0, 3, 0)), WHITE, nil, { Transparency = 1, CanCollide = false, CanQuery = false })
+	local prompt = make("ProximityPrompt", {
+		ObjectText = entry.display,
+		ActionText = "Lock",
+		MaxActivationDistance = 11,
+		RequiresLineOfSight = false,
+		Enabled = false,
+		HoldDuration = 1.5,
+		Style = Enum.ProximityPromptStyle.Default,
+	}, anchor)
+	entry.prompt = prompt
+	prompt.Triggered:Connect(function(player)
+		if state.phase ~= "Night" or not profiles[player] then return end
+		if entry.mode == "lock" then
+			if entry.name == "Back" and not shopHasUpgrade("BackDoorLock") then
+				toast(player, "Buy the Back Door Lock upgrade to lock this door!", "bad")
+				return
+			end
+			entry.state = "Locked"
+			setEntryVisual(entry)
+			refreshPrompt(entry)
+			toast(player, entry.display .. " LOCKED", "good")
+		elseif entry.mode == "board" then
+			if not shopHasUpgrade("WindowBoards") then
+				toast(player, "Buy Window Boards to board up windows!", "bad")
+				return
+			end
+			entry.state = "Boarded"
+			entry.health = entry.maxHealth
+			setEntryVisual(entry)
+			refreshPrompt(entry)
+			toast(player, entry.display .. " BOARDED", "good")
+		end
+	end)
+	prompt.PromptButtonHoldBegan:Connect(function(player)
+		if entry.mode == "repair" and state.phase == "Night" then repairing[player] = entry end
+	end)
+	prompt.PromptButtonHoldEnded:Connect(function(player)
+		if repairing[player] == entry then repairing[player] = nil end
+	end)
+	setEntryVisual(entry)
+end
+
+switchPrompt.Triggered:Connect(function(player)
+	if state.phase == "Night" then
+		toast(player, "The power is out!", "bad")
+		return
+	end
+	setLights(not state.lightsOn)
+end)
+
+local function randomOf(list)
+	return list[rng:NextInteger(1, #list)]
+end
+
+local function setFace(model, mode)
+	local head = model:FindFirstChild("Head")
+	local gui = head and head:FindFirstChild("FaceGui")
+	if not gui then return end
+	local eyeL, eyeR, mouth = gui:FindFirstChild("EyeL"), gui:FindFirstChild("EyeR"), gui:FindFirstChild("Mouth")
+	if not eyeL or not eyeR or not mouth then return end
+	if mode == "happy" then
+		TweenService:Create(mouth, TweenInfo.new(0.3), { Size = UDim2.fromScale(0.4, 0.1), Position = UDim2.fromScale(0.3, 0.64) }):Play()
+	elseif mode == "sad" then
+		TweenService:Create(mouth, TweenInfo.new(0.3), { Size = UDim2.fromScale(0.26, 0.05), Position = UDim2.fromScale(0.37, 0.72) }):Play()
+	elseif mode == "angry" then
+		mouth.BackgroundColor3 = Color3.fromRGB(150, 20, 30)
+		TweenService:Create(mouth, TweenInfo.new(0.2), { Size = UDim2.fromScale(0.3, 0.08), Position = UDim2.fromScale(0.35, 0.68) }):Play()
+	elseif mode == "creepy" then
+		TweenService:Create(mouth, TweenInfo.new(2.5, Enum.EasingStyle.Sine), { Size = UDim2.fromScale(0.78, 0.09), Position = UDim2.fromScale(0.11, 0.64) }):Play()
+	elseif mode == "black" then
+		eyeL.BackgroundColor3 = Color3.new(0, 0, 0)
+		eyeR.BackgroundColor3 = Color3.new(0, 0, 0)
+		local pl, pr = eyeL:FindFirstChild("Pupil"), eyeR:FindFirstChild("Pupil")
+		if pl then pl.Visible = false end
+		if pr then pr.Visible = false end
+	end
+end
+
+local function buildFace(model, monster)
+	local head = model:FindFirstChild("Head")
+	if not head then return end
+	for _, child in ipairs(head:GetChildren()) do
+		if child:IsA("Decal") then child:Destroy() end
+	end
+	local gui = make("SurfaceGui", { Name = "FaceGui", Face = Enum.NormalId.Front, CanvasSize = Vector2.new(100, 100), LightInfluence = monster and 0 or 1 }, head)
+	for _, info in ipairs({ { "EyeL", 0.2 }, { "EyeR", 0.56 } }) do
+		local eye = make("Frame", {
+			Name = info[1],
+			Size = UDim2.fromScale(0.24, 0.24),
+			Position = UDim2.fromScale(info[2], 0.3),
+			BackgroundColor3 = monster and Color3.fromRGB(255, 30, 40) or WHITE,
+			BorderSizePixel = 0,
+		}, gui)
+		make("UICorner", { CornerRadius = UDim.new(1, 0) }, eye)
+		if not monster then
+			local pupil = make("Frame", {
+				Name = "Pupil",
+				Size = UDim2.fromScale(0.55, 0.55),
+				Position = UDim2.fromScale(0.225, 0.225),
+				BackgroundColor3 = Color3.fromRGB(30, 25, 35),
+				BorderSizePixel = 0,
+			}, eye)
+			make("UICorner", { CornerRadius = UDim.new(1, 0) }, pupil)
+		end
+	end
+	local mouth = make("Frame", {
+		Name = "Mouth",
+		Size = monster and UDim2.fromScale(0.6, 0.14) or UDim2.fromScale(0.32, 0.06),
+		Position = monster and UDim2.fromScale(0.2, 0.66) or UDim2.fromScale(0.34, 0.68),
+		BackgroundColor3 = Color3.fromRGB(60, 25, 35),
+		BorderSizePixel = 0,
+	}, gui)
+	make("UICorner", { CornerRadius = UDim.new(1, 0) }, mouth)
+end
+
+local function scaleLimbs(model, names, factor)
+	local set = {}
+	for _, name in ipairs(names) do set[name] = true end
+	for _, joint in ipairs(model:GetDescendants()) do
+		if joint:IsA("Motor6D") then
+			if joint.Part0 and set[joint.Part0.Name] then
+				local p = joint.C0.Position
+				joint.C0 = CFrame.new(p.X, p.Y * factor, p.Z) * (joint.C0 - joint.C0.Position)
+			end
+			if joint.Part1 and set[joint.Part1.Name] then
+				local p = joint.C1.Position
+				joint.C1 = CFrame.new(p.X, p.Y * factor, p.Z) * (joint.C1 - joint.C1.Position)
+			end
+		end
+	end
+	for _, name in ipairs(names) do
+		local limb = model:FindFirstChild(name)
+		if limb and limb:IsA("BasePart") then
+			limb.Size = Vector3.new(limb.Size.X, limb.Size.Y * factor, limb.Size.Z)
+		end
+	end
+end
+
+local ARM_PARTS = { "LeftUpperArm", "LeftLowerArm", "RightUpperArm", "RightLowerArm" }
+local SKINS = {
+	Color3.fromRGB(255, 220, 190), Color3.fromRGB(240, 190, 150), Color3.fromRGB(200, 140, 100),
+	Color3.fromRGB(150, 100, 70), Color3.fromRGB(110, 70, 50), Color3.fromRGB(255, 205, 170),
+}
+local CLOTHES = {
+	PINK, MINT, LILAC, SKY, Color3.fromRGB(255, 200, 120), Color3.fromRGB(255, 120, 120), Color3.fromRGB(120, 200, 255),
+	Color3.fromRGB(90, 90, 120), Color3.fromRGB(255, 255, 255), Color3.fromRGB(130, 220, 130),
+}
+local HAIR = {
+	Color3.fromRGB(60, 40, 30), Color3.fromRGB(30, 25, 25), Color3.fromRGB(230, 200, 120), Color3.fromRGB(180, 90, 50),
+	Color3.fromRGB(255, 150, 200), Color3.fromRGB(150, 120, 255),
+}
+
+local function buildRig(kind)
+	local desc = Instance.new("HumanoidDescription")
+	local skin, shirt, pants
+	if kind == "monster" then
+		skin = Color3.fromRGB(70, 72, 80)
+		shirt = Color3.fromRGB(45, 45, 55)
+		pants = Color3.fromRGB(35, 35, 42)
+		desc.HeightScale = Config.MonsterHeightScale
+		desc.WidthScale = 0.85
+		desc.DepthScale = 0.85
+	else
+		skin = randomOf(SKINS)
+		shirt = randomOf(CLOTHES)
+		pants = randomOf(CLOTHES)
+	end
+	desc.HeadColor = skin
+	desc.LeftArmColor = skin
+	desc.RightArmColor = skin
+	desc.TorsoColor = shirt
+	desc.LeftLegColor = pants
+	desc.RightLegColor = pants
+	local ok, model = pcall(function()
+		return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+	end)
+	if not ok or not model then return nil end
+	local animate = model:FindFirstChild("Animate")
+	if animate then animate:Destroy() end
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	local animator = hum:FindFirstChildOfClass("Animator")
+	if animator then animator:Destroy() end
+	hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	hum.BreakJointsOnDeath = false
+	hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+	hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+	hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+	model:SetAttribute("Skin", skin)
+	buildFace(model, kind == "monster")
+	if kind ~= "monster" and rng:NextNumber() < 0.85 then
+		local head = model:FindFirstChild("Head")
+		if head then
+			local hair = part(model, Vector3.new(head.Size.X * 1.08, head.Size.Y * 0.35, head.Size.Z * 1.08), head.CFrame * CFrame.new(0, head.Size.Y * 0.42, 0.05), randomOf(HAIR), nil, { Anchored = false, CanCollide = false, Massless = true })
+			make("WeldConstraint", { Part0 = head, Part1 = hair }, hair)
+			hair.Name = "Hair"
+		end
+	end
+	if kind == "monster" then
+		scaleLimbs(model, ARM_PARTS, Config.MonsterArmScale)
+		local head = model:FindFirstChild("Head")
+		if head then make("PointLight", { Color = Color3.fromRGB(255, 30, 30), Range = 9, Brightness = 2 }, head) end
+	end
+	for _, p in ipairs(model:GetDescendants()) do
+		if p:IsA("BasePart") then p.CollisionGroup = "NPC" end
+	end
+	return model
+end
+
+local function placeRig(model, folder, cf)
+	model:PivotTo(cf)
+	model.Parent = folder
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if root then pcall(function() root:SetNetworkOwner(nil) end) end
+end
+
+local function walkTo(model, target, timeout)
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if not hum or not root then return false end
+	local started = os.clock()
+	local lastIssue = os.clock()
+	hum:MoveTo(target)
+	while model.Parent do
+		local flat = Vector3.new(target.X, root.Position.Y, target.Z)
+		if (root.Position - flat).Magnitude < 1.6 then return true end
+		if os.clock() - started > (timeout or 20) then return false end
+		if os.clock() - lastIssue > 2 then
+			hum:MoveTo(target)
+			lastIssue = os.clock()
+		end
+		task.wait(0.1)
+	end
+	return false
+end
+
+local function fakeChance(day)
+	return math.min(Config.FakeChanceMax, Config.FakeChanceStart + (day - 1) * Config.FakeChanceStep)
+end
+
+local function pickTell(day)
+	local pool = {}
+	if day < Config.HardTellDay then
+		for _, t in ipairs(Config.EasyTells) do table.insert(pool, t) end
+	end
+	if day >= Config.MediumTellDay then
+		for _, t in ipairs(Config.MediumTells) do table.insert(pool, t) end
+	end
+	if day >= Config.HardTellDay then
+		for _, t in ipairs(Config.HardTells) do table.insert(pool, t) end
+	end
+	return randomOf(pool)
+end
+
+local function makeOrder(day, tell)
+	local flavors = shopFlavors()
+	local items = {}
+	local first = randomOf(flavors)
+	if day >= Config.TwoFlavorDay and #flavors >= 2 and rng:NextNumber() < 0.5 then
+		local second = randomOf(flavors)
+		while second == first do second = randomOf(flavors) end
+		table.insert(items, { flavor = first, scoops = rng:NextInteger(1, 2) })
+		table.insert(items, { flavor = second, scoops = rng:NextInteger(1, 2) })
+	else
+		table.insert(items, { flavor = first, scoops = rng:NextInteger(1, Config.MaxScoopsPerFlavor) })
+	end
+	local parts = {}
+	for _, item in ipairs(items) do
+		local name = FLAVOR_BY_ID[item.flavor].name
+		if tell == "Misspell" then name = Config.Misspellings[item.flavor] or name end
+		if tell == "FakeFlavor" then name = randomOf(Config.FakeFlavorNames) end
+		if #items == 1 then
+			table.insert(parts, item.scoops .. (item.scoops == 1 and " scoop " or " scoops ") .. name)
+		else
+			table.insert(parts, item.scoops .. " " .. name)
+		end
+	end
+	return items, table.concat(parts, " + ")
+end
+
+G.ARM_PARTS = ARM_PARTS
 G.BuyUpgradeRemote = BuyUpgradeRemote
 G.COUNTER_SPOT = COUNTER_SPOT
 G.Config = Config
 G.DARK = DARK
-G.ENTRY_ORDER = ENTRY_ORDER
 G.FLAVOR_BY_ID = FLAVOR_BY_ID
 G.FlashlightHitRemote = FlashlightHitRemote
 G.IS_STUDIO = IS_STUDIO
-G.LILAC = LILAC
 G.LINE_SLOTS = LINE_SLOTS
 G.LOBBY_SPOT = LOBBY_SPOT
-G.MINT = MINT
 G.MarketplaceService = MarketplaceService
 G.OUTSIDE_POINTS = OUTSIDE_POINTS
-G.PINK = PINK
 G.PLOT_MAX = PLOT_MAX
 G.PLOT_MIN = PLOT_MIN
 G.PathfindingService = PathfindingService
@@ -734,7 +1107,6 @@ G.RefuseRemote = RefuseRemote
 G.RequestRemote = RequestRemote
 G.SHOP_MAX = SHOP_MAX
 G.SHOP_MIN = SHOP_MIN
-G.SKY = SKY
 G.SP = SP
 G.STREET_FRONT = STREET_FRONT
 G.STREET_SPAWN = STREET_SPAWN
@@ -749,37 +1121,48 @@ G.applyLighting = applyLighting
 G.awardBadge = awardBadge
 G.bestStore = bestStore
 G.boardList = boardList
+G.buildRig = buildRig
 G.cashMultiplier = cashMultiplier
 G.customerFolder = customerFolder
 G.dailyInfo = dailyInfo
 G.entries = entries
+G.fakeChance = fakeChance
 G.gameState = gameState
 G.hasPass = hasPass
 G.inBox = inBox
 G.loadData = loadData
 G.make = make
+G.makeOrder = makeOrder
 G.monsterFolder = monsterFolder
 G.orderScreenText = orderScreenText
-G.part = part
 G.passCache = passCache
+G.pickTell = pickTell
+G.placeRig = placeRig
 G.profiles = profiles
 G.publish = publish
+G.randomOf = randomOf
+G.refreshEntryAttributes = refreshEntryAttributes
+G.refreshPrompt = refreshPrompt
 G.refreshShop = refreshShop
+G.repairing = repairing
+G.resetEntries = resetEntries
 G.rng = rng
 G.sanitize = sanitize
 G.saveData = saveData
+G.scaleLimbs = scaleLimbs
 G.send = send
 G.sendAll = sendAll
+G.setEntryVisual = setEntryVisual
+G.setFace = setFace
 G.setLights = setLights
 G.setPhase = setPhase
 G.shopFlavors = shopFlavors
-G.shopFolder = shopFolder
 G.shopHasUpgrade = shopHasUpgrade
 G.soundIn = soundIn
 G.state = state
 G.store = store
-G.switchPrompt = switchPrompt
 G.toast = toast
 G.today = today
 G.updateShopVisuals = updateShopVisuals
+G.walkTo = walkTo
 end

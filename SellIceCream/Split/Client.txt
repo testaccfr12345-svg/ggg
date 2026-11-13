@@ -178,7 +178,6 @@ local function centerOf(object)
 	return position / uiScale.Scale
 end
 
-local ui = { currentScoops = {}, flashOn = false, openPanel = nil }
 local themed = {}
 
 local phasePill = chunky(root, UDim2.fromOffset(300, 54), UDim2.new(0.5, 0, 0, 6), Vector2.new(0.5, 0), PINK, 20, 6)
@@ -199,6 +198,7 @@ local function menuButton(label, color, order, callback)
 	return piece
 end
 
+local openPanel
 local showPanel
 local shopPanel
 local franchisePanel
@@ -281,12 +281,13 @@ text(clearPiece.face, "CLEAR", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 18,
 local detectPiece = chunky(actionColumn, UDim2.fromOffset(210, 38), UDim2.fromOffset(0, 130), nil, LILAC, 14, 5)
 local detectLabel = text(detectPiece.face, "FAKE DETECTOR", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 18, WHITE, 2.5)
 
+local currentScoops = {}
 local serving = false
 
 local function refreshCone()
 	for _, child in ipairs(scoopHolder:GetChildren()) do child:Destroy() end
 	local golden = player:GetAttribute("VIP") == true
-	for index, id in ipairs(ui.currentScoops) do
+	for index, id in ipairs(currentScoops) do
 		local flavor = FLAVOR_BY_ID[id]
 		local scoop = new("Frame", {
 			Size = UDim2.fromOffset(56, 40),
@@ -298,7 +299,7 @@ local function refreshCone()
 		corner(scoop, "round")
 		new("UIStroke", { Color = golden and YELLOW or OUTLINE, Thickness = golden and 4 or 3 }, scoop)
 	end
-	coneCount.Text = #ui.currentScoops > 0 and (#ui.currentScoops .. " scoop" .. (#ui.currentScoops == 1 and "" or "s")) or "empty cone"
+	coneCount.Text = #currentScoops > 0 and (#currentScoops .. " scoop" .. (#currentScoops == 1 and "" or "s")) or "empty cone"
 end
 
 local flavorButtons = {}
@@ -321,12 +322,12 @@ local function buildFlavorButtons()
 			clickable(piece, function()
 				if serving then return end
 				local count = 0
-				for _, other in ipairs(ui.currentScoops) do if other == id then count = count + 1 end end
-				if #ui.currentScoops >= Config.MaxScoopsTotal or count >= Config.MaxScoopsPerFlavor then
+				for _, other in ipairs(currentScoops) do if other == id then count = count + 1 end end
+				if #currentScoops >= Config.MaxScoopsTotal or count >= Config.MaxScoopsPerFlavor then
 					toast("That's enough of that!", "bad")
 					return
 				end
-				table.insert(ui.currentScoops, id)
+				table.insert(currentScoops, id)
 				refreshCone()
 				bump(scoopHolder, 1.1)
 			end)
@@ -340,7 +341,7 @@ local hideTutorial
 
 local function doServe()
 	if serving then return end
-	if #ui.currentScoops == 0 then
+	if #currentScoops == 0 then
 		toast("Add scoops first!", "bad")
 		return
 	end
@@ -350,14 +351,14 @@ local function doServe()
 	end
 	serving = true
 	local map = {}
-	for _, id in ipairs(ui.currentScoops) do map[id] = (map[id] or 0) + 1 end
+	for _, id in ipairs(currentScoops) do map[id] = (map[id] or 0) + 1 end
 	local upgrades = gameState:GetAttribute("ShopUpgrades") or ""
 	local serveTime = string.find(upgrades, "FastScoop") and Config.FastServeTime or Config.ServeTime
 	serveLabel.Text = "SCOOPING..."
 	servePiece.setColor(GREY)
 	task.wait(serveTime)
 	ServeRemote:FireServer(map)
-	ui.currentScoops = {}
+	currentScoops = {}
 	refreshCone()
 	serveLabel.Text = "SERVE"
 	servePiece.setColor(GREEN)
@@ -372,12 +373,12 @@ clickable(refusePiece, function()
 		return
 	end
 	RefuseRemote:FireServer()
-	ui.currentScoops = {}
+	currentScoops = {}
 	refreshCone()
 	if hideTutorial then hideTutorial("refuse") end
 end)
 clickable(clearPiece, function()
-	ui.currentScoops = {}
+	currentScoops = {}
 	refreshCone()
 end)
 clickable(detectPiece, function() RequestRemote:FireServer("Detect") end)
@@ -420,37 +421,38 @@ local skipNightPiece = chunky(nightHud, UDim2.fromOffset(190, 46), UDim2.new(0, 
 text(skipNightPiece.face, "SKIP NIGHT R$" .. Config.Products.SkipNight.robux, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 18, WHITE, 2.5)
 clickable(skipNightPiece, function() RequestRemote:FireServer("BuyProduct", "SkipNight") end)
 
+local flashOn = false
 local function setFlash(on)
 	if gameState:GetAttribute("Phase") ~= "Night" then on = false end
 	if on and (player:GetAttribute("Battery") or 0) <= 0.2 then
 		toast("Battery empty! Wait for it to recharge", "bad")
 		on = false
 	end
-	ui.flashOn = on
+	flashOn = on
 	ToggleFlashlightRemote:FireServer(on)
 	flashPiece.setColor(on and Color3.fromRGB(255, 240, 150) or YELLOW)
 	flashLabel.Text = on and "ON" or "LIGHT"
 	if hideTutorial and on then hideTutorial("night") end
 end
-clickable(flashPiece, function() setFlash(not ui.flashOn) end)
+clickable(flashPiece, function() setFlash(not flashOn) end)
 
 local overlay = new("TextButton", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = BLACK, BackgroundTransparency = 1, Text = "", AutoButtonColor = false, Visible = false, ZIndex = 50 }, gui)
 
 local function closePanel()
-	if not ui.openPanel then return end
-	local panel = ui.openPanel
-	ui.openPanel = nil
+	if not openPanel then return end
+	local panel = openPanel
+	openPanel = nil
 	tween(overlay, 0.2, { BackgroundTransparency = 1 })
 	tween(panel.scale, 0.18, { Scale = 0 }, Enum.EasingStyle.Back, Enum.EasingDirection.In).Completed:Connect(function()
-		if ui.openPanel ~= panel then panel.holder.Visible = false end
-		if not ui.openPanel then overlay.Visible = false end
+		if openPanel ~= panel then panel.holder.Visible = false end
+		if not openPanel then overlay.Visible = false end
 	end)
 end
 
 showPanel = function(panel)
-	if ui.openPanel == panel then closePanel() return end
-	if ui.openPanel then ui.openPanel.holder.Visible = false end
-	ui.openPanel = panel
+	if openPanel == panel then closePanel() return end
+	if openPanel then openPanel.holder.Visible = false end
+	openPanel = panel
 	overlay.Visible = true
 	panel.holder.Visible = true
 	panel.scale.Scale = 0.4
@@ -614,6 +616,7 @@ tutorialText.TextWrapped = true
 local arrow = text(root, "▼", UDim2.fromOffset(60, 60), UDim2.fromOffset(0, 0), 56, YELLOW, 4)
 arrow.Visible = false
 arrow.ZIndex = 46
+local arrowTarget = nil
 local activeTutorial = nil
 
 local function showTutorial(step)
@@ -627,7 +630,7 @@ local function showTutorial(step)
 	tutorialText.Text = messages[step] or ""
 	tutorialFrame.holder.Visible = true
 	bump(tutorialFrame.holder, 0.5)
-	ui.arrowTarget = step == "flavors" and flavorGrid or (step == "refuse" and refusePiece.holder or flashPiece.holder)
+	arrowTarget = step == "flavors" and flavorGrid or (step == "refuse" and refusePiece.holder or flashPiece.holder)
 	arrow.Visible = true
 	task.delay(14, function()
 		if activeTutorial == step and hideTutorial then hideTutorial(step) end
@@ -640,7 +643,7 @@ hideTutorial = function(step)
 	activeTutorial = nil
 	tutorialFrame.holder.Visible = false
 	arrow.Visible = false
-	ui.arrowTarget = nil
+	arrowTarget = nil
 end
 
 local summary = chunky(gui, UDim2.fromOffset(460, 420), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5), CREAM, 26, 9)
@@ -780,12 +783,12 @@ local function onPhase()
 	orderPanel.holder.Visible = phase == "Day"
 	nightHud.Visible = night
 	alarmBanner.holder.Visible = false
-	if not night and ui.flashOn then setFlash(false) end
+	if not night and flashOn then setFlash(false) end
 	if phase == "Day" then
 		stopSound("NightAmbience")
 		play("DayMusic")
 		buildFlavorButtons()
-		ui.currentScoops = {}
+		currentScoops = {}
 		refreshCone()
 	elseif night then
 		stopSound("DayMusic")
@@ -799,10 +802,10 @@ end
 gameState:GetAttributeChangedSignal("Phase"):Connect(onPhase)
 gameState:GetAttributeChangedSignal("ShopFlavors"):Connect(function()
 	if currentPhase == "Day" then buildFlavorButtons() end
-	if ui.openPanel == shopPanel then renderShop() end
+	if openPanel == shopPanel then renderShop() end
 end)
 gameState:GetAttributeChangedSignal("ShopUpgrades"):Connect(function()
-	if ui.openPanel == shopPanel then renderShop() end
+	if openPanel == shopPanel then renderShop() end
 end)
 onPhase()
 
@@ -822,12 +825,12 @@ local function refreshPlayer()
 	local maxBattery = math.max(1, player:GetAttribute("BatteryMax") or Config.FlashlightBattery)
 	batteryFill.Size = UDim2.new(math.clamp(battery / maxBattery, 0, 1), -6, 1, -6)
 	batteryFill.BackgroundColor3 = battery / maxBattery < 0.25 and RED or YELLOW
-	if ui.flashOn and player:GetAttribute("FlashOn") == false then
-		ui.flashOn = false
+	if flashOn and player:GetAttribute("FlashOn") == false then
+		flashOn = false
 		flashPiece.setColor(YELLOW)
 		flashLabel.Text = "LIGHT"
 	end
-	if ui.openPanel == shopPanel then renderShop() end
+	if openPanel == shopPanel then renderShop() end
 end
 player.AttributeChanged:Connect(refreshPlayer)
 refreshPlayer()
@@ -907,7 +910,7 @@ end)
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then return end
 	if input.KeyCode == Enum.KeyCode.F then
-		setFlash(not ui.flashOn)
+		setFlash(not flashOn)
 	end
 end)
 
@@ -1028,9 +1031,9 @@ RunService.RenderStepped:Connect(function(dt)
 	if revive.holder.Visible then
 		reviveCountdown.Text = tostring(math.max(0, math.ceil(reviveDeadline - t)))
 	end
-	if arrow.Visible and ui.arrowTarget then
-		local center = centerOf(ui.arrowTarget)
-		local top = (ui.arrowTarget.AbsolutePosition.Y - root.AbsolutePosition.Y) / uiScale.Scale
+	if arrow.Visible and arrowTarget then
+		local center = centerOf(arrowTarget)
+		local top = (arrowTarget.AbsolutePosition.Y - root.AbsolutePosition.Y) / uiScale.Scale
 		arrow.Position = UDim2.fromOffset(center.X - 30, top - 62 + math.sin(t * 6) * 8)
 	end
 	local character = player.Character
@@ -1071,7 +1074,7 @@ local function fit()
 	local size = gui.AbsoluteSize
 	if size.X <= 0 then return end
 	uiScale.Scale = math.clamp(math.min(size.X / 1100, size.Y / 640), 0.5, 1.3)
-	if ui.openPanel then ui.openPanel.scale.Scale = uiScale.Scale end
+	if openPanel then openPanel.scale.Scale = uiScale.Scale end
 end
 gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 fit()
