@@ -1,0 +1,173 @@
+local Config = {}
+
+Config.MaxPlayers = 2
+
+Config.DayLength = 240
+Config.NightLength = 120
+Config.SummaryLength = 8
+
+Config.StartCash = 0
+Config.StartFlavors = { "Vanilla", "Chocolate", "Strawberry" }
+
+Config.SpawnIntervalStart = 10
+Config.SpawnIntervalStep = 1
+Config.SpawnIntervalMin = 5
+Config.MaxLine = 3
+Config.Patience = 20
+Config.MaxScoopsPerFlavor = 3
+Config.MaxScoopsTotal = 6
+Config.TwoFlavorDay = 5
+
+Config.TipTime = 8
+Config.TipBonus = 0.25
+Config.RefuseRealPenalty = 10
+Config.RefuseFakeBonus = 15
+Config.ServeTime = 1
+Config.FastServeTime = 0.4
+
+Config.FakeChanceStart = 0.10
+Config.FakeChanceStep = 0.05
+Config.FakeChanceMax = 0.45
+Config.MediumTellDay = 4
+Config.HardTellDay = 8
+Config.TutorialFakeNumber = 3
+
+Config.EasyTells = { "BlackEyes", "FakeFlavor", "Float" }
+Config.MediumTells = { "Still", "HeadFollow", "Misspell", "NoShadow" }
+Config.HardTells = { "Flicker", "LongArms", "SaysName", "EarlyBubble" }
+Config.FakeFlavorNames = { "Blood", "???", "Meat" }
+Config.Misspellings = {
+	Vanilla = "Vanila",
+	Chocolate = "Chocolat",
+	Strawberry = "Strawbery",
+	Mint = "Mnit",
+	CookieDough = "Cooki Dough",
+	Mango = "Mangoo",
+	Bubblegum = "Bublegum",
+	Galaxy = "Galxy",
+}
+Config.LongArmScale = 1.25
+Config.FloatHeight = 1
+
+Config.Flavors = {
+	{ id = "Vanilla", name = "Vanilla", price = 5, cost = 0, color = Color3.fromRGB(255, 244, 214) },
+	{ id = "Chocolate", name = "Chocolate", price = 5, cost = 0, color = Color3.fromRGB(123, 74, 45) },
+	{ id = "Strawberry", name = "Strawberry", price = 6, cost = 0, color = Color3.fromRGB(255, 140, 170) },
+	{ id = "Mint", name = "Mint", price = 8, cost = 150, color = Color3.fromRGB(152, 240, 200) },
+	{ id = "CookieDough", name = "Cookie Dough", price = 10, cost = 400, color = Color3.fromRGB(225, 190, 140) },
+	{ id = "Mango", name = "Mango", price = 12, cost = 900, color = Color3.fromRGB(255, 180, 60) },
+	{ id = "Bubblegum", name = "Bubblegum", price = 15, cost = 2000, color = Color3.fromRGB(255, 120, 220) },
+	{ id = "Galaxy", name = "Galaxy", price = 25, cost = 6000, color = Color3.fromRGB(110, 80, 220) },
+}
+
+Config.Upgrades = {
+	{ id = "ReinforcedDoor", name = "Reinforced Door", cost = 300, desc = "Front door health 100 to 200" },
+	{ id = "WindowBoards", name = "Window Boards", cost = 150, desc = "Board up both windows at night" },
+	{ id = "BackDoorLock", name = "Back Door Lock", cost = 250, desc = "Lets you lock the back door" },
+	{ id = "BetterFlashlight", name = "Better Flashlight", cost = 400, desc = "40s battery, stuns in 1s" },
+	{ id = "SecurityCamera", name = "Security Camera", cost = 600, desc = "Monitor shows monsters as red dots" },
+	{ id = "AlarmBell", name = "Alarm Bell", cost = 800, desc = "Warns you which entry is attacked" },
+	{ id = "FastScoop", name = "Fast Scoop", cost = 200, desc = "Serve in 0.4s instead of 1s" },
+	{ id = "TipJar", name = "Tip Jar", cost = 350, desc = "+10% tips" },
+	{ id = "NeonSign", name = "Neon Sign", cost = 1000, desc = "+20% more customers" },
+}
+
+Config.TipJarBonus = 0.10
+Config.NeonSignBonus = 0.20
+
+Config.DoorHealth = 100
+Config.ReinforcedDoorHealth = 200
+Config.WindowBoardHealth = 80
+Config.MonsterDamage = 10
+Config.WindowCrawlTime = 3
+Config.LockHoldTime = 1.5
+Config.BoardHoldTime = 2
+Config.RepairPerSecond = 20
+
+Config.MonsterFirstSpawn = 10
+Config.MonsterSpawnInterval = 15
+Config.MonsterSpeed = 18
+Config.PlayerSpeed = 16
+Config.MonsterRetreatTime = 15
+Config.MonsterWanderMin = 3
+Config.MonsterWanderMax = 6
+Config.MonsterHeightScale = 1.35
+Config.MonsterArmScale = 1.3
+Config.CatchDistance = 3.5
+
+Config.FlashlightBattery = 15
+Config.FlashlightBatteryUpgraded = 40
+Config.FlashlightStun = 2
+Config.FlashlightStunUpgraded = 1
+Config.FlashlightRange = 25
+Config.FlashlightRecharge = 0.5
+
+Config.SkipQuietAfter = 20
+Config.PerfectDayBonus = 100
+Config.SurviveBonusPerStreak = 50
+Config.ReviveTime = 10
+
+Config.FranchiseCost = 25000
+Config.FranchiseMultiplier = 0.25
+
+Config.DailyRewardBase = 50
+Config.DailyRewardMaxDays = 7
+
+Config.AutoWorkerDelay = 5
+Config.VIPBonus = 0.20
+Config.DetectorPack = 3
+
+Config.AutosaveInterval = 120
+Config.LeaderboardRefresh = 60
+Config.LeaderboardSize = 50
+Config.DataStoreName = "SellIceCream_v1"
+Config.LeaderboardStoreName = "SellIceCream_BestNight_v1"
+
+Config.GamePasses = {
+	DoubleCash = { id = 0, name = "2x Cash", robux = 199 },
+	AutoWorker = { id = 0, name = "Auto-Worker", robux = 299 },
+	VIP = { id = 0, name = "VIP", robux = 149 },
+}
+
+Config.Products = {
+	Revive = { id = 0, name = "Revive", robux = 25 },
+	FakeDetector = { id = 0, name = "Fake Detector x3", robux = 39 },
+	SkipNight = { id = 0, name = "Skip Night", robux = 15 },
+	CashSmall = { id = 0, name = "Small Cash Pack", robux = 49, cash = 300 },
+	CashMedium = { id = 0, name = "Medium Cash Pack", robux = 99, cash = 700 },
+	CashLarge = { id = 0, name = "Large Cash Pack", robux = 199, cash = 1600 },
+}
+
+Config.Badges = {
+	FirstDay = 0,
+	Catch10 = 0,
+	Catch100 = 0,
+	SurviveNight10 = 0,
+	SurviveNight25 = 0,
+	PerfectDay = 0,
+	FirstFranchise = 0,
+}
+
+Config.Sounds = {
+	DayMusic = "",
+	NightAmbience = "",
+	DoorBang = "",
+	WindowCrawl = "",
+	MonsterScream = "",
+	Jumpscare = "",
+	FakeServed = "",
+	CashDing = "rbxasset://sounds/electronicpingshort.wav",
+	UpgradeBought = "rbxasset://sounds/button.wav",
+	MorningChime = "",
+	Hiss = "",
+	CreepyFootsteps = "",
+	CreepyKnock = "",
+	Alarm = "",
+	Click = "rbxasset://sounds/clickfast.wav",
+}
+
+Config.Images = {
+	Jumpscare = "",
+}
+
+return Config

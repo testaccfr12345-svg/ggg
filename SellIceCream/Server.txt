@@ -1,0 +1,2298 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local DataStoreService = game:GetService("DataStoreService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local BadgeService = game:GetService("BadgeService")
+local PathfindingService = game:GetService("PathfindingService")
+local PhysicsService = game:GetService("PhysicsService")
+local Lighting = game:GetService("Lighting")
+
+local Config = require(ReplicatedStorage:WaitForChild("Config"))
+
+local IS_STUDIO = RunService:IsStudio()
+local rng = Random.new()
+
+local FLAVOR_BY_ID = {}
+for _, flavor in ipairs(Config.Flavors) do FLAVOR_BY_ID[flavor.id] = flavor end
+local UPGRADE_BY_ID = {}
+for _, upgrade in ipairs(Config.Upgrades) do UPGRADE_BY_ID[upgrade.id] = upgrade end
+
+local PINK = Color3.fromRGB(255, 160, 200)
+local MINT = Color3.fromRGB(150, 230, 200)
+local CREAM = Color3.fromRGB(255, 244, 228)
+local LILAC = Color3.fromRGB(205, 180, 255)
+local SKY = Color3.fromRGB(160, 215, 255)
+local WHITE = Color3.new(1, 1, 1)
+local DARK = Color3.fromRGB(40, 30, 45)
+local WOOD = Color3.fromRGB(196, 140, 100)
+local RED = Color3.fromRGB(230, 60, 70)
+
+pcall(function() PhysicsService:RegisterCollisionGroup("NPC") end)
+pcall(function() PhysicsService:CollisionGroupSetCollidable("NPC", "NPC", false) end)
+
+local remotes = Instance.new("Folder")
+remotes.Name = "IceCreamRemotes"
+remotes.Parent = ReplicatedStorage
+local function remoteEvent(name)
+	local r = Instance.new("RemoteEvent")
+	r.Name = name
+	r.Parent = remotes
+	return r
+end
+local ServeRemote = remoteEvent("Serve")
+local RefuseRemote = remoteEvent("Refuse")
+local BuyUpgradeRemote = remoteEvent("BuyUpgrade")
+local ToggleFlashlightRemote = remoteEvent("ToggleFlashlight")
+local FlashlightHitRemote = remoteEvent("FlashlightHit")
+local RequestRemote = remoteEvent("Request")
+local EventRemote = remoteEvent("Event")
+
+local gameState = Instance.new("Folder")
+gameState.Name = "GameState"
+gameState.Parent = ReplicatedStorage
+
+local function send(player, kind, a, b, c)
+	if player and player.Parent then EventRemote:FireClient(player, kind, a, b, c) end
+end
+local function sendAll(kind, a, b, c)
+	EventRemote:FireAllClients(kind, a, b, c)
+end
+local function toast(player, text, style)
+	send(player, "Toast", text, style or "info")
+end
+
+local function make(className, props, parent)
+	local instance = Instance.new(className)
+	for key, value in pairs(props) do instance[key] = value end
+	instance.Parent = parent
+	return instance
+end
+
+local function part(parent, size, cf, color, material, extra)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if extra then
+		for key, value in pairs(extra) do p[key] = value end
+	end
+	p.Parent = parent
+	return p
+end
+
+local function cylinder(parent, height, diameter, cf, color, material, extra)
+	local p = part(parent, Vector3.new(height, diameter, diameter), cf * CFrame.Angles(0, 0, math.rad(90)), color, material, extra)
+	p.Shape = Enum.PartType.Cylinder
+	return p
+end
+
+local function ball(parent, diameter, cf, color, material, extra)
+	local p = Instance.new("Part")
+	p.Shape = Enum.PartType.Ball
+	p.Anchored = true
+	p.Size = Vector3.new(diameter, diameter, diameter)
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	if extra then
+		for key, value in pairs(extra) do p[key] = value end
+	end
+	p.Parent = parent
+	return p
+end
+
+local function textOn(adornee, face, text, textColor, strokeColor)
+	local gui = make("SurfaceGui", { Face = face, CanvasSize = Vector2.new(400, 100), LightInfluence = 0 }, adornee)
+	local label = make("TextLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = text,
+		TextScaled = true,
+		Font = Enum.Font.FredokaOne,
+		TextColor3 = textColor,
+	}, gui)
+	make("UIStroke", { Color = strokeColor or DARK, Thickness = 3 }, label)
+	return label
+end
+
+local function soundIn(parentPart, key, volume)
+	local id = Config.Sounds[key]
+	if not id or id == "" or not parentPart then return nil end
+	local sound = make("Sound", { SoundId = id, Volume = volume or 1, RollOffMaxDistance = 120 }, parentPart)
+	sound:Play()
+	sound.Ended:Connect(function() sound:Destroy() end)
+	task.delay(10, function() if sound.Parent then sound:Destroy() end end)
+	return sound
+end
+
+local mapFolder = Instance.new("Folder")
+mapFolder.Name = "IceCreamMap"
+mapFolder.Parent = workspace
+local customerFolder = Instance.new("Folder")
+customerFolder.Name = "Customers"
+customerFolder.Parent = workspace
+local monsterFolder = Instance.new("Folder")
+monsterFolder.Name = "Monsters"
+monsterFolder.Parent = workspace
+
+local oldBaseplate = workspace:FindFirstChild("Baseplate")
+if oldBaseplate then oldBaseplate:Destroy() end
+for _, child in ipairs(workspace:GetChildren()) do
+	if child:IsA("SpawnLocation") then child:Destroy() end
+end
+
+part(mapFolder, Vector3.new(420, 2, 260), CFrame.new(0, -1, 20), Color3.fromRGB(170, 225, 180), Enum.Material.Grass)
+part(mapFolder, Vector3.new(400, 0.4, 30), CFrame.new(0, 0.2, 0), Color3.fromRGB(125, 128, 145), Enum.Material.Asphalt)
+for x = -190, 190, 20 do
+	part(mapFolder, Vector3.new(8, 0.42, 0.8), CFrame.new(x, 0.21, 0), WHITE, nil, { CanCollide = false })
+end
+part(mapFolder, Vector3.new(400, 0.6, 9), CFrame.new(0, 0.3, 19.5), CREAM, Enum.Material.Concrete)
+part(mapFolder, Vector3.new(400, 0.6, 9), CFrame.new(0, 0.3, -19.5), CREAM, Enum.Material.Concrete)
+
+local function decoShop(center, rotation, color, label)
+	local cf = CFrame.new(center) * CFrame.Angles(0, rotation, 0)
+	part(mapFolder, Vector3.new(30, 16, 22), cf * CFrame.new(0, 8, 0), color)
+	part(mapFolder, Vector3.new(32, 1, 24), cf * CFrame.new(0, 16.5, 0), WHITE)
+	part(mapFolder, Vector3.new(8, 10, 0.4), cf * CFrame.new(0, 5, -11.1), DARK)
+	local sign = part(mapFolder, Vector3.new(20, 3.5, 0.6), cf * CFrame.new(0, 13, -11.3), WHITE)
+	textOn(sign, Enum.NormalId.Front, label, color)
+	for i = -1, 1, 2 do
+		part(mapFolder, Vector3.new(6, 5, 0.3), cf * CFrame.new(i * 9, 7, -11.1), SKY, Enum.Material.Glass, { Transparency = 0.3 })
+	end
+end
+decoShop(Vector3.new(-62, 0, 52), 0, LILAC, "CLOSED")
+decoShop(Vector3.new(62, 0, 52), 0, SKY, "CLOSED")
+decoShop(Vector3.new(-62, 0, -52), math.pi, MINT, "BAKERY")
+decoShop(Vector3.new(0, 0, -52), math.pi, PINK, "TOYS")
+decoShop(Vector3.new(62, 0, -52), math.pi, Color3.fromRGB(255, 220, 140), "FLOWERS")
+
+for x = -170, 170, 34 do
+	for _, z in ipairs({ 25, -25 }) do
+		if math.abs(x) > 24 or z < 0 then
+			cylinder(mapFolder, 9, 0.6, CFrame.new(x, 4.5, z), WHITE)
+			local lamp = ball(mapFolder, 1.6, CFrame.new(x, 9.4, z), CREAM, Enum.Material.Neon, { CanCollide = false })
+			make("PointLight", { Range = 22, Brightness = 1.4, Color = Color3.fromRGB(255, 220, 200) }, lamp)
+		end
+	end
+end
+
+local lobbyCF = CFrame.new(165, 0, 0)
+part(mapFolder, Vector3.new(36, 1, 50), lobbyCF * CFrame.new(0, 0.5, 0), PINK, Enum.Material.SmoothPlastic)
+local spawnLocation = make("SpawnLocation", {
+	Anchored = true,
+	Size = Vector3.new(10, 1, 10),
+	CFrame = lobbyCF * CFrame.new(-6, 1.1, 0),
+	Color = MINT,
+	Material = Enum.Material.SmoothPlastic,
+	Neutral = true,
+	Duration = 0,
+	TopSurface = Enum.SurfaceType.Smooth,
+}, mapFolder)
+local boardPart = part(mapFolder, Vector3.new(1, 20, 26), lobbyCF * CFrame.new(10, 11, 0), DARK)
+local boardGui = make("SurfaceGui", { Face = Enum.NormalId.Left, CanvasSize = Vector2.new(520, 400), LightInfluence = 0 }, boardPart)
+make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(45, 35, 60) }, boardGui)
+local boardTitle = make("TextLabel", {
+	Size = UDim2.new(1, 0, 0, 60),
+	BackgroundTransparency = 1,
+	Text = "BEST NIGHT STREAK",
+	TextScaled = true,
+	Font = Enum.Font.FredokaOne,
+	TextColor3 = Color3.fromRGB(255, 210, 90),
+}, boardGui)
+make("UIStroke", { Color = DARK, Thickness = 3 }, boardTitle)
+local boardList = make("ScrollingFrame", {
+	Size = UDim2.new(1, -20, 1, -70),
+	Position = UDim2.fromOffset(10, 64),
+	BackgroundTransparency = 1,
+	ScrollBarThickness = 6,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+}, boardGui)
+make("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, boardList)
+
+local SHOP_ORIGIN = Vector3.new(0, 0, 50)
+local function S(x, y, z)
+	return CFrame.new(SHOP_ORIGIN + Vector3.new(x, y, z))
+end
+local function SP(x, y, z)
+	return SHOP_ORIGIN + Vector3.new(x, y, z)
+end
+
+local shopFolder = make("Folder", { Name = "Shop" }, mapFolder)
+local WALL = Color3.fromRGB(255, 205, 220)
+local WALL_H = 14
+
+part(shopFolder, Vector3.new(40, 1, 30), S(0, 0.5, 0), Color3.fromRGB(255, 236, 242))
+for x = -18, 18, 4 do
+	for z = -13, 13, 4 do
+		if ((x + z) / 4) % 2 == 0 then
+			part(shopFolder, Vector3.new(4, 0.05, 4), S(x, 1.02, z), Color3.fromRGB(255, 200, 220), nil, { CanCollide = false })
+		end
+	end
+end
+
+local function wall(size, cf)
+	return part(shopFolder, size, cf, WALL)
+end
+wall(Vector3.new(17, WALL_H, 1), S(-11.5, 1 + WALL_H / 2, -15))
+wall(Vector3.new(17, WALL_H, 1), S(11.5, 1 + WALL_H / 2, -15))
+wall(Vector3.new(6, WALL_H - 9, 1), S(0, 10 + (WALL_H - 9) / 2, -15))
+wall(Vector3.new(1, WALL_H, 15), S(-20, 1 + WALL_H / 2, -7.5))
+wall(Vector3.new(1, WALL_H, 7), S(-20, 1 + WALL_H / 2, 11.5))
+wall(Vector3.new(1, 3, 8), S(-20, 2.5, 4))
+wall(Vector3.new(1, WALL_H - 9, 8), S(-20, 10 + (WALL_H - 9) / 2, 4))
+wall(Vector3.new(1, WALL_H, 15), S(20, 1 + WALL_H / 2, -7.5))
+wall(Vector3.new(1, WALL_H, 7), S(20, 1 + WALL_H / 2, 11.5))
+wall(Vector3.new(1, 3, 8), S(20, 2.5, 4))
+wall(Vector3.new(1, WALL_H - 9, 8), S(20, 10 + (WALL_H - 9) / 2, 4))
+wall(Vector3.new(30, WALL_H, 1), S(-5, 1 + WALL_H / 2, 15))
+wall(Vector3.new(5, WALL_H, 1), S(17.5, 1 + WALL_H / 2, 15))
+wall(Vector3.new(5, WALL_H - 9, 1), S(12.5, 10 + (WALL_H - 9) / 2, 15))
+part(shopFolder, Vector3.new(42, 1, 32), S(0, WALL_H + 1.5, 0), MINT)
+for i = 0, 7 do
+	part(shopFolder, Vector3.new(5.25, 0.4, 7), S(-18.4 + i * 5.25, 12.6, -18.2) * CFrame.Angles(math.rad(-20), 0, 0), i % 2 == 0 and PINK or WHITE)
+end
+
+local shopSign = part(shopFolder, Vector3.new(26, 5, 0.8), S(0, WALL_H + 4.5, -15.2), WHITE)
+local shopSignTitle = textOn(shopSign, Enum.NormalId.Front, "SELL ICE CREAM!", Color3.fromRGB(255, 120, 170))
+local nameSignPart = part(shopFolder, Vector3.new(22, 2.4, 0.6), S(0, WALL_H + 0.8, -15.6), PINK)
+local nameSign = textOn(nameSignPart, Enum.NormalId.Front, "OPEN SOON", WHITE)
+
+part(shopFolder, Vector3.new(24, 4, 3), S(0, 3, -4), Color3.fromRGB(255, 180, 205))
+part(shopFolder, Vector3.new(25, 0.6, 3.6), S(0, 5.3, -4), CREAM)
+for i = -10, 10, 5 do
+	part(shopFolder, Vector3.new(0.4, 3.6, 0.2), S(i, 3, -5.55), WHITE, nil, { CanCollide = false })
+end
+
+cylinder(shopFolder, 3, 0.4, S(0, 7, -3.5), WHITE)
+local orderScreen = part(shopFolder, Vector3.new(7, 3, 0.4), S(0, 9.6, -3.5), DARK)
+local orderScreenGui = make("SurfaceGui", { Face = Enum.NormalId.Back, CanvasSize = Vector2.new(420, 180), LightInfluence = 0 }, orderScreen)
+local orderScreenText = make("TextLabel", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(30, 25, 45),
+	Text = "WAITING...",
+	TextScaled = true,
+	Font = Enum.Font.FredokaOne,
+	TextColor3 = Color3.fromRGB(150, 255, 210),
+}, orderScreenGui)
+local orderScreenFront = make("SurfaceGui", { Face = Enum.NormalId.Front, CanvasSize = Vector2.new(420, 180), LightInfluence = 0 }, orderScreen)
+make("TextLabel", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(255, 150, 190),
+	Text = "ORDER HERE",
+	TextScaled = true,
+	Font = Enum.Font.FredokaOne,
+	TextColor3 = WHITE,
+}, orderScreenFront)
+
+part(shopFolder, Vector3.new(22, 4, 3), S(-5, 3, 12.5), Color3.fromRGB(190, 240, 220))
+part(shopFolder, Vector3.new(23, 0.5, 3.6), S(-5, 5.25, 12.5), CREAM)
+local tubParts = {}
+for index, flavor in ipairs(Config.Flavors) do
+	local x = -14.5 + (index - 1) * 2.6
+	cylinder(shopFolder, 1.2, 2.2, S(x, 6.1, 12.5), WHITE)
+	local scoop = ball(shopFolder, 1.9, S(x, 6.8, 12.5), flavor.color, nil, { CanCollide = false })
+	tubParts[flavor.id] = scoop
+end
+
+local lightSwitch = part(shopFolder, Vector3.new(1, 1.4, 0.3), S(17, 5, 14.4), WHITE)
+part(shopFolder, Vector3.new(0.3, 0.6, 0.2), S(17, 5.1, 14.2), PINK, nil, { CanCollide = false })
+local switchPrompt = make("ProximityPrompt", {
+	ActionText = "Lights",
+	ObjectText = "Switch",
+	HoldDuration = 0,
+	MaxActivationDistance = 8,
+	RequiresLineOfSight = false,
+}, lightSwitch)
+
+local monitor = part(shopFolder, Vector3.new(5, 3.4, 0.4), S(-12, 9, 14.3), DARK, nil, { Transparency = 1, CanCollide = false })
+monitor.Name = "SecurityMonitor"
+local monitorGui = make("SurfaceGui", { Face = Enum.NormalId.Front, CanvasSize = Vector2.new(300, 200), LightInfluence = 0, Enabled = false }, monitor)
+make("Frame", { Name = "Screen", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(10, 30, 20) }, monitorGui)
+
+local lamps = {}
+for _, x in ipairs({ -10, 0, 10 }) do
+	local lamp = ball(shopFolder, 1.6, S(x, WALL_H + 0.2, 0), CREAM, Enum.Material.Neon, { CanCollide = false })
+	local light = make("PointLight", { Range = 26, Brightness = 1.6, Color = Color3.fromRGB(255, 235, 240) }, lamp)
+	table.insert(lamps, { part = lamp, light = light })
+end
+
+local worker = nil
+
+local COUNTER_SPOT = S(0, 4, 2)
+local LOBBY_SPOT = lobbyCF * CFrame.new(-6, 4, 0)
+local STREET_SPAWN = Vector3.new(-175, 1, 19)
+local STREET_FRONT = Vector3.new(0, 1, 19)
+local LINE_SLOTS = { SP(0, 1, -7), SP(0, 1, -11), SP(0, 1, -19) }
+local SHOP_MIN = SP(-20, -5, -15)
+local SHOP_MAX = SP(20, 30, 15)
+local PLOT_MIN = SP(-45, -10, -30)
+local PLOT_MAX = SP(45, 40, 45)
+local OUTSIDE_POINTS = {
+	SP(-30, 1, -5), SP(-30, 1, 22), SP(30, 1, -5), SP(30, 1, 22), SP(0, 1, 30), SP(-14, 1, -22), SP(14, 1, -22), SP(-25, 1, 32), SP(25, 1, 32),
+}
+
+local function inBox(position, minV, maxV)
+	return position.X >= minV.X and position.X <= maxV.X and position.Y >= minV.Y and position.Y <= maxV.Y
+		and position.Z >= minV.Z and position.Z <= maxV.Z
+end
+
+local entries = {}
+local ENTRY_ORDER = { "Front", "Left", "Right", "Back" }
+
+local function newDoor(name, display, hingeCF, width, outsidePos, insidePos, startState)
+	local closedCF = hingeCF * CFrame.new(width / 2, 4.5, 0)
+	local door = part(shopFolder, Vector3.new(width, 9, 0.6), closedCF, WOOD)
+	local knob = ball(shopFolder, 0.6, closedCF * CFrame.new(width / 2 - 0.8, 0, 0.5), Color3.fromRGB(255, 215, 90), Enum.Material.Metal, { CanCollide = false })
+	local lockLight = part(shopFolder, Vector3.new(0.6, 0.6, 0.2), closedCF * CFrame.new(width / 2 - 0.8, 1.2, 0.45), RED, Enum.Material.Neon, { CanCollide = false })
+	local entry = {
+		name = name, display = display, kind = "door",
+		hinge = hingeCF, width = width, door = door, knob = knob, lockLight = lockLight,
+		outside = outsidePos, inside = insidePos, state = startState, health = Config.DoorHealth, maxHealth = Config.DoorHealth,
+		startState = startState,
+	}
+	entries[name] = entry
+	return entry
+end
+
+local function newWindow(name, display, centerCF, outsidePos, insidePos)
+	local glass = part(shopFolder, Vector3.new(0.3, 6, 8), centerCF, SKY, Enum.Material.Glass, { Transparency = 0.35 })
+	local boards = {}
+	for i = -1, 1 do
+		local board = part(shopFolder, Vector3.new(0.5, 1.4, 9), centerCF * CFrame.new(0, i * 2, 0) * CFrame.Angles(math.rad(i * 6), 0, 0), WOOD, Enum.Material.WoodPlanks, { Transparency = 1, CanCollide = false })
+		table.insert(boards, board)
+	end
+	local entry = {
+		name = name, display = display, kind = "window",
+		glass = glass, boards = boards, center = centerCF,
+		outside = outsidePos, inside = insidePos, state = "Glass", health = Config.WindowBoardHealth, maxHealth = Config.WindowBoardHealth,
+		startState = "Glass",
+	}
+	entries[name] = entry
+	return entry
+end
+
+newDoor("Front", "FRONT DOOR", S(-3, 1, -15), 6, SP(0, 1, -19), SP(0, 1, -10), "Open")
+newWindow("Left", "LEFT WINDOW", S(-20, 7, 4), SP(-24, 1, 4), SP(-16, 1, 4))
+newWindow("Right", "RIGHT WINDOW", S(20, 7, 4), SP(24, 1, 4), SP(16, 1, 4))
+newDoor("Back", "BACK DOOR", S(10, 1, 15), 5, SP(12.5, 1, 19), SP(12.5, 1, 10), "Closed")
+
+local profiles = {}
+local passCache = {}
+
+local function hasPass(player, key)
+	local info = Config.GamePasses[key]
+	if not info or info.id == 0 then return false end
+	passCache[player] = passCache[player] or {}
+	if passCache[player][key] == nil then
+		local ok, owns = pcall(function()
+			return MarketplaceService:UserOwnsGamePassAsync(player.UserId, info.id)
+		end)
+		passCache[player][key] = ok and owns == true
+	end
+	return passCache[player][key]
+end
+
+local function anyoneHasPass(key)
+	for _, player in ipairs(Players:GetPlayers()) do
+		if profiles[player] and hasPass(player, key) then return player end
+	end
+	return nil
+end
+
+local function shopHasUpgrade(id)
+	for _, profile in pairs(profiles) do
+		if profile.data.upgrades[id] then return true end
+	end
+	return false
+end
+
+local function shopFlavors()
+	local list = {}
+	for _, flavor in ipairs(Config.Flavors) do
+		for _, profile in pairs(profiles) do
+			if profile.data.flavors[flavor.id] then
+				table.insert(list, flavor.id)
+				break
+			end
+		end
+	end
+	if #list == 0 then
+		for _, id in ipairs(Config.StartFlavors) do table.insert(list, id) end
+	end
+	return list
+end
+
+local function cashMultiplier(player)
+	local profile = profiles[player]
+	if not profile then return 1 end
+	local multiplier = 1 + profile.data.franchises * Config.FranchiseMultiplier
+	if hasPass(player, "DoubleCash") then multiplier = multiplier * 2 end
+	if hasPass(player, "VIP") then multiplier = multiplier * (1 + Config.VIPBonus) end
+	return multiplier
+end
+
+local function awardBadge(player, key)
+	local id = Config.Badges[key]
+	if not id or id == 0 then return end
+	task.spawn(function()
+		pcall(function() BadgeService:AwardBadge(player.UserId, id) end)
+	end)
+end
+
+local function joinList(set)
+	local list = {}
+	for id, owned in pairs(set) do
+		if owned then table.insert(list, id) end
+	end
+	table.sort(list)
+	return table.concat(list, ",")
+end
+
+local function today()
+	return math.floor(os.time() / 86400)
+end
+
+local function dailyInfo(data)
+	local day = today()
+	if data.lastDaily == day then return false, 0 end
+	local streak = 1
+	if data.lastDaily == day - 1 then
+		streak = data.dailyStreak + 1
+		if streak > Config.DailyRewardMaxDays then streak = 1 end
+	end
+	return true, streak
+end
+
+local refreshShop
+
+local function publish(player)
+	local profile = profiles[player]
+	if not profile then return end
+	local data = profile.data
+	if profile.leaderCash then profile.leaderCash.Value = math.floor(data.cash) end
+	if profile.leaderNight then profile.leaderNight.Value = data.streak end
+	player:SetAttribute("Cash", math.floor(data.cash))
+	player:SetAttribute("OwnedFlavors", joinList(data.flavors))
+	player:SetAttribute("OwnedUpgrades", joinList(data.upgrades))
+	player:SetAttribute("Streak", data.streak)
+	player:SetAttribute("BestNight", data.bestNight)
+	player:SetAttribute("Franchises", data.franchises)
+	player:SetAttribute("Detectors", data.detectors)
+	player:SetAttribute("FranchiseReady", data.cash >= Config.FranchiseCost)
+	local ready, streak = dailyInfo(data)
+	player:SetAttribute("DailyReady", ready)
+	player:SetAttribute("DailyAmount", Config.DailyRewardBase * streak)
+	player:SetAttribute("VIP", hasPass(player, "VIP"))
+	player:SetAttribute("Multiplier", cashMultiplier(player))
+end
+
+local function addCash(player, amount, reason)
+	local profile = profiles[player]
+	if not profile or amount == 0 then return end
+	profile.data.cash = math.max(0, profile.data.cash + amount)
+	if amount > 0 then profile.today.earned = profile.today.earned + amount end
+	publish(player)
+	send(player, "Cash", math.floor(amount), reason)
+end
+
+local store = nil
+local bestStore = nil
+pcall(function() store = DataStoreService:GetDataStore(Config.DataStoreName) end)
+pcall(function() bestStore = DataStoreService:GetOrderedDataStore(Config.LeaderboardStoreName) end)
+
+local function defaultData()
+	local flavors = {}
+	for _, id in ipairs(Config.StartFlavors) do flavors[id] = true end
+	return {
+		cash = Config.StartCash, flavors = flavors, upgrades = {}, streak = 0, bestNight = 0,
+		fakesCaught = 0, franchises = 0, dailyStreak = 0, lastDaily = -1, tutorialDone = false,
+		day = 1, highestDay = 1, detectors = 0, receipts = {},
+	}
+end
+
+local function sanitize(raw)
+	local data = defaultData()
+	if type(raw) ~= "table" then return data end
+	data.cash = tonumber(raw.cash) or data.cash
+	data.streak = tonumber(raw.streak) or 0
+	data.bestNight = tonumber(raw.bestNight) or 0
+	data.fakesCaught = tonumber(raw.fakesCaught) or 0
+	data.franchises = tonumber(raw.franchises) or 0
+	data.dailyStreak = tonumber(raw.dailyStreak) or 0
+	data.lastDaily = tonumber(raw.lastDaily) or -1
+	data.tutorialDone = raw.tutorialDone == true
+	data.day = tonumber(raw.day) or 1
+	data.highestDay = tonumber(raw.highestDay) or data.day
+	data.detectors = tonumber(raw.detectors) or 0
+	if type(raw.flavors) == "table" then
+		for _, id in ipairs(raw.flavors) do
+			if FLAVOR_BY_ID[id] then data.flavors[id] = true end
+		end
+	end
+	if type(raw.upgrades) == "table" then
+		for _, id in ipairs(raw.upgrades) do
+			if UPGRADE_BY_ID[id] then data.upgrades[id] = true end
+		end
+	end
+	if type(raw.receipts) == "table" then
+		for _, id in ipairs(raw.receipts) do
+			if type(id) == "string" then table.insert(data.receipts, id) end
+		end
+	end
+	return data
+end
+
+local function serialize(data)
+	local flavors, upgrades = {}, {}
+	for id, owned in pairs(data.flavors) do if owned then table.insert(flavors, id) end end
+	for id, owned in pairs(data.upgrades) do if owned then table.insert(upgrades, id) end end
+	local receipts = {}
+	for i = math.max(1, #data.receipts - 49), #data.receipts do table.insert(receipts, data.receipts[i]) end
+	return {
+		cash = math.floor(data.cash), flavors = flavors, upgrades = upgrades, streak = data.streak,
+		bestNight = data.bestNight, fakesCaught = data.fakesCaught, franchises = data.franchises,
+		dailyStreak = data.dailyStreak, lastDaily = data.lastDaily, tutorialDone = data.tutorialDone,
+		day = data.day, highestDay = data.highestDay, detectors = data.detectors, receipts = receipts,
+	}
+end
+
+local function withRetries(callback)
+	for attempt = 1, 3 do
+		local ok, result = pcall(callback)
+		if ok then return true, result end
+		task.wait(attempt * 1.5)
+	end
+	return false, nil
+end
+
+local function loadData(player)
+	if not store then return IS_STUDIO, nil end
+	local ok, raw = withRetries(function()
+		return store:GetAsync("player_" .. player.UserId)
+	end)
+	return ok, raw
+end
+
+local function saveData(player)
+	local profile = profiles[player]
+	if not profile or not profile.canSave or not store then return false end
+	local payload = serialize(profile.data)
+	local ok = withRetries(function()
+		store:SetAsync("player_" .. player.UserId, payload)
+	end)
+	if bestStore then
+		pcall(function() bestStore:SetAsync(tostring(player.UserId), profile.data.bestNight) end)
+	end
+	return ok
+end
+
+local state = {
+	phase = "Waiting", day = 1, endsAt = 0, tutorial = false, tutorialNight = false,
+	line = {}, customers = {}, spawnedToday = 0, fakesServedToday = 0, fakesCaughtToday = 0,
+	monsters = {}, nightOver = false, quiet = false, skipAvailable = false, survivedBySkip = false,
+	lightsOn = true,
+}
+
+local function setPhase(phase, length)
+	state.phase = phase
+	state.endsAt = workspace:GetServerTimeNow() + (length or 0)
+	gameState:SetAttribute("Phase", phase)
+	gameState:SetAttribute("Day", state.day)
+	gameState:SetAttribute("EndsAt", state.endsAt)
+end
+
+local function setLights(on)
+	state.lightsOn = on
+	for _, lamp in ipairs(lamps) do
+		lamp.light.Enabled = on
+		lamp.part.Material = on and Enum.Material.Neon or Enum.Material.SmoothPlastic
+		lamp.part.Color = on and CREAM or Color3.fromRGB(90, 90, 100)
+	end
+end
+
+local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or make("Atmosphere", {}, Lighting)
+local grade = Lighting:FindFirstChild("IceCreamGrade") or make("ColorCorrectionEffect", { Name = "IceCreamGrade" }, Lighting)
+
+local function applyLighting(night)
+	local info = TweenInfo.new(2.5, Enum.EasingStyle.Sine)
+	if night then
+		TweenService:Create(Lighting, info, {
+			ClockTime = 0, Brightness = 0.4, Ambient = Color3.fromRGB(22, 20, 32), OutdoorAmbient = Color3.fromRGB(28, 26, 42),
+			FogEnd = 110, FogStart = 10, FogColor = Color3.fromRGB(12, 10, 20),
+		}):Play()
+		TweenService:Create(atmosphere, info, { Density = 0.55, Color = Color3.fromRGB(25, 20, 35), Decay = Color3.fromRGB(40, 10, 20), Haze = 2.5 }):Play()
+		TweenService:Create(grade, info, { TintColor = Color3.fromRGB(255, 205, 205), Saturation = -0.25, Contrast = 0.15, Brightness = -0.05 }):Play()
+	else
+		TweenService:Create(Lighting, info, {
+			ClockTime = 14, Brightness = 2.4, Ambient = Color3.fromRGB(150, 140, 160), OutdoorAmbient = Color3.fromRGB(175, 165, 190),
+			FogEnd = 1000, FogStart = 200, FogColor = Color3.fromRGB(255, 220, 235),
+		}):Play()
+		TweenService:Create(atmosphere, info, { Density = 0.25, Color = Color3.fromRGB(255, 225, 238), Decay = Color3.fromRGB(255, 200, 220), Haze = 1 }):Play()
+		TweenService:Create(grade, info, { TintColor = Color3.fromRGB(255, 250, 252), Saturation = 0.15, Contrast = 0.05, Brightness = 0.02 }):Play()
+	end
+end
+
+local function updateShopVisuals()
+	local flavors = shopFlavors()
+	local owned = {}
+	for _, id in ipairs(flavors) do owned[id] = true end
+	for id, scoop in pairs(tubParts) do
+		scoop.Transparency = owned[id] and 0 or 1
+	end
+	gameState:SetAttribute("ShopFlavors", table.concat(flavors, ","))
+	local upgrades = {}
+	for _, upgrade in ipairs(Config.Upgrades) do
+		if shopHasUpgrade(upgrade.id) then table.insert(upgrades, upgrade.id) end
+	end
+	gameState:SetAttribute("ShopUpgrades", table.concat(upgrades, ","))
+	local camera = shopHasUpgrade("SecurityCamera")
+	monitor.Transparency = camera and 0 or 1
+	monitorGui.Enabled = camera
+	shopSignTitle.TextColor3 = shopHasUpgrade("NeonSign") and Color3.fromRGB(255, 60, 200) or Color3.fromRGB(255, 120, 170)
+	shopSign.Material = shopHasUpgrade("NeonSign") and Enum.Material.Neon or Enum.Material.SmoothPlastic
+	local names = {}
+	local franchise = 0
+	for player, profile in pairs(profiles) do
+		table.insert(names, player.DisplayName)
+		franchise = math.max(franchise, profile.data.franchises)
+	end
+	if #names == 0 then
+		nameSign.Text = "OPEN SOON"
+	else
+		local text = table.concat(names, " & ") .. "'S SHOP"
+		if franchise > 0 then text = text .. "  #" .. (franchise + 1) end
+		nameSign.Text = text
+	end
+	local maxHealth = shopHasUpgrade("ReinforcedDoor") and Config.ReinforcedDoorHealth or Config.DoorHealth
+	entries.Front.maxHealth = maxHealth
+	local autoOwner = anyoneHasPass("AutoWorker")
+	if autoOwner and not worker then
+		task.spawn(function()
+			local desc = Instance.new("HumanoidDescription")
+			desc.HeadColor = Color3.fromRGB(255, 220, 190)
+			desc.LeftArmColor = desc.HeadColor
+			desc.RightArmColor = desc.HeadColor
+			desc.TorsoColor = PINK
+			desc.LeftLegColor = WHITE
+			desc.RightLegColor = WHITE
+			local ok, model = pcall(function()
+				return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+			end)
+			if ok and model and not worker then
+				model.Name = "AutoWorker"
+				model:PivotTo(S(6, 4, 0))
+				for _, p in ipairs(model:GetDescendants()) do
+					if p:IsA("BasePart") then p.Anchored = true end
+				end
+				local hum = model:FindFirstChildOfClass("Humanoid")
+				if hum then hum.DisplayName = "Auto-Worker" end
+				model.Parent = shopFolder
+				worker = model
+			end
+		end)
+	elseif not autoOwner and worker then
+		worker:Destroy()
+		worker = nil
+	end
+end
+
+refreshShop = function()
+	updateShopVisuals()
+	for player in pairs(profiles) do publish(player) end
+end
+
+local function refreshEntryAttributes(entry)
+	gameState:SetAttribute("Entry_" .. entry.name .. "_State", entry.state)
+	gameState:SetAttribute("Entry_" .. entry.name .. "_Health", math.floor(entry.health))
+	gameState:SetAttribute("Entry_" .. entry.name .. "_Max", entry.maxHealth)
+end
+
+local function setEntryVisual(entry)
+	if entry.kind == "door" then
+		local closedCF = entry.hinge * CFrame.new(entry.width / 2, 4.5, 0)
+		local target
+		if entry.state == "Open" then
+			target = entry.hinge * CFrame.Angles(0, math.rad(entry.name == "Back" and 100 or -100), 0) * CFrame.new(entry.width / 2, 4.5, 0)
+			entry.door.CanCollide = false
+			entry.door.Transparency = 0
+		elseif entry.state == "Broken" then
+			target = entry.hinge * CFrame.new(entry.width / 2, 0.4, 3) * CFrame.Angles(math.rad(-88), 0, 0)
+			entry.door.CanCollide = false
+			entry.door.Transparency = 0.2
+		else
+			target = closedCF
+			entry.door.CanCollide = true
+			entry.door.Transparency = 0
+		end
+		TweenService:Create(entry.door, TweenInfo.new(0.35, Enum.EasingStyle.Back), { CFrame = target }):Play()
+		local offset = target * CFrame.new(entry.width / 2 - 0.8, 0, 0.5)
+		entry.knob.CFrame = offset
+		entry.lockLight.CFrame = target * CFrame.new(entry.width / 2 - 0.8, 1.2, 0.45)
+		entry.lockLight.Color = entry.state == "Locked" and Color3.fromRGB(90, 230, 110) or RED
+		entry.lockLight.Transparency = entry.state == "Broken" and 1 or 0
+		entry.knob.Transparency = entry.state == "Broken" and 1 or 0
+	else
+		entry.glass.Transparency = entry.state == "Broken" and 1 or 0.35
+		entry.glass.CanCollide = entry.state ~= "Broken"
+		for _, board in ipairs(entry.boards) do
+			board.Transparency = entry.state == "Boarded" and 0 or 1
+			board.CanCollide = entry.state == "Boarded"
+		end
+	end
+	refreshEntryAttributes(entry)
+end
+
+local refreshPrompt
+
+local function resetEntries()
+	for _, entry in pairs(entries) do
+		entry.state = entry.startState
+		if entry.kind == "door" then
+			entry.maxHealth = (entry.name == "Front" and shopHasUpgrade("ReinforcedDoor")) and Config.ReinforcedDoorHealth or Config.DoorHealth
+		else
+			entry.maxHealth = Config.WindowBoardHealth
+		end
+		entry.health = entry.maxHealth
+		entry.crawl = 0
+		setEntryVisual(entry)
+		refreshPrompt(entry)
+	end
+end
+
+local repairing = {}
+
+refreshPrompt = function(entry)
+	local prompt = entry.prompt
+	if not prompt then return end
+	prompt.Enabled = state.phase == "Night"
+	local damaged = entry.health < entry.maxHealth
+	if entry.kind == "door" then
+		if entry.state == "Open" or entry.state == "Closed" then
+			prompt.ActionText = (entry.name == "Back" and not shopHasUpgrade("BackDoorLock")) and "Needs Back Door Lock" or "Lock Door"
+			prompt.HoldDuration = Config.LockHoldTime
+			entry.mode = "lock"
+		elseif entry.state == "Locked" and damaged then
+			prompt.ActionText = "Repair"
+			prompt.HoldDuration = 30
+			entry.mode = "repair"
+		else
+			prompt.Enabled = false
+			entry.mode = nil
+		end
+	else
+		if entry.state == "Glass" then
+			prompt.ActionText = shopHasUpgrade("WindowBoards") and "Board Window" or "Needs Window Boards"
+			prompt.HoldDuration = Config.BoardHoldTime
+			entry.mode = "board"
+		elseif entry.state == "Boarded" and damaged then
+			prompt.ActionText = "Repair"
+			prompt.HoldDuration = 30
+			entry.mode = "repair"
+		else
+			prompt.Enabled = false
+			entry.mode = nil
+		end
+	end
+end
+
+for _, name in ipairs(ENTRY_ORDER) do
+	local entry = entries[name]
+	local anchor = part(shopFolder, Vector3.new(1, 1, 1), CFrame.new(entry.inside + Vector3.new(0, 3, 0)), WHITE, nil, { Transparency = 1, CanCollide = false, CanQuery = false })
+	local prompt = make("ProximityPrompt", {
+		ObjectText = entry.display,
+		ActionText = "Lock",
+		MaxActivationDistance = 11,
+		RequiresLineOfSight = false,
+		Enabled = false,
+		HoldDuration = 1.5,
+		Style = Enum.ProximityPromptStyle.Default,
+	}, anchor)
+	entry.prompt = prompt
+	prompt.Triggered:Connect(function(player)
+		if state.phase ~= "Night" or not profiles[player] then return end
+		if entry.mode == "lock" then
+			if entry.name == "Back" and not shopHasUpgrade("BackDoorLock") then
+				toast(player, "Buy the Back Door Lock upgrade to lock this door!", "bad")
+				return
+			end
+			entry.state = "Locked"
+			setEntryVisual(entry)
+			refreshPrompt(entry)
+			toast(player, entry.display .. " LOCKED", "good")
+		elseif entry.mode == "board" then
+			if not shopHasUpgrade("WindowBoards") then
+				toast(player, "Buy Window Boards to board up windows!", "bad")
+				return
+			end
+			entry.state = "Boarded"
+			entry.health = entry.maxHealth
+			setEntryVisual(entry)
+			refreshPrompt(entry)
+			toast(player, entry.display .. " BOARDED", "good")
+		end
+	end)
+	prompt.PromptButtonHoldBegan:Connect(function(player)
+		if entry.mode == "repair" and state.phase == "Night" then repairing[player] = entry end
+	end)
+	prompt.PromptButtonHoldEnded:Connect(function(player)
+		if repairing[player] == entry then repairing[player] = nil end
+	end)
+	setEntryVisual(entry)
+end
+
+switchPrompt.Triggered:Connect(function(player)
+	if state.phase == "Night" then
+		toast(player, "The power is out!", "bad")
+		return
+	end
+	setLights(not state.lightsOn)
+end)
+
+local function randomOf(list)
+	return list[rng:NextInteger(1, #list)]
+end
+
+local function setFace(model, mode)
+	local head = model:FindFirstChild("Head")
+	local gui = head and head:FindFirstChild("FaceGui")
+	if not gui then return end
+	local eyeL, eyeR, mouth = gui:FindFirstChild("EyeL"), gui:FindFirstChild("EyeR"), gui:FindFirstChild("Mouth")
+	if not eyeL or not eyeR or not mouth then return end
+	if mode == "happy" then
+		TweenService:Create(mouth, TweenInfo.new(0.3), { Size = UDim2.fromScale(0.4, 0.1), Position = UDim2.fromScale(0.3, 0.64) }):Play()
+	elseif mode == "sad" then
+		TweenService:Create(mouth, TweenInfo.new(0.3), { Size = UDim2.fromScale(0.26, 0.05), Position = UDim2.fromScale(0.37, 0.72) }):Play()
+	elseif mode == "angry" then
+		mouth.BackgroundColor3 = Color3.fromRGB(150, 20, 30)
+		TweenService:Create(mouth, TweenInfo.new(0.2), { Size = UDim2.fromScale(0.3, 0.08), Position = UDim2.fromScale(0.35, 0.68) }):Play()
+	elseif mode == "creepy" then
+		TweenService:Create(mouth, TweenInfo.new(2.5, Enum.EasingStyle.Sine), { Size = UDim2.fromScale(0.78, 0.09), Position = UDim2.fromScale(0.11, 0.64) }):Play()
+	elseif mode == "black" then
+		eyeL.BackgroundColor3 = Color3.new(0, 0, 0)
+		eyeR.BackgroundColor3 = Color3.new(0, 0, 0)
+		local pl, pr = eyeL:FindFirstChild("Pupil"), eyeR:FindFirstChild("Pupil")
+		if pl then pl.Visible = false end
+		if pr then pr.Visible = false end
+	end
+end
+
+local function buildFace(model, monster)
+	local head = model:FindFirstChild("Head")
+	if not head then return end
+	for _, child in ipairs(head:GetChildren()) do
+		if child:IsA("Decal") then child:Destroy() end
+	end
+	local gui = make("SurfaceGui", { Name = "FaceGui", Face = Enum.NormalId.Front, CanvasSize = Vector2.new(100, 100), LightInfluence = monster and 0 or 1 }, head)
+	for _, info in ipairs({ { "EyeL", 0.2 }, { "EyeR", 0.56 } }) do
+		local eye = make("Frame", {
+			Name = info[1],
+			Size = UDim2.fromScale(0.24, 0.24),
+			Position = UDim2.fromScale(info[2], 0.3),
+			BackgroundColor3 = monster and Color3.fromRGB(255, 30, 40) or WHITE,
+			BorderSizePixel = 0,
+		}, gui)
+		make("UICorner", { CornerRadius = UDim.new(1, 0) }, eye)
+		if not monster then
+			local pupil = make("Frame", {
+				Name = "Pupil",
+				Size = UDim2.fromScale(0.55, 0.55),
+				Position = UDim2.fromScale(0.225, 0.225),
+				BackgroundColor3 = Color3.fromRGB(30, 25, 35),
+				BorderSizePixel = 0,
+			}, eye)
+			make("UICorner", { CornerRadius = UDim.new(1, 0) }, pupil)
+		end
+	end
+	local mouth = make("Frame", {
+		Name = "Mouth",
+		Size = monster and UDim2.fromScale(0.6, 0.14) or UDim2.fromScale(0.32, 0.06),
+		Position = monster and UDim2.fromScale(0.2, 0.66) or UDim2.fromScale(0.34, 0.68),
+		BackgroundColor3 = Color3.fromRGB(60, 25, 35),
+		BorderSizePixel = 0,
+	}, gui)
+	make("UICorner", { CornerRadius = UDim.new(1, 0) }, mouth)
+end
+
+local function scaleLimbs(model, names, factor)
+	local set = {}
+	for _, name in ipairs(names) do set[name] = true end
+	for _, joint in ipairs(model:GetDescendants()) do
+		if joint:IsA("Motor6D") then
+			if joint.Part0 and set[joint.Part0.Name] then
+				local p = joint.C0.Position
+				joint.C0 = CFrame.new(p.X, p.Y * factor, p.Z) * (joint.C0 - joint.C0.Position)
+			end
+			if joint.Part1 and set[joint.Part1.Name] then
+				local p = joint.C1.Position
+				joint.C1 = CFrame.new(p.X, p.Y * factor, p.Z) * (joint.C1 - joint.C1.Position)
+			end
+		end
+	end
+	for _, name in ipairs(names) do
+		local limb = model:FindFirstChild(name)
+		if limb and limb:IsA("BasePart") then
+			limb.Size = Vector3.new(limb.Size.X, limb.Size.Y * factor, limb.Size.Z)
+		end
+	end
+end
+
+local ARM_PARTS = { "LeftUpperArm", "LeftLowerArm", "RightUpperArm", "RightLowerArm" }
+local SKINS = {
+	Color3.fromRGB(255, 220, 190), Color3.fromRGB(240, 190, 150), Color3.fromRGB(200, 140, 100),
+	Color3.fromRGB(150, 100, 70), Color3.fromRGB(110, 70, 50), Color3.fromRGB(255, 205, 170),
+}
+local CLOTHES = {
+	PINK, MINT, LILAC, SKY, Color3.fromRGB(255, 200, 120), Color3.fromRGB(255, 120, 120), Color3.fromRGB(120, 200, 255),
+	Color3.fromRGB(90, 90, 120), Color3.fromRGB(255, 255, 255), Color3.fromRGB(130, 220, 130),
+}
+local HAIR = {
+	Color3.fromRGB(60, 40, 30), Color3.fromRGB(30, 25, 25), Color3.fromRGB(230, 200, 120), Color3.fromRGB(180, 90, 50),
+	Color3.fromRGB(255, 150, 200), Color3.fromRGB(150, 120, 255),
+}
+
+local function buildRig(kind)
+	local desc = Instance.new("HumanoidDescription")
+	local skin, shirt, pants
+	if kind == "monster" then
+		skin = Color3.fromRGB(70, 72, 80)
+		shirt = Color3.fromRGB(45, 45, 55)
+		pants = Color3.fromRGB(35, 35, 42)
+		desc.HeightScale = Config.MonsterHeightScale
+		desc.WidthScale = 0.85
+		desc.DepthScale = 0.85
+	else
+		skin = randomOf(SKINS)
+		shirt = randomOf(CLOTHES)
+		pants = randomOf(CLOTHES)
+	end
+	desc.HeadColor = skin
+	desc.LeftArmColor = skin
+	desc.RightArmColor = skin
+	desc.TorsoColor = shirt
+	desc.LeftLegColor = pants
+	desc.RightLegColor = pants
+	local ok, model = pcall(function()
+		return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+	end)
+	if not ok or not model then return nil end
+	local animate = model:FindFirstChild("Animate")
+	if animate then animate:Destroy() end
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	local animator = hum:FindFirstChildOfClass("Animator")
+	if animator then animator:Destroy() end
+	hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	hum.BreakJointsOnDeath = false
+	hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+	hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+	hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+	model:SetAttribute("Skin", skin)
+	buildFace(model, kind == "monster")
+	if kind ~= "monster" and rng:NextNumber() < 0.85 then
+		local head = model:FindFirstChild("Head")
+		if head then
+			local hair = part(model, Vector3.new(head.Size.X * 1.08, head.Size.Y * 0.35, head.Size.Z * 1.08), head.CFrame * CFrame.new(0, head.Size.Y * 0.42, 0.05), randomOf(HAIR), nil, { Anchored = false, CanCollide = false, Massless = true })
+			make("WeldConstraint", { Part0 = head, Part1 = hair }, hair)
+			hair.Name = "Hair"
+		end
+	end
+	if kind == "monster" then
+		scaleLimbs(model, ARM_PARTS, Config.MonsterArmScale)
+		local head = model:FindFirstChild("Head")
+		if head then make("PointLight", { Color = Color3.fromRGB(255, 30, 30), Range = 9, Brightness = 2 }, head) end
+	end
+	for _, p in ipairs(model:GetDescendants()) do
+		if p:IsA("BasePart") then p.CollisionGroup = "NPC" end
+	end
+	return model
+end
+
+local function placeRig(model, folder, cf)
+	model:PivotTo(cf)
+	model.Parent = folder
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if root then pcall(function() root:SetNetworkOwner(nil) end) end
+end
+
+local function walkTo(model, target, timeout)
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if not hum or not root then return false end
+	local started = os.clock()
+	local lastIssue = os.clock()
+	hum:MoveTo(target)
+	while model.Parent do
+		local flat = Vector3.new(target.X, root.Position.Y, target.Z)
+		if (root.Position - flat).Magnitude < 1.6 then return true end
+		if os.clock() - started > (timeout or 20) then return false end
+		if os.clock() - lastIssue > 2 then
+			hum:MoveTo(target)
+			lastIssue = os.clock()
+		end
+		task.wait(0.1)
+	end
+	return false
+end
+
+local function fakeChance(day)
+	return math.min(Config.FakeChanceMax, Config.FakeChanceStart + (day - 1) * Config.FakeChanceStep)
+end
+
+local function pickTell(day)
+	local pool = {}
+	if day < Config.HardTellDay then
+		for _, t in ipairs(Config.EasyTells) do table.insert(pool, t) end
+	end
+	if day >= Config.MediumTellDay then
+		for _, t in ipairs(Config.MediumTells) do table.insert(pool, t) end
+	end
+	if day >= Config.HardTellDay then
+		for _, t in ipairs(Config.HardTells) do table.insert(pool, t) end
+	end
+	return randomOf(pool)
+end
+
+local function makeOrder(day, tell)
+	local flavors = shopFlavors()
+	local items = {}
+	local first = randomOf(flavors)
+	if day >= Config.TwoFlavorDay and #flavors >= 2 and rng:NextNumber() < 0.5 then
+		local second = randomOf(flavors)
+		while second == first do second = randomOf(flavors) end
+		table.insert(items, { flavor = first, scoops = rng:NextInteger(1, 2) })
+		table.insert(items, { flavor = second, scoops = rng:NextInteger(1, 2) })
+	else
+		table.insert(items, { flavor = first, scoops = rng:NextInteger(1, Config.MaxScoopsPerFlavor) })
+	end
+	local parts = {}
+	for _, item in ipairs(items) do
+		local name = FLAVOR_BY_ID[item.flavor].name
+		if tell == "Misspell" then name = Config.Misspellings[item.flavor] or name end
+		if tell == "FakeFlavor" then name = randomOf(Config.FakeFlavorNames) end
+		if #items == 1 then
+			table.insert(parts, item.scoops .. (item.scoops == 1 and " scoop " or " scoops ") .. name)
+		else
+			table.insert(parts, item.scoops .. " " .. name)
+		end
+	end
+	return items, table.concat(parts, " + ")
+end
+
+local function showBubble(customer)
+	if customer.bubble or not customer.model.Parent then return end
+	local head = customer.model:FindFirstChild("Head")
+	if not head then return end
+	local gui = make("BillboardGui", {
+		Name = "OrderBubble",
+		Size = UDim2.fromOffset(230, 96),
+		StudsOffset = Vector3.new(0, 3.2, 0),
+		AlwaysOnTop = true,
+		MaxDistance = 70,
+		LightInfluence = 0,
+	}, head)
+	local bubble = make("Frame", { Size = UDim2.new(1, 0, 0, 62), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, gui)
+	make("UICorner", { CornerRadius = UDim.new(0, 16) }, bubble)
+	make("UIStroke", { Color = DARK, Thickness = 3 }, bubble)
+	local label = make("TextLabel", {
+		Size = UDim2.new(1, -14, 1, -8),
+		Position = UDim2.fromOffset(7, 4),
+		BackgroundTransparency = 1,
+		Text = customer.display,
+		TextScaled = true,
+		TextWrapped = true,
+		Font = Enum.Font.FredokaOne,
+		TextColor3 = DARK,
+	}, bubble)
+	local back = make("Frame", { Size = UDim2.new(0.8, 0, 0, 14), Position = UDim2.new(0.1, 0, 0, 72), BackgroundColor3 = DARK, BorderSizePixel = 0 }, gui)
+	make("UICorner", { CornerRadius = UDim.new(1, 0) }, back)
+	local bar = make("Frame", { Size = UDim2.new(1, -4, 1, -4), Position = UDim2.fromOffset(2, 2), BackgroundColor3 = Color3.fromRGB(110, 230, 110), BorderSizePixel = 0 }, back)
+	make("UICorner", { CornerRadius = UDim.new(1, 0) }, bar)
+	customer.bubble = gui
+	customer.bubbleLabel = label
+	customer.patienceBar = bar
+	customer.patienceBack = back
+	back.Visible = false
+end
+
+local function currentCustomer()
+	local first = state.line[1]
+	if first and first.atCounter and not first.leaving then return first end
+	return nil
+end
+
+local function updateOrderScreen()
+	local c = currentCustomer()
+	if state.phase ~= "Day" then
+		orderScreenText.Text = state.phase == "Night" and "CLOSED" or "..."
+	elseif c then
+		orderScreenText.Text = c.display
+	else
+		orderScreenText.Text = "NEXT!"
+	end
+	gameState:SetAttribute("CurrentOrder", c and c.display or "")
+	gameState:SetAttribute("CurrentCustomerId", c and c.id or 0)
+end
+
+local customerId = 0
+
+local function removeFromLine(customer)
+	for i, other in ipairs(state.line) do
+		if other == customer then
+			table.remove(state.line, i)
+			break
+		end
+	end
+	updateOrderScreen()
+end
+
+local function customerLeave(customer, speed, mood)
+	if customer.leaving then return end
+	customer.leaving = true
+	customer.atCounter = false
+	removeFromLine(customer)
+	if customer.patienceBack then customer.patienceBack.Visible = false end
+	if mood then setFace(customer.model, mood) end
+	task.spawn(function()
+		local hum = customer.model:FindFirstChildOfClass("Humanoid")
+		if hum then hum.WalkSpeed = speed or 12 end
+		task.wait(0.6)
+		if customer.bubble then customer.bubble:Destroy() end
+		walkTo(customer.model, SP(0, 1, -19), 8)
+		walkTo(customer.model, STREET_FRONT, 8)
+		walkTo(customer.model, STREET_SPAWN, 25)
+		customer.model:Destroy()
+		state.customers[customer.id] = nil
+	end)
+end
+
+local tutorialPlayers = {}
+
+local function tutorialStep(step)
+	for player in pairs(tutorialPlayers) do
+		if player.Parent then send(player, "Tutorial", step) end
+	end
+end
+
+local function spawnCustomer()
+	state.spawnedToday = state.spawnedToday + 1
+	local forcedFake = state.tutorial and state.spawnedToday == Config.TutorialFakeNumber
+	local fake = forcedFake or (not state.tutorial or state.spawnedToday > Config.TutorialFakeNumber) and rng:NextNumber() < fakeChance(state.day)
+	if state.tutorial and state.spawnedToday < Config.TutorialFakeNumber then fake = false end
+	local tell = nil
+	if fake then tell = forcedFake and "BlackEyes" or pickTell(state.day) end
+	local model = buildRig("customer")
+	if not model then return end
+	customerId = customerId + 1
+	local items, display = makeOrder(state.day, tell)
+	local customer = {
+		id = customerId, model = model, fake = fake, tell = tell, items = items, display = display,
+		atCounter = false, leaving = false, patience = Config.Patience, tutorialFake = forcedFake,
+	}
+	model.Name = "Customer"
+	model:SetAttribute("CustomerId", customer.id)
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	hum.WalkSpeed = 12
+	if tell == "BlackEyes" then setFace(model, "black") end
+	if tell == "Float" then hum.HipHeight = hum.HipHeight + Config.FloatHeight end
+	if tell == "Still" then model:SetAttribute("Still", true) end
+	if tell == "HeadFollow" then model:SetAttribute("HeadFollow", true) end
+	if tell == "NoShadow" then
+		for _, p in ipairs(model:GetDescendants()) do
+			if p:IsA("BasePart") then p.CastShadow = false end
+		end
+	end
+	if tell == "LongArms" then scaleLimbs(model, ARM_PARTS, Config.LongArmScale) end
+	placeRig(model, customerFolder, CFrame.new(STREET_SPAWN + Vector3.new(0, 3, 0)))
+	state.customers[customer.id] = customer
+	table.insert(state.line, customer)
+	if tell == "EarlyBubble" then showBubble(customer) end
+	if tell == "Flicker" then
+		task.spawn(function()
+			local skin = model:GetAttribute("Skin")
+			while model.Parent and not customer.leaving do
+				task.wait(rng:NextNumber(4, 6))
+				if not model.Parent then break end
+				local limbs = {}
+				for _, name in ipairs({ "Head", "LeftUpperArm", "LeftLowerArm", "LeftHand", "RightUpperArm", "RightLowerArm", "RightHand" }) do
+					local limb = model:FindFirstChild(name)
+					if limb then
+						limb.Color = Color3.fromRGB(130, 130, 135)
+						table.insert(limbs, limb)
+					end
+				end
+				task.wait(0.2)
+				for _, limb in ipairs(limbs) do
+					if limb.Parent then limb.Color = skin end
+				end
+			end
+		end)
+	end
+	task.spawn(function()
+		walkTo(model, STREET_FRONT, 30)
+		while model.Parent and not customer.leaving do
+			local index = 0
+			for i, other in ipairs(state.line) do
+				if other == customer then index = i break end
+			end
+			if index == 0 then break end
+			local target = LINE_SLOTS[math.min(index, #LINE_SLOTS)]
+			local root = model:FindFirstChild("HumanoidRootPart")
+			if root and (Vector3.new(target.X, root.Position.Y, target.Z) - root.Position).Magnitude > 1.6 then
+				walkTo(model, target, 3)
+			elseif index == 1 and not customer.atCounter then
+				customer.atCounter = true
+				customer.arrivedAt = os.clock()
+				if root then model:PivotTo(CFrame.lookAt(root.Position, root.Position + Vector3.new(0, 0, 1))) end
+				showBubble(customer)
+				if customer.bubbleLabel then customer.bubbleLabel.Text = customer.display end
+				if customer.patienceBack then customer.patienceBack.Visible = true end
+				updateOrderScreen()
+				if customer.tutorialFake then tutorialStep("refuse") end
+				if customer.tell == "SaysName" then
+					task.delay(1.5, function()
+						local players = Players:GetPlayers()
+						if #players > 0 and customer.bubbleLabel and not customer.leaving then
+							customer.bubbleLabel.Text = customer.display .. "\n..." .. randomOf(players).Name .. "..."
+						end
+					end)
+				end
+			end
+			task.wait(0.15)
+		end
+	end)
+end
+
+local serveCooldown = {}
+
+local function finishCustomer(player, customer, served)
+	local profile = profiles[player]
+	if customer.fake then
+		if served then
+			state.fakesServedToday = state.fakesServedToday + 1
+			if profile then profile.today.missed = profile.today.missed + 1 end
+			setFace(customer.model, "creepy")
+			sendAll("Sound", "FakeServed")
+			customerLeave(customer, 6, nil)
+		end
+	end
+end
+
+local function serveCustomer(player, customer, orderMap, auto)
+	local profile = profiles[player]
+	if not profile then return end
+	if customer.fake then
+		finishCustomer(player, customer, true)
+		if profile then profile.today.served = profile.today.served + 1 end
+		return
+	end
+	local correct = true
+	local expected = {}
+	for _, item in ipairs(customer.items) do expected[item.flavor] = (expected[item.flavor] or 0) + item.scoops end
+	if not auto then
+		for flavor, count in pairs(expected) do
+			if orderMap[flavor] ~= count then correct = false end
+		end
+		for flavor, count in pairs(orderMap) do
+			if expected[flavor] ~= count then correct = false end
+		end
+	end
+	if not correct then
+		toast(player, "Wrong order!", "bad")
+		customerLeave(customer, 14, "angry")
+		return
+	end
+	local base = 0
+	for flavor, count in pairs(expected) do base = base + FLAVOR_BY_ID[flavor].price * count end
+	local tip = 0
+	if os.clock() - (customer.arrivedAt or os.clock()) <= Config.TipTime then
+		local rate = Config.TipBonus
+		if shopHasUpgrade("TipJar") then rate = rate + Config.TipJarBonus end
+		tip = base * rate
+	end
+	local total = math.floor((base + tip) * cashMultiplier(player) + 0.5)
+	addCash(player, total, tip > 0 and "Tip!" or nil)
+	profile.today.served = profile.today.served + 1
+	customerLeave(customer, 12, "happy")
+end
+
+ServeRemote.OnServerEvent:Connect(function(player, orderMap)
+	local profile = profiles[player]
+	if not profile or state.phase ~= "Day" or type(orderMap) ~= "table" then return end
+	local now = os.clock()
+	local cooldown = shopHasUpgrade("FastScoop") and Config.FastServeTime or Config.ServeTime
+	if serveCooldown[player] and now - serveCooldown[player] < cooldown * 0.8 then return end
+	serveCooldown[player] = now
+	local clean = {}
+	local total = 0
+	local owned = {}
+	for _, id in ipairs(shopFlavors()) do owned[id] = true end
+	for flavor, count in pairs(orderMap) do
+		if type(flavor) ~= "string" or not owned[flavor] or type(count) ~= "number" or count ~= math.floor(count) or count < 1 or count > Config.MaxScoopsPerFlavor then
+			return
+		end
+		clean[flavor] = count
+		total = total + count
+	end
+	if total < 1 or total > Config.MaxScoopsTotal then return end
+	local customer = currentCustomer()
+	if not customer then
+		toast(player, "No customer at the counter!", "bad")
+		return
+	end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or (root.Position - SP(0, 3, 0)).Magnitude > 40 then
+		toast(player, "Get behind your counter!", "bad")
+		return
+	end
+	serveCustomer(player, customer, clean, false)
+end)
+
+RefuseRemote.OnServerEvent:Connect(function(player)
+	local profile = profiles[player]
+	if not profile or state.phase ~= "Day" then return end
+	local now = os.clock()
+	if serveCooldown[player] and now - serveCooldown[player] < 0.4 then return end
+	serveCooldown[player] = now
+	local customer = currentCustomer()
+	if not customer then return end
+	if customer.fake then
+		profile.data.fakesCaught = profile.data.fakesCaught + 1
+		profile.today.caught = profile.today.caught + 1
+		state.fakesCaughtToday = state.fakesCaughtToday + 1
+		if profile.data.fakesCaught >= 10 then awardBadge(player, "Catch10") end
+		if profile.data.fakesCaught >= 100 then awardBadge(player, "Catch100") end
+		addCash(player, math.floor(Config.RefuseFakeBonus * cashMultiplier(player)), "Fake caught!")
+		local root = customer.model:FindFirstChild("HumanoidRootPart")
+		if root then soundIn(root, "Hiss", 1) end
+		sendAll("Hiss", customer.id)
+		task.spawn(function()
+			local head = customer.model:FindFirstChild("Head")
+			local gui = head and head:FindFirstChild("FaceGui")
+			for _ = 1, 10 do
+				if gui then
+					for _, frame in ipairs(gui:GetChildren()) do
+						if frame:IsA("Frame") then
+							frame.Position = frame.Position + UDim2.fromScale(rng:NextNumber(-0.08, 0.08), rng:NextNumber(-0.08, 0.08))
+							frame.BackgroundColor3 = rng:NextNumber() < 0.5 and Color3.new(0, 0, 0) or RED
+						end
+					end
+				end
+				task.wait(0.05)
+			end
+		end)
+		customerLeave(customer, 30, nil)
+	else
+		profile.data.cash = math.max(0, profile.data.cash - Config.RefuseRealPenalty)
+		publish(player)
+		send(player, "Cash", -Config.RefuseRealPenalty, "Complaint!")
+		customerLeave(customer, 10, "sad")
+	end
+	publish(player)
+end)
+
+local function teleport(player, cf)
+	local character = player.Character
+	if character and character:FindFirstChild("HumanoidRootPart") then
+		character:PivotTo(cf)
+	end
+end
+
+local function playersInGame()
+	local list = {}
+	for player in pairs(profiles) do
+		if player.Parent then table.insert(list, player) end
+	end
+	return list
+end
+
+local function runDay()
+	setPhase("Day", Config.DayLength)
+	applyLighting(false)
+	setLights(true)
+	state.line = {}
+	state.spawnedToday = 0
+	state.fakesServedToday = 0
+	state.fakesCaughtToday = 0
+	tutorialPlayers = {}
+	state.tutorial = false
+	for player, profile in pairs(profiles) do
+		profile.today = { earned = 0, served = 0, caught = 0, missed = 0 }
+		profile.failed = false
+		profile.caught = false
+		if not profile.data.tutorialDone then
+			tutorialPlayers[player] = true
+			state.tutorial = true
+		end
+	end
+	state.tutorialNight = state.tutorial
+	for _, entry in pairs(entries) do
+		entry.state = entry.startState
+		if entry.name == "Front" then entry.state = "Open" end
+	end
+	resetEntries()
+	for _, player in ipairs(playersInGame()) do
+		teleport(player, COUNTER_SPOT)
+		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if hum then hum.WalkSpeed = Config.PlayerSpeed end
+	end
+	updateOrderScreen()
+	sendAll("PhaseStart", "Day", state.day)
+	if state.tutorial then
+		task.delay(1.5, function() tutorialStep("flavors") end)
+	end
+	local nextSpawn = os.clock() + 2
+	local autoTimers = {}
+	while workspace:GetServerTimeNow() < state.endsAt do
+		if #playersInGame() == 0 then break end
+		local now = os.clock()
+		local interval = math.max(Config.SpawnIntervalMin, Config.SpawnIntervalStart - (state.day - 1) * Config.SpawnIntervalStep)
+		if shopHasUpgrade("NeonSign") then interval = interval / (1 + Config.NeonSignBonus) end
+		if now >= nextSpawn and #state.line < Config.MaxLine then
+			nextSpawn = now + interval
+			task.spawn(spawnCustomer)
+		end
+		for _, customer in pairs(state.customers) do
+			if customer.atCounter and not customer.leaving then
+				local left = Config.Patience - (now - customer.arrivedAt)
+				if customer.patienceBar then
+					local ratio = math.clamp(left / Config.Patience, 0, 1)
+					customer.patienceBar.Size = UDim2.new(ratio, -4, 1, -4)
+					customer.patienceBar.BackgroundColor3 = ratio > 0.5 and Color3.fromRGB(110, 230, 110) or (ratio > 0.25 and Color3.fromRGB(255, 210, 60) or Color3.fromRGB(240, 70, 70))
+				end
+				if left <= 0 then
+					customerLeave(customer, 14, "angry")
+				else
+					local autoOwner = anyoneHasPass("AutoWorker")
+					if autoOwner and now - customer.arrivedAt >= Config.AutoWorkerDelay and not autoTimers[customer.id] then
+						autoTimers[customer.id] = true
+						serveCustomer(autoOwner, customer, nil, true)
+					end
+				end
+			end
+		end
+		task.wait(0.2)
+	end
+	for _, customer in pairs(state.customers) do
+		customerLeave(customer, 16, nil)
+	end
+	task.wait(1)
+end
+
+local function setFrozen(player, frozen)
+	local character = player.Character
+	local hum = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if hum then
+		hum.WalkSpeed = frozen and 0 or Config.PlayerSpeed
+		hum.JumpPower = frozen and 0 or 50
+		hum.JumpHeight = frozen and 0 or 7.2
+	end
+	if root then root.Anchored = frozen end
+end
+
+local function setFlashlight(player, on)
+	local profile = profiles[player]
+	if not profile then return end
+	if on and (state.phase ~= "Night" or profile.battery <= 0 or profile.caught or profile.failed) then on = false end
+	profile.flashOn = on
+	player:SetAttribute("FlashOn", on)
+	local head = player.Character and player.Character:FindFirstChild("Head")
+	local existing = head and head:FindFirstChild("Flashlight")
+	if on and head and not existing then
+		local better = shopHasUpgrade("BetterFlashlight")
+		make("SpotLight", { Name = "Flashlight", Range = Config.FlashlightRange + 5, Angle = better and 55 or 45, Brightness = better and 8 or 5, Face = Enum.NormalId.Front, Shadows = true, Color = Color3.fromRGB(255, 245, 220) }, head)
+	elseif not on and existing then
+		existing:Destroy()
+	end
+end
+
+ToggleFlashlightRemote.OnServerEvent:Connect(function(player, on)
+	if type(on) ~= "boolean" then return end
+	setFlashlight(player, on)
+end)
+
+FlashlightHitRemote.OnServerEvent:Connect(function() end)
+
+local function newMonster()
+	local model = buildRig("monster")
+	if not model then return nil end
+	model.Name = "Monster"
+	local spawnPoint = randomOf({ SP(0, 1, 32), SP(-30, 1, 30), SP(30, 1, 30) })
+	placeRig(model, monsterFolder, CFrame.new(spawnPoint + Vector3.new(0, 4, 0)))
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	hum.WalkSpeed = Config.MonsterSpeed
+	local monster = { model = model, hum = hum, root = model:FindFirstChild("HumanoidRootPart"), state = "wander", exposure = {}, alive = true, tick = 0 }
+	table.insert(state.monsters, monster)
+	return monster
+end
+
+local function monsterTarget(monster)
+	local best, bestDist = nil, math.huge
+	for player, profile in pairs(profiles) do
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if root and not profile.caught and not profile.failed and inBox(root.Position, PLOT_MIN, PLOT_MAX) then
+			local d = (root.Position - monster.root.Position).Magnitude
+			if d < bestDist then best, bestDist = player, d end
+		end
+	end
+	return best, bestDist
+end
+
+local function chooseEntry()
+	local options = {}
+	local total = 0
+	for _, entry in pairs(entries) do
+		local weight = 1
+		if entry.state == "Open" or entry.state == "Broken" or entry.state == "Closed" then
+			weight = 6
+		elseif entry.state == "Glass" then
+			weight = 4
+		else
+			weight = 1 + (1 - entry.health / entry.maxHealth) * 3
+		end
+		total = total + weight
+		table.insert(options, { entry = entry, weight = weight })
+	end
+	local roll = rng:NextNumber() * total
+	for _, option in ipairs(options) do
+		roll = roll - option.weight
+		if roll <= 0 then return option.entry end
+	end
+	return entries.Front
+end
+
+local alarmTimes = {}
+local function alarm(entry)
+	if not shopHasUpgrade("AlarmBell") then return end
+	local now = os.clock()
+	if alarmTimes[entry.name] and now - alarmTimes[entry.name] < 2.5 then return end
+	alarmTimes[entry.name] = now
+	sendAll("Alarm", entry.display)
+end
+
+local function breakEntry(entry)
+	entry.state = "Broken"
+	entry.health = 0
+	setEntryVisual(entry)
+	refreshPrompt(entry)
+	sendAll("EntryBroken", entry.display)
+end
+
+local function retreatMonster(monster, seconds)
+	monster.state = "retreat"
+	monster.retreatUntil = os.clock() + seconds
+	monster.exposure = {}
+	if monster.root and inBox(monster.root.Position, SHOP_MIN, SHOP_MAX) then
+		monster.model:PivotTo(CFrame.new(randomOf(OUTSIDE_POINTS) + Vector3.new(0, 4, 0)))
+	end
+	monster.hum:MoveTo(randomOf(OUTSIDE_POINTS))
+end
+
+local function flashMonster(monster, player)
+	if monster.state == "retreat" then return end
+	soundIn(monster.root, "MonsterScream", 1.2)
+	sendAll("MonsterFlinch", monster.model)
+	monster.hum.WalkSpeed = 0
+	task.delay(0.5, function()
+		if monster.alive then
+			monster.hum.WalkSpeed = Config.MonsterSpeed
+			retreatMonster(monster, Config.MonsterRetreatTime)
+		end
+	end)
+	monster.state = "flinch"
+	if player then toast(player, "It ran away!", "good") end
+end
+
+local endNight
+
+local function failPlayer(player)
+	local profile = profiles[player]
+	if not profile or not profile.caught then return end
+	profile.caught = false
+	profile.failed = true
+	profile.data.cash = math.max(0, profile.data.cash - profile.today.earned)
+	profile.today.lost = profile.today.earned
+	profile.data.streak = 0
+	publish(player)
+	setFrozen(player, false)
+	teleport(player, LOBBY_SPOT)
+	send(player, "Failed")
+	local active = 0
+	for p, other in pairs(profiles) do
+		if p.Parent and not other.failed then active = active + 1 end
+	end
+	if active == 0 then state.nightOver = true end
+end
+
+local function revivePlayer(player)
+	local profile = profiles[player]
+	if not profile or not profile.caught then return false end
+	profile.caught = false
+	profile.reviving = false
+	for _, monster in ipairs(state.monsters) do
+		if monster.alive then retreatMonster(monster, 6) end
+	end
+	setFrozen(player, false)
+	teleport(player, COUNTER_SPOT)
+	send(player, "Revived")
+	return true
+end
+
+local function catchPlayer(player)
+	local profile = profiles[player]
+	if not profile or profile.caught or profile.failed then return end
+	profile.caught = true
+	setFlashlight(player, false)
+	setFrozen(player, true)
+	local deadline = os.clock() + Config.ReviveTime
+	send(player, "Caught", Config.ReviveTime, Config.Products.Revive.id == 0 and IS_STUDIO)
+	task.spawn(function()
+		while profile.caught and player.Parent do
+			if os.clock() > deadline and not profile.reviving then break end
+			if profile.reviving and os.clock() > deadline + 25 then break end
+			task.wait(0.2)
+		end
+		if profile.caught and player.Parent then failPlayer(player) end
+	end)
+end
+
+local function monsterLoop(monster)
+	local path = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 7, AgentCanJump = false })
+	local lastPath = 0
+	local lastBang = 0
+	while monster.alive and state.phase == "Night" and not state.nightOver do
+		local dt = 0.15
+		monster.tick = monster.tick + 1
+		local now = os.clock()
+		if monster.state ~= "flinch" then
+			monster.hum.WalkSpeed = (monster.tick % 3 == 0) and 0 or Config.MonsterSpeed * 1.45
+		end
+		if monster.state == "wander" then
+			if not monster.wanderUntil then
+				monster.wanderUntil = now + rng:NextNumber(Config.MonsterWanderMin, Config.MonsterWanderMax)
+				monster.hum:MoveTo(randomOf(OUTSIDE_POINTS))
+			elseif now >= monster.wanderUntil then
+				monster.wanderUntil = nil
+				monster.entry = chooseEntry()
+				monster.state = "approach"
+				monster.lastMove = 0
+			end
+		elseif monster.state == "approach" then
+			local entry = monster.entry
+			if now - (monster.lastMove or 0) > 1.5 then
+				monster.hum:MoveTo(entry.outside)
+				monster.lastMove = now
+			end
+			local flat = Vector3.new(entry.outside.X, monster.root.Position.Y, entry.outside.Z)
+			if (monster.root.Position - flat).Magnitude < 3.2 then
+				monster.state = "attack"
+				monster.crawl = 0
+			end
+		elseif monster.state == "attack" then
+			local entry = monster.entry
+			if entry.state == "Closed" then
+				entry.state = "Open"
+				setEntryVisual(entry)
+				refreshPrompt(entry)
+			end
+			if entry.state == "Open" or entry.state == "Broken" then
+				monster.state = "enter"
+			elseif entry.state == "Glass" then
+				monster.crawl = (monster.crawl or 0) + dt
+				if not monster.crawlSound then
+					monster.crawlSound = true
+					soundIn(entry.glass, "WindowCrawl", 1)
+					sendAll("Crawl", entry.display)
+				end
+				alarm(entry)
+				if monster.crawl >= Config.WindowCrawlTime then
+					breakEntry(entry)
+					monster.crawlSound = nil
+					monster.state = "enter"
+				end
+			else
+				entry.health = entry.health - Config.MonsterDamage * dt
+				refreshEntryAttributes(entry)
+				refreshPrompt(entry)
+				alarm(entry)
+				if now - lastBang > 0.55 then
+					lastBang = now
+					soundIn(entry.kind == "door" and entry.door or entry.boards[2], "DoorBang", 1.2)
+					sendAll("Bang", entry.display, entry.kind == "door" and entry.door.Position or entry.boards[2].Position)
+				end
+				if entry.health <= 0 then
+					breakEntry(entry)
+					monster.state = "enter"
+				end
+			end
+		elseif monster.state == "enter" then
+			monster.model:PivotTo(CFrame.new(monster.entry.inside + Vector3.new(0, 4, 0)))
+			monster.state = "chase"
+			lastPath = 0
+		elseif monster.state == "chase" then
+			local target, distance = monsterTarget(monster)
+			if target then
+				local targetRoot = target.Character.HumanoidRootPart
+				if distance <= Config.CatchDistance then
+					catchPlayer(target)
+				elseif now - lastPath > 0.6 then
+					lastPath = now
+					local ok = pcall(function() path:ComputeAsync(monster.root.Position, targetRoot.Position) end)
+					local moved = false
+					if ok and path.Status == Enum.PathStatus.Success then
+						local waypoints = path:GetWaypoints()
+						local waypoint = waypoints[math.min(3, #waypoints)]
+						if waypoint then
+							monster.hum:MoveTo(waypoint.Position)
+							moved = true
+						end
+					end
+					if not moved then monster.hum:MoveTo(targetRoot.Position) end
+				end
+			else
+				if now - lastPath > 1.5 then
+					lastPath = now
+					monster.hum:MoveTo(SP(rng:NextNumber(-14, 14), 1, rng:NextNumber(-12, 10)))
+				end
+			end
+		elseif monster.state == "retreat" then
+			if now >= (monster.retreatUntil or 0) then
+				monster.entry = chooseEntry()
+				monster.state = "approach"
+				monster.lastMove = 0
+			end
+		end
+		task.wait(dt)
+	end
+end
+
+local function clearMonsters()
+	for _, monster in ipairs(state.monsters) do
+		monster.alive = false
+		local model = monster.model
+		for _, p in ipairs(model:GetDescendants()) do
+			if p:IsA("BasePart") then
+				TweenService:Create(p, TweenInfo.new(1.2), { Transparency = 1 }):Play()
+			end
+		end
+		task.delay(1.3, function() if model.Parent then model:Destroy() end end)
+	end
+	state.monsters = {}
+end
+
+local function flashlightTick(dt)
+	for player, profile in pairs(profiles) do
+		local maxBattery = shopHasUpgrade("BetterFlashlight") and Config.FlashlightBatteryUpgraded or Config.FlashlightBattery
+		if profile.flashOn then
+			profile.battery = math.max(0, profile.battery - dt)
+			if profile.battery <= 0 then setFlashlight(player, false) end
+		else
+			profile.battery = math.min(maxBattery, profile.battery + Config.FlashlightRecharge * dt)
+		end
+		player:SetAttribute("Battery", math.floor(profile.battery * 10) / 10)
+		player:SetAttribute("BatteryMax", maxBattery)
+		if profile.flashOn and state.phase == "Night" then
+			local character = player.Character
+			local head = character and character:FindFirstChild("Head")
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if head and root then
+				local stun = shopHasUpgrade("BetterFlashlight") and Config.FlashlightStunUpgraded or Config.FlashlightStun
+				for _, monster in ipairs(state.monsters) do
+					if monster.alive and monster.state ~= "retreat" and monster.state ~= "flinch" and monster.root then
+						local offset = monster.root.Position - head.Position
+						local lit = false
+						if offset.Magnitude <= Config.FlashlightRange and offset.Magnitude > 0 then
+							local dot = root.CFrame.LookVector:Dot(offset.Unit)
+							if dot > 0.72 then
+								local params = RaycastParams.new()
+								params.FilterType = Enum.RaycastFilterType.Exclude
+								params.FilterDescendantsInstances = { character, monster.model, customerFolder }
+								local hit = workspace:Raycast(head.Position, offset, params)
+								lit = hit == nil or (hit.Instance and hit.Instance.Transparency > 0.5)
+							end
+						end
+						if lit then
+							monster.exposure[player] = (monster.exposure[player] or 0) + dt
+							if monster.exposure[player] >= stun then flashMonster(monster, player) end
+						else
+							monster.exposure[player] = 0
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+local function runNight()
+	state.nightOver = false
+	state.survivedBySkip = false
+	state.monsters = {}
+	setPhase("Night", Config.NightLength)
+	applyLighting(true)
+	setLights(false)
+	updateOrderScreen()
+	resetEntries()
+	for _, entry in pairs(entries) do refreshPrompt(entry) end
+	local count = state.fakesServedToday
+	if state.tutorialNight then count = math.min(count, 1) end
+	state.quiet = count == 0
+	state.skipAvailable = false
+	gameState:SetAttribute("QuietNight", state.quiet)
+	gameState:SetAttribute("SkipAvailable", false)
+	for player, profile in pairs(profiles) do
+		local maxBattery = shopHasUpgrade("BetterFlashlight") and Config.FlashlightBatteryUpgraded or Config.FlashlightBattery
+		profile.battery = maxBattery
+		profile.caught = false
+		profile.failed = false
+		teleport(player, COUNTER_SPOT)
+	end
+	sendAll("PhaseStart", "Night", state.day)
+	if state.tutorialNight then tutorialStep("night") end
+	local spawned = 0
+	local nextSpawn = os.clock() + Config.MonsterFirstSpawn
+	local started = os.clock()
+	local last = os.clock()
+	while workspace:GetServerTimeNow() < state.endsAt and not state.nightOver do
+		if #playersInGame() == 0 then break end
+		local now = os.clock()
+		local dt = now - last
+		last = now
+		if spawned < count and now >= nextSpawn then
+			spawned = spawned + 1
+			nextSpawn = now + Config.MonsterSpawnInterval
+			task.spawn(function()
+				local monster = newMonster()
+				if monster then monsterLoop(monster) end
+			end)
+		end
+		if state.quiet and not state.skipAvailable and now - started >= Config.SkipQuietAfter then
+			state.skipAvailable = true
+			gameState:SetAttribute("SkipAvailable", true)
+		end
+		for player, entry in pairs(repairing) do
+			if player.Parent and entry.health < entry.maxHealth and (entry.state == "Locked" or entry.state == "Boarded") then
+				entry.health = math.min(entry.maxHealth, entry.health + Config.RepairPerSecond * dt)
+				refreshEntryAttributes(entry)
+				if entry.health >= entry.maxHealth then
+					repairing[player] = nil
+					refreshPrompt(entry)
+				end
+			else
+				repairing[player] = nil
+			end
+		end
+		flashlightTick(dt)
+		task.wait(0.1)
+	end
+	repairing = {}
+	for player in pairs(profiles) do setFlashlight(player, false) end
+	clearMonsters()
+	local anySurvivor = false
+	for player, profile in pairs(profiles) do
+		if profile.caught then
+			profile.caught = false
+			profile.failed = true
+			profile.data.cash = math.max(0, profile.data.cash - profile.today.earned)
+			profile.data.streak = 0
+			setFrozen(player, false)
+		end
+		if not profile.failed then anySurvivor = true end
+	end
+	return anySurvivor
+end
+
+endNight = function()
+	state.nightOver = true
+end
+
+local function runSummary()
+	setPhase("Morning", Config.SummaryLength)
+	applyLighting(false)
+	setLights(true)
+	for _, entry in pairs(entries) do refreshPrompt(entry) end
+	local perfect = state.fakesServedToday == 0
+	for player, profile in pairs(profiles) do
+		local data = profile.data
+		local survived = not profile.failed
+		local bonus = 0
+		if survived then
+			data.streak = data.streak + 1
+			data.bestNight = math.max(data.bestNight, data.streak)
+			bonus = Config.SurviveBonusPerStreak * data.streak
+			if perfect then bonus = bonus + Config.PerfectDayBonus end
+			data.cash = data.cash + bonus
+			if data.streak >= 10 then awardBadge(player, "SurviveNight10") end
+			if data.streak >= 25 then awardBadge(player, "SurviveNight25") end
+		end
+		if perfect then awardBadge(player, "PerfectDay") end
+		awardBadge(player, "FirstDay")
+		data.tutorialDone = true
+		data.day = state.day + 1
+		data.highestDay = math.max(data.highestDay, data.day)
+		publish(player)
+		send(player, "Summary", {
+			day = state.day,
+			earned = math.floor(profile.today.earned),
+			served = profile.today.served,
+			caught = profile.today.caught,
+			missed = state.fakesServedToday,
+			survived = survived,
+			bonus = bonus,
+			perfect = perfect,
+			streak = data.streak,
+			lost = profile.today.lost or 0,
+		})
+		task.spawn(saveData, player)
+	end
+	sendAll("Sound", "MorningChime")
+	task.wait(Config.SummaryLength)
+end
+
+local function grantProduct(player, key)
+	local profile = profiles[player]
+	if not profile then return false end
+	local data = profile.data
+	if key == "Revive" then
+		if not revivePlayer(player) then
+			data.cash = data.cash + 25 * math.max(1, data.highestDay)
+			toast(player, "Revive wasn't needed, you got cash instead!", "good")
+		end
+	elseif key == "FakeDetector" then
+		data.detectors = data.detectors + Config.DetectorPack
+		toast(player, "+" .. Config.DetectorPack .. " Fake Detectors!", "good")
+	elseif key == "SkipNight" then
+		if state.phase == "Night" then
+			state.survivedBySkip = true
+			state.nightOver = true
+		else
+			data.detectors = data.detectors + 1
+			toast(player, "It's not night, you got a Fake Detector instead!", "good")
+		end
+	else
+		local info = Config.Products[key]
+		if not info or not info.cash then return false end
+		local amount = info.cash * math.max(1, data.highestDay)
+		data.cash = data.cash + amount
+		send(player, "Cash", amount, "Cash pack!")
+	end
+	publish(player)
+	return true
+end
+
+local PRODUCT_BY_ID = {}
+for key, info in pairs(Config.Products) do
+	if info.id ~= 0 then PRODUCT_BY_ID[info.id] = key end
+end
+
+MarketplaceService.ProcessReceipt = function(receipt)
+	local player = Players:GetPlayerByUserId(receipt.PlayerId)
+	local profile = player and profiles[player]
+	if not profile then return Enum.ProductPurchaseDecision.NotProcessedYet end
+	for _, id in ipairs(profile.data.receipts) do
+		if id == receipt.PurchaseId then return Enum.ProductPurchaseDecision.PurchaseGranted end
+	end
+	local key = PRODUCT_BY_ID[receipt.ProductId]
+	if not key then return Enum.ProductPurchaseDecision.NotProcessedYet end
+	local ok = pcall(grantProduct, player, key)
+	if not ok then return Enum.ProductPurchaseDecision.NotProcessedYet end
+	table.insert(profile.data.receipts, receipt.PurchaseId)
+	if profile.canSave and not saveData(player) then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	return Enum.ProductPurchaseDecision.PurchaseGranted
+end
+
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
+	if not purchased then return end
+	for key, info in pairs(Config.GamePasses) do
+		if info.id == passId then
+			passCache[player] = passCache[player] or {}
+			passCache[player][key] = true
+			toast(player, info.name .. " unlocked!", "good")
+		end
+	end
+	refreshShop()
+end)
+
+MarketplaceService.PromptProductPurchaseFinished:Connect(function(userId, productId, purchased)
+	local player = Players:GetPlayerByUserId(userId)
+	local profile = player and profiles[player]
+	if profile and PRODUCT_BY_ID[productId] == "Revive" and not purchased then
+		profile.reviving = false
+	end
+end)
+
+local function promptProduct(player, key)
+	local info = Config.Products[key]
+	if not info then return end
+	if info.id == 0 then
+		if IS_STUDIO then
+			grantProduct(player, key)
+			toast(player, "(Studio test) " .. info.name .. " given free", "info")
+		else
+			toast(player, info.name .. " is not set up yet", "bad")
+		end
+		return
+	end
+	if key == "Revive" and profiles[player] then profiles[player].reviving = true end
+	MarketplaceService:PromptProductPurchase(player, info.id)
+end
+
+local function buyUpgrade(player, id)
+	local profile = profiles[player]
+	if type(id) ~= "string" or not profile then return end
+	local data = profile.data
+	local flavor = FLAVOR_BY_ID[id]
+	local upgrade = UPGRADE_BY_ID[id]
+	if not flavor and not upgrade then return end
+	local owned = flavor and data.flavors[id] or (upgrade and data.upgrades[id])
+	if owned then
+		toast(player, "You already own that!", "info")
+		return
+	end
+	local cost = flavor and flavor.cost or upgrade.cost
+	if data.cash < cost then
+		toast(player, "Not enough cash!", "bad")
+		return
+	end
+	data.cash = data.cash - cost
+	if flavor then data.flavors[id] = true else data.upgrades[id] = true end
+	send(player, "Bought", flavor and flavor.name or upgrade.name)
+	refreshShop()
+	for _, entry in pairs(entries) do refreshPrompt(entry) end
+end
+
+BuyUpgradeRemote.OnServerEvent:Connect(buyUpgrade)
+
+local requestTimes = {}
+RequestRemote.OnServerEvent:Connect(function(player, action, argument)
+	local profile = profiles[player]
+	if not profile or type(action) ~= "string" then return end
+	local now = os.clock()
+	if requestTimes[player] and now - requestTimes[player] < 0.25 then return end
+	requestTimes[player] = now
+	local data = profile.data
+	if action == "Daily" then
+		local ready, streak = dailyInfo(data)
+		if not ready then return end
+		data.lastDaily = today()
+		data.dailyStreak = streak
+		local amount = Config.DailyRewardBase * streak
+		data.cash = data.cash + amount
+		send(player, "Cash", amount, "Daily reward! Day " .. streak)
+		publish(player)
+	elseif action == "Franchise" then
+		if data.cash < Config.FranchiseCost then return end
+		data.cash = 0
+		data.upgrades = {}
+		data.flavors = {}
+		for _, id in ipairs(Config.StartFlavors) do data.flavors[id] = true end
+		data.franchises = data.franchises + 1
+		awardBadge(player, "FirstFranchise")
+		send(player, "Franchised", data.franchises)
+		refreshShop()
+	elseif action == "Revive" then
+		if profile.caught then promptProduct(player, "Revive") end
+	elseif action == "GiveUp" then
+		if profile.caught then failPlayer(player) end
+	elseif action == "SkipQuiet" then
+		if state.phase == "Night" and state.skipAvailable then
+			state.nightOver = true
+		end
+	elseif action == "BuyProduct" then
+		if type(argument) == "string" and Config.Products[argument] then
+			if argument == "Revive" and not profile.caught then return end
+			promptProduct(player, argument)
+		end
+	elseif action == "BuyPass" then
+		local info = type(argument) == "string" and Config.GamePasses[argument]
+		if not info then return end
+		if hasPass(player, argument) then
+			toast(player, "You already own " .. info.name, "info")
+		elseif info.id == 0 then
+			toast(player, info.name .. " is not set up yet", "bad")
+		else
+			MarketplaceService:PromptGamePassPurchase(player, info.id)
+		end
+	elseif action == "Detect" then
+		local customer = currentCustomer()
+		if state.phase ~= "Day" or not customer or customer.detected then return end
+		if data.detectors <= 0 then
+			promptProduct(player, "FakeDetector")
+			return
+		end
+		data.detectors = data.detectors - 1
+		customer.detected = true
+		make("Highlight", {
+			FillColor = customer.fake and Color3.fromRGB(255, 40, 40) or Color3.fromRGB(60, 255, 100),
+			OutlineColor = WHITE,
+			FillTransparency = 0.35,
+		}, customer.model)
+		publish(player)
+	end
+end)
+
+local function setupLeaderstats(player, profile)
+	local folder = Instance.new("Folder")
+	folder.Name = "leaderstats"
+	local cash = Instance.new("IntValue")
+	cash.Name = "Cash"
+	cash.Parent = folder
+	local night = Instance.new("IntValue")
+	night.Name = "Night"
+	night.Parent = folder
+	folder.Parent = player
+	profile.leaderCash = cash
+	profile.leaderNight = night
+end
+
+local firstDayDecided = false
+
+local function onPlayerAdded(player)
+	if #Players:GetPlayers() > Config.MaxPlayers then
+		player:Kick("This server is full (" .. Config.MaxPlayers .. " players max). Please join another server!")
+		return
+	end
+	local ok, raw = loadData(player)
+	if not player.Parent then return end
+	local canSave = true
+	if not ok then
+		if IS_STUDIO then
+			canSave = false
+		else
+			player:Kick("We couldn't load your save. Please rejoin in a minute so your progress is safe!")
+			return
+		end
+	end
+	if not store then canSave = false end
+	local profile = {
+		data = sanitize(raw), canSave = canSave, battery = Config.FlashlightBattery,
+		today = { earned = 0, served = 0, caught = 0, missed = 0 }, flashOn = false,
+	}
+	profiles[player] = profile
+	setupLeaderstats(player, profile)
+	if not firstDayDecided then
+		state.day = math.max(1, profile.data.day)
+		firstDayDecided = true
+	end
+	publish(player)
+	refreshShop()
+	if not canSave then
+		task.delay(3, function() toast(player, "Saving is off in Studio (turn on API access to test saving)", "info") end)
+	end
+	player.CharacterAdded:Connect(function(character)
+		local hum = character:WaitForChild("Humanoid", 10)
+		if hum then hum.WalkSpeed = Config.PlayerSpeed end
+		task.wait(0.3)
+		if profile.failed then
+			teleport(player, LOBBY_SPOT)
+		else
+			teleport(player, COUNTER_SPOT)
+		end
+	end)
+	if player.Character then teleport(player, COUNTER_SPOT) end
+	if state.phase == "Night" then
+		profile.failed = true
+		teleport(player, LOBBY_SPOT)
+		toast(player, "A night is happening! You'll join in the morning.", "info")
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in ipairs(Players:GetPlayers()) do task.spawn(onPlayerAdded, player) end
+
+Players.PlayerRemoving:Connect(function(player)
+	saveData(player)
+	profiles[player] = nil
+	passCache[player] = nil
+	serveCooldown[player] = nil
+	requestTimes[player] = nil
+	repairing[player] = nil
+	refreshShop()
+end)
+
+game:BindToClose(function()
+	local pending = 0
+	for player in pairs(profiles) do
+		pending = pending + 1
+		task.spawn(function()
+			saveData(player)
+			pending = pending - 1
+		end)
+	end
+	local started = os.clock()
+	while pending > 0 and os.clock() - started < 25 do task.wait(0.2) end
+end)
+
+task.spawn(function()
+	while true do
+		task.wait(Config.AutosaveInterval)
+		for player in pairs(profiles) do task.spawn(saveData, player) end
+	end
+end)
+
+local nameCache = {}
+local function refreshBoard()
+	if not bestStore then return end
+	local ok, pages = pcall(function() return bestStore:GetSortedAsync(false, Config.LeaderboardSize) end)
+	if not ok or not pages then return end
+	local entriesList = pages:GetCurrentPage()
+	for _, child in ipairs(boardList:GetChildren()) do
+		if child:IsA("TextLabel") then child:Destroy() end
+	end
+	for rank, item in ipairs(entriesList) do
+		local userId = tonumber(item.key)
+		local name = nameCache[userId]
+		if not name and userId then
+			local okName, result = pcall(function() return Players:GetNameFromUserIdAsync(userId) end)
+			name = okName and result or ("Player " .. item.key)
+			nameCache[userId] = name
+		end
+		local row = make("TextLabel", {
+			Size = UDim2.new(1, -10, 0, 30),
+			BackgroundColor3 = rank % 2 == 0 and Color3.fromRGB(70, 55, 90) or Color3.fromRGB(85, 65, 110),
+			Text = "#" .. rank .. "   " .. (name or "?") .. "   " .. item.value,
+			TextScaled = true,
+			Font = Enum.Font.FredokaOne,
+			TextColor3 = rank <= 3 and Color3.fromRGB(255, 215, 90) or WHITE,
+			LayoutOrder = rank,
+		}, boardList)
+		make("UICorner", { CornerRadius = UDim.new(0, 8) }, row)
+	end
+end
+
+task.spawn(function()
+	while true do
+		refreshBoard()
+		task.wait(Config.LeaderboardRefresh)
+	end
+end)
+
+applyLighting(false)
+setLights(true)
+updateShopVisuals()
+gameState:SetAttribute("Phase", "Waiting")
+
+task.spawn(function()
+	while true do
+		if #playersInGame() == 0 then
+			setPhase("Waiting", 0)
+			task.wait(1)
+		else
+			runDay()
+			if #playersInGame() > 0 then
+				runNight()
+				runSummary()
+				state.day = state.day + 1
+			end
+		end
+	end
+end)

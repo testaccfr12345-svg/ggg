@@ -1,0 +1,1094 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local SoundService = game:GetService("SoundService")
+local TextChatService = game:GetService("TextChatService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local remotes = ReplicatedStorage:WaitForChild("IceCreamRemotes")
+local gameState = ReplicatedStorage:WaitForChild("GameState")
+local ServeRemote = remotes:WaitForChild("Serve")
+local RefuseRemote = remotes:WaitForChild("Refuse")
+local BuyUpgradeRemote = remotes:WaitForChild("BuyUpgrade")
+local ToggleFlashlightRemote = remotes:WaitForChild("ToggleFlashlight")
+local RequestRemote = remotes:WaitForChild("Request")
+local EventRemote = remotes:WaitForChild("Event")
+
+local FLAVOR_BY_ID = {}
+for _, flavor in ipairs(Config.Flavors) do FLAVOR_BY_ID[flavor.id] = flavor end
+
+local OUTLINE = Color3.fromRGB(70, 40, 60)
+local WHITE = Color3.new(1, 1, 1)
+local BLACK = Color3.new(0, 0, 0)
+local PINK = Color3.fromRGB(255, 130, 180)
+local MINT = Color3.fromRGB(90, 210, 170)
+local CREAM = Color3.fromRGB(255, 244, 228)
+local LILAC = Color3.fromRGB(170, 130, 255)
+local GREEN = Color3.fromRGB(90, 210, 90)
+local RED = Color3.fromRGB(240, 70, 80)
+local YELLOW = Color3.fromRGB(255, 205, 60)
+local GREY = Color3.fromRGB(150, 145, 160)
+local NIGHT_PANEL = Color3.fromRGB(60, 30, 45)
+local NIGHT_RED = Color3.fromRGB(170, 30, 45)
+local FONT = Enum.Font.FredokaOne
+
+local sounds = {}
+for key, id in pairs(Config.Sounds) do
+	if id ~= "" then
+		local sound = Instance.new("Sound")
+		sound.Name = "IceCream_" .. key
+		sound.SoundId = id
+		sound.Volume = 0.6
+		sound.Looped = key == "DayMusic" or key == "NightAmbience"
+		sound.Parent = SoundService
+		sounds[key] = sound
+	end
+end
+
+local function play(key, speed)
+	local sound = sounds[key]
+	if not sound then return end
+	sound.PlaybackSpeed = speed or 1
+	if not sound.Looped then sound.TimePosition = 0 end
+	sound:Play()
+end
+
+local function stopSound(key)
+	if sounds[key] then sounds[key]:Stop() end
+end
+
+local function new(className, props, parent)
+	local instance = Instance.new(className)
+	for key, value in pairs(props) do instance[key] = value end
+	instance.Parent = parent
+	return instance
+end
+
+local function tween(object, time, props, style, direction)
+	local t = TweenService:Create(object, TweenInfo.new(time, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out), props)
+	t:Play()
+	return t
+end
+
+local function corner(parent, radius)
+	return new("UICorner", { CornerRadius = radius == "round" and UDim.new(1, 0) or UDim.new(0, radius) }, parent)
+end
+
+local function money(n)
+	n = math.floor(n or 0)
+	local negative = n < 0
+	n = math.abs(n)
+	local text
+	if n >= 1000000 then
+		text = string.format("%.1fM", n / 1000000)
+	elseif n >= 10000 then
+		text = string.format("%.1fK", n / 1000)
+	else
+		text = tostring(n)
+	end
+	return (negative and "-$" or "$") .. text
+end
+
+local function text(parent, str, size, position, textSize, color, thickness, align)
+	local label = new("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = size,
+		Position = position,
+		Text = str,
+		TextSize = textSize,
+		TextColor3 = color or WHITE,
+		Font = FONT,
+		TextXAlignment = align or Enum.TextXAlignment.Center,
+		ZIndex = 6,
+	}, parent)
+	if thickness ~= 0 then
+		new("UIStroke", { Color = OUTLINE, Thickness = thickness or 2.5, LineJoinMode = Enum.LineJoinMode.Round }, label)
+	end
+	return label
+end
+
+local function chunky(parent, size, position, anchor, color, radius, depth)
+	radius = radius or 14
+	depth = depth or 6
+	local holder = new("Frame", { Size = size, Position = position, AnchorPoint = anchor or Vector2.new(0, 0), BackgroundTransparency = 1 }, parent)
+	local edge = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = color:Lerp(BLACK, 0.35), BorderSizePixel = 0, ZIndex = 2 }, holder)
+	corner(edge, radius)
+	new("UIStroke", { Color = OUTLINE, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, edge)
+	local face = new("Frame", { Size = UDim2.new(1, 0, 1, -depth), BackgroundColor3 = color, BorderSizePixel = 0, ZIndex = 3 }, holder)
+	corner(face, radius)
+	new("UIGradient", { Rotation = 90, Color = ColorSequence.new(WHITE, Color3.fromRGB(215, 215, 215)) }, face)
+	local gloss = new("Frame", { Size = UDim2.new(1, -14, 0.34, 0), Position = UDim2.fromOffset(7, 4), BackgroundColor3 = WHITE, BackgroundTransparency = 0.78, BorderSizePixel = 0, ZIndex = 4 }, face)
+	corner(gloss, radius == "round" and "round" or math.max(4, radius - 5))
+	local piece = { holder = holder, edge = edge, face = face, depth = depth, color = color }
+	piece.setColor = function(newColor)
+		piece.color = newColor
+		face.BackgroundColor3 = newColor
+		edge.BackgroundColor3 = newColor:Lerp(BLACK, 0.35)
+	end
+	return piece
+end
+
+local function clickable(piece, callback)
+	local button = new("TextButton", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "", AutoButtonColor = false, ZIndex = 20 }, piece.holder)
+	local scale = new("UIScale", { Scale = 1 }, piece.holder)
+	piece.scale = scale
+	local function release()
+		tween(piece.face, 0.12, { Position = UDim2.fromOffset(0, 0) }, Enum.EasingStyle.Back)
+	end
+	button.MouseButton1Down:Connect(function()
+		tween(piece.face, 0.05, { Position = UDim2.fromOffset(0, piece.depth - 2) })
+	end)
+	button.MouseButton1Up:Connect(release)
+	button.MouseLeave:Connect(function()
+		release()
+		tween(scale, 0.15, { Scale = 1 })
+	end)
+	button.MouseEnter:Connect(function()
+		if UserInputService.MouseEnabled then tween(scale, 0.15, { Scale = 1.05 }, Enum.EasingStyle.Back) end
+	end)
+	button.Activated:Connect(function()
+		play("Click")
+		callback()
+	end)
+	piece.button = button
+	return piece
+end
+
+local function bump(object, amount)
+	local scale = object:FindFirstChildOfClass("UIScale") or new("UIScale", { Scale = 1 }, object)
+	scale.Scale = amount or 1.15
+	tween(scale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+end
+
+local oldGui = playerGui:FindFirstChild("IceCreamHUD")
+if oldGui then oldGui:Destroy() end
+
+local gui = new("ScreenGui", { Name = "IceCreamHUD", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, IgnoreGuiInset = false }, playerGui)
+local root = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, gui)
+local uiScale = new("UIScale", { Scale = 1 }, root)
+
+local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+local function centerOf(object)
+	local position = object.AbsolutePosition + object.AbsoluteSize / 2 - root.AbsolutePosition
+	return position / uiScale.Scale
+end
+
+local themed = {}
+
+local phasePill = chunky(root, UDim2.fromOffset(300, 54), UDim2.new(0.5, 0, 0, 6), Vector2.new(0.5, 0), PINK, 20, 6)
+table.insert(themed, { piece = phasePill, day = PINK, night = NIGHT_RED })
+local phaseText = text(phasePill.face, "WAITING...", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 28, WHITE, 3)
+
+local cashPill = chunky(root, UDim2.fromOffset(200, 46), UDim2.new(0.5, 0, 0, 66), Vector2.new(0.5, 0), GREEN, 18, 5)
+local cashText = text(cashPill.face, "$0", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 26, WHITE, 3)
+
+local menu = new("Frame", { Size = UDim2.fromOffset(150, 200), Position = UDim2.new(0, 14, 0.38, 0), AnchorPoint = Vector2.new(0, 0.5), BackgroundTransparency = 1 }, root)
+new("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }, menu)
+
+local function menuButton(label, color, order, callback)
+	local piece = chunky(menu, UDim2.fromOffset(150, 54), UDim2.fromOffset(0, 0), nil, color, 16, 6)
+	piece.holder.LayoutOrder = order
+	piece.label = text(piece.face, label, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 22, WHITE, 3)
+	clickable(piece, callback)
+	return piece
+end
+
+local openPanel
+local showPanel
+local shopPanel
+local franchisePanel
+
+local shopButton = menuButton("SHOP", MINT, 1, function() showPanel(shopPanel) end)
+table.insert(themed, { piece = shopButton, day = MINT, night = NIGHT_PANEL })
+local dailyButton = menuButton("DAILY", YELLOW, 2, function() RequestRemote:FireServer("Daily") end)
+local franchiseButton = menuButton("FRANCHISE", LILAC, 3, function() showPanel(franchisePanel) end)
+dailyButton.holder.Visible = false
+franchiseButton.holder.Visible = false
+
+local toasts = new("Frame", { Size = UDim2.fromOffset(480, 200), Position = UDim2.new(0.5, 0, 0, 120), AnchorPoint = Vector2.new(0.5, 0), BackgroundTransparency = 1 }, root)
+new("UIListLayout", { Padding = UDim.new(0, 8), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }, toasts)
+local toastCount = 0
+local TOAST_COLORS = { good = GREEN, bad = RED, info = PINK, build = MINT }
+
+local function toast(message, kind)
+	toastCount = toastCount + 1
+	local frame = new("Frame", { Size = UDim2.fromOffset(440, 40), BackgroundColor3 = TOAST_COLORS[kind] or PINK, BorderSizePixel = 0, LayoutOrder = toastCount, ZIndex = 30 }, toasts)
+	corner(frame, 14)
+	new("UIStroke", { Color = OUTLINE, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, frame)
+	local label = text(frame, message, UDim2.new(1, -16, 1, 0), UDim2.fromOffset(8, 0), 19, WHITE, 2.5)
+	label.ZIndex = 31
+	label.TextScaled = true
+	new("UITextSizeConstraint", { MaxTextSize = 19, MinTextSize = 10 }, label)
+	local scale = new("UIScale", { Scale = 0.4 }, frame)
+	tween(scale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+	task.delay(2.8, function()
+		if not frame.Parent then return end
+		tween(scale, 0.2, { Scale = 0 }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+		task.wait(0.22)
+		frame:Destroy()
+	end)
+	local list = {}
+	for _, child in ipairs(toasts:GetChildren()) do
+		if child:IsA("Frame") then table.insert(list, child) end
+	end
+	table.sort(list, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+	if #list > 3 then list[1]:Destroy() end
+end
+
+local function floatText(message, color, fromObject)
+	local position = centerOf(fromObject)
+	local floater = text(root, message, UDim2.fromOffset(220, 40), UDim2.fromOffset(position.X - 110 + math.random(-20, 20), position.Y - 30), 32, color, 3)
+	floater.ZIndex = 40
+	floater.Rotation = math.random(-10, 10)
+	local scale = new("UIScale", { Scale = 0.4 }, floater)
+	tween(scale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
+	tween(floater, 1, { Position = floater.Position + UDim2.fromOffset(0, -70) })
+	task.delay(0.8, function()
+		tween(scale, 0.2, { Scale = 0 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		task.wait(0.22)
+		floater:Destroy()
+	end)
+end
+
+local orderPanel = chunky(root, UDim2.fromOffset(780, 190), UDim2.new(0.5, 0, 1, -10), Vector2.new(0.5, 1), CREAM, 22, 8)
+table.insert(themed, { piece = orderPanel, day = CREAM, night = NIGHT_PANEL })
+
+local coneArea = new("Frame", { Size = UDim2.fromOffset(120, 170), Position = UDim2.fromOffset(10, 6), BackgroundTransparency = 1, ZIndex = 5 }, orderPanel.face)
+local cone = new("Frame", { Size = UDim2.fromOffset(46, 64), Position = UDim2.new(0.5, -23, 1, -70), BackgroundColor3 = Color3.fromRGB(230, 170, 100), BorderSizePixel = 0, ZIndex = 6 }, coneArea)
+corner(cone, 10)
+new("UIStroke", { Color = OUTLINE, Thickness = 3 }, cone)
+for i = 1, 3 do
+	new("Frame", { Size = UDim2.new(1, 0, 0, 3), Position = UDim2.fromOffset(0, i * 15), BackgroundColor3 = Color3.fromRGB(190, 120, 60), BorderSizePixel = 0, ZIndex = 7 }, cone)
+end
+local scoopHolder = new("Frame", { Size = UDim2.fromOffset(120, 110), Position = UDim2.fromOffset(0, 0), BackgroundTransparency = 1, ZIndex = 7 }, coneArea)
+local coneCount = text(coneArea, "", UDim2.new(1, 0, 0, 20), UDim2.new(0, 0, 1, -18), 16, OUTLINE, 0)
+
+local flavorGrid = new("Frame", { Size = UDim2.fromOffset(410, 160), Position = UDim2.fromOffset(140, 10), BackgroundTransparency = 1, ZIndex = 5 }, orderPanel.face)
+new("UIGridLayout", { CellSize = UDim2.fromOffset(96, 74), CellPadding = UDim2.fromOffset(6, 8), SortOrder = Enum.SortOrder.LayoutOrder }, flavorGrid)
+
+local actionColumn = new("Frame", { Size = UDim2.fromOffset(210, 170), Position = UDim2.new(1, -220, 0, 6), BackgroundTransparency = 1, ZIndex = 5 }, orderPanel.face)
+local servePiece = chunky(actionColumn, UDim2.fromOffset(210, 64), UDim2.fromOffset(0, 0), nil, GREEN, 18, 7)
+local serveLabel = text(servePiece.face, "SERVE", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 32, WHITE, 3)
+local refusePiece = chunky(actionColumn, UDim2.fromOffset(130, 52), UDim2.fromOffset(0, 72), nil, RED, 16, 6)
+text(refusePiece.face, "REFUSE", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 24, WHITE, 3)
+local clearPiece = chunky(actionColumn, UDim2.fromOffset(72, 52), UDim2.fromOffset(138, 72), nil, GREY, 16, 6)
+text(clearPiece.face, "CLEAR", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 18, WHITE, 2.5)
+local detectPiece = chunky(actionColumn, UDim2.fromOffset(210, 38), UDim2.fromOffset(0, 130), nil, LILAC, 14, 5)
+local detectLabel = text(detectPiece.face, "FAKE DETECTOR", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 18, WHITE, 2.5)
+
+local currentScoops = {}
+local serving = false
+
+local function refreshCone()
+	for _, child in ipairs(scoopHolder:GetChildren()) do child:Destroy() end
+	local golden = player:GetAttribute("VIP") == true
+	for index, id in ipairs(currentScoops) do
+		local flavor = FLAVOR_BY_ID[id]
+		local scoop = new("Frame", {
+			Size = UDim2.fromOffset(56, 40),
+			Position = UDim2.new(0.5, -28, 0, 82 - index * 15),
+			BackgroundColor3 = flavor and flavor.color or WHITE,
+			BorderSizePixel = 0,
+			ZIndex = 8 + index,
+		}, scoopHolder)
+		corner(scoop, "round")
+		new("UIStroke", { Color = golden and YELLOW or OUTLINE, Thickness = golden and 4 or 3 }, scoop)
+	end
+	coneCount.Text = #currentScoops > 0 and (#currentScoops .. " scoop" .. (#currentScoops == 1 and "" or "s")) or "empty cone"
+end
+
+local flavorButtons = {}
+
+local function buildFlavorButtons()
+	for _, piece in pairs(flavorButtons) do piece.holder:Destroy() end
+	flavorButtons = {}
+	local list = string.split(gameState:GetAttribute("ShopFlavors") or "", ",")
+	for index, id in ipairs(list) do
+		local flavor = FLAVOR_BY_ID[id]
+		if flavor then
+			local piece = chunky(flavorGrid, UDim2.fromOffset(96, 74), UDim2.fromOffset(0, 0), nil, flavor.color, 16, 6)
+			piece.holder.LayoutOrder = index
+			local dot = new("Frame", { Size = UDim2.fromOffset(26, 26), Position = UDim2.new(0.5, -13, 0, 6), BackgroundColor3 = flavor.color, BorderSizePixel = 0, ZIndex = 6 }, piece.face)
+			corner(dot, "round")
+			new("UIStroke", { Color = OUTLINE, Thickness = 2.5 }, dot)
+			local name = text(piece.face, flavor.name, UDim2.new(1, -6, 0, 20), UDim2.fromOffset(3, 34), 17, WHITE, 2.5)
+			name.TextScaled = true
+			new("UITextSizeConstraint", { MaxTextSize = 17 }, name)
+			clickable(piece, function()
+				if serving then return end
+				local count = 0
+				for _, other in ipairs(currentScoops) do if other == id then count = count + 1 end end
+				if #currentScoops >= Config.MaxScoopsTotal or count >= Config.MaxScoopsPerFlavor then
+					toast("That's enough of that!", "bad")
+					return
+				end
+				table.insert(currentScoops, id)
+				refreshCone()
+				bump(scoopHolder, 1.1)
+			end)
+			flavorButtons[id] = piece
+		end
+	end
+end
+
+local tutorialDone = {}
+local hideTutorial
+
+local function doServe()
+	if serving then return end
+	if #currentScoops == 0 then
+		toast("Add scoops first!", "bad")
+		return
+	end
+	if (gameState:GetAttribute("CurrentOrder") or "") == "" then
+		toast("No customer at the counter yet!", "bad")
+		return
+	end
+	serving = true
+	local map = {}
+	for _, id in ipairs(currentScoops) do map[id] = (map[id] or 0) + 1 end
+	local upgrades = gameState:GetAttribute("ShopUpgrades") or ""
+	local serveTime = string.find(upgrades, "FastScoop") and Config.FastServeTime or Config.ServeTime
+	serveLabel.Text = "SCOOPING..."
+	servePiece.setColor(GREY)
+	task.wait(serveTime)
+	ServeRemote:FireServer(map)
+	currentScoops = {}
+	refreshCone()
+	serveLabel.Text = "SERVE"
+	servePiece.setColor(GREEN)
+	serving = false
+	if hideTutorial then hideTutorial("flavors") end
+end
+
+clickable(servePiece, function() task.spawn(doServe) end)
+clickable(refusePiece, function()
+	if (gameState:GetAttribute("CurrentOrder") or "") == "" then
+		toast("No customer to refuse!", "bad")
+		return
+	end
+	RefuseRemote:FireServer()
+	currentScoops = {}
+	refreshCone()
+	if hideTutorial then hideTutorial("refuse") end
+end)
+clickable(clearPiece, function()
+	currentScoops = {}
+	refreshCone()
+end)
+clickable(detectPiece, function() RequestRemote:FireServer("Detect") end)
+
+local nightHud = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false }, root)
+local flashPiece = chunky(nightHud, UDim2.fromOffset(120, 120), UDim2.new(1, -24, 1, isTouch and -230 or -40), Vector2.new(1, 1), YELLOW, "round", 8)
+local flashLabel = text(flashPiece.face, "LIGHT", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0.5, -24), 26, WHITE, 3)
+local flashKey = text(flashPiece.face, isTouch and "TAP" or "[F]", UDim2.new(1, 0, 0, 20), UDim2.new(0, 0, 0.5, 6), 18, OUTLINE, 0)
+local batteryBack = new("Frame", { Size = UDim2.fromOffset(150, 20), Position = UDim2.new(1, -9, 1, isTouch and -205 or -15), AnchorPoint = Vector2.new(1, 0), BackgroundColor3 = Color3.fromRGB(30, 20, 30), BorderSizePixel = 0 }, nightHud)
+corner(batteryBack, 8)
+new("UIStroke", { Color = OUTLINE, Thickness = 3 }, batteryBack)
+local batteryFill = new("Frame", { Size = UDim2.new(1, -6, 1, -6), Position = UDim2.fromOffset(3, 3), BackgroundColor3 = YELLOW, BorderSizePixel = 0 }, batteryBack)
+corner(batteryFill, 6)
+
+local entryPanel = chunky(nightHud, UDim2.fromOffset(250, 200), UDim2.new(1, -14, 0, 8), Vector2.new(1, 0), NIGHT_PANEL, 18, 6)
+text(entryPanel.face, "SHOP SAFETY", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, 4), 20, YELLOW, 2.5)
+local entryRows = {}
+for index, name in ipairs({ "Front", "Left", "Right", "Back" }) do
+	local labelNames = { Front = "FRONT DOOR", Left = "LEFT WINDOW", Right = "RIGHT WINDOW", Back = "BACK DOOR" }
+	local y = 32 + (index - 1) * 39
+	text(entryPanel.face, labelNames[name], UDim2.new(1, -20, 0, 16), UDim2.fromOffset(12, y), 14, WHITE, 2, Enum.TextXAlignment.Left)
+	local status = text(entryPanel.face, "", UDim2.new(1, -24, 0, 16), UDim2.fromOffset(12, y), 14, YELLOW, 2, Enum.TextXAlignment.Right)
+	local back = new("Frame", { Size = UDim2.new(1, -24, 0, 12), Position = UDim2.fromOffset(12, y + 19), BackgroundColor3 = Color3.fromRGB(20, 10, 15), BorderSizePixel = 0, ZIndex = 6 }, entryPanel.face)
+	corner(back, 6)
+	local fill = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = GREEN, BorderSizePixel = 0, ZIndex = 7 }, back)
+	corner(fill, 6)
+	entryRows[name] = { status = status, fill = fill }
+end
+
+local alarmBanner = chunky(root, UDim2.fromOffset(460, 56), UDim2.new(0.5, 0, 0, 120), Vector2.new(0.5, 0), RED, 18, 6)
+local alarmText = text(alarmBanner.face, "", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 26, WHITE, 3)
+alarmBanner.holder.Visible = false
+
+local skipQuietPiece = chunky(nightHud, UDim2.fromOffset(240, 56), UDim2.new(0.5, 0, 1, -24), Vector2.new(0.5, 1), GREEN, 18, 6)
+text(skipQuietPiece.face, "SKIP TO MORNING", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 24, WHITE, 3)
+clickable(skipQuietPiece, function() RequestRemote:FireServer("SkipQuiet") end)
+skipQuietPiece.holder.Visible = false
+
+local skipNightPiece = chunky(nightHud, UDim2.fromOffset(190, 46), UDim2.new(0, 14, 1, isTouch and -250 or -24), Vector2.new(0, 1), LILAC, 16, 5)
+text(skipNightPiece.face, "SKIP NIGHT R$" .. Config.Products.SkipNight.robux, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 18, WHITE, 2.5)
+clickable(skipNightPiece, function() RequestRemote:FireServer("BuyProduct", "SkipNight") end)
+
+local flashOn = false
+local function setFlash(on)
+	if gameState:GetAttribute("Phase") ~= "Night" then on = false end
+	if on and (player:GetAttribute("Battery") or 0) <= 0.2 then
+		toast("Battery empty! Wait for it to recharge", "bad")
+		on = false
+	end
+	flashOn = on
+	ToggleFlashlightRemote:FireServer(on)
+	flashPiece.setColor(on and Color3.fromRGB(255, 240, 150) or YELLOW)
+	flashLabel.Text = on and "ON" or "LIGHT"
+	if hideTutorial and on then hideTutorial("night") end
+end
+clickable(flashPiece, function() setFlash(not flashOn) end)
+
+local overlay = new("TextButton", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = BLACK, BackgroundTransparency = 1, Text = "", AutoButtonColor = false, Visible = false, ZIndex = 50 }, gui)
+
+local function closePanel()
+	if not openPanel then return end
+	local panel = openPanel
+	openPanel = nil
+	tween(overlay, 0.2, { BackgroundTransparency = 1 })
+	tween(panel.scale, 0.18, { Scale = 0 }, Enum.EasingStyle.Back, Enum.EasingDirection.In).Completed:Connect(function()
+		if openPanel ~= panel then panel.holder.Visible = false end
+		if not openPanel then overlay.Visible = false end
+	end)
+end
+
+showPanel = function(panel)
+	if openPanel == panel then closePanel() return end
+	if openPanel then openPanel.holder.Visible = false end
+	openPanel = panel
+	overlay.Visible = true
+	panel.holder.Visible = true
+	panel.scale.Scale = 0.4
+	if panel.onOpen then panel.onOpen() end
+	tween(panel.scale, 0.3, { Scale = uiScale.Scale }, Enum.EasingStyle.Back)
+	tween(overlay, 0.2, { BackgroundTransparency = 0.5 })
+end
+overlay.Activated:Connect(closePanel)
+
+local function modal(title, color, width, height)
+	local panel = chunky(overlay, UDim2.fromOffset(width or 640, height or 440), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5), CREAM, 26, 9)
+	panel.holder.Visible = false
+	panel.holder.ZIndex = 51
+	panel.scale = new("UIScale", { Scale = 1 }, panel.holder)
+	new("TextButton", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "", AutoButtonColor = false, ZIndex = 1 }, panel.holder)
+	local header = new("Frame", { Size = UDim2.new(1, -24, 0, 56), Position = UDim2.fromOffset(12, 12), BackgroundColor3 = color, BorderSizePixel = 0, ZIndex = 5 }, panel.face)
+	corner(header, 18)
+	new("UIStroke", { Color = OUTLINE, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, header)
+	text(header, title, UDim2.new(1, -80, 1, 0), UDim2.fromOffset(18, 0), 32, WHITE, 3, Enum.TextXAlignment.Left)
+	local close = chunky(panel.face, UDim2.fromOffset(48, 48), UDim2.new(1, -66, 0, 16), nil, RED, 14, 5)
+	text(close.face, "X", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 26, WHITE, 2.5)
+	clickable(close, closePanel)
+	return panel
+end
+
+shopPanel = modal("ICE CREAM SHOP", PINK, 680, 470)
+local tabs = new("Frame", { Size = UDim2.new(1, -24, 0, 46), Position = UDim2.fromOffset(12, 76), BackgroundTransparency = 1, ZIndex = 5 }, shopPanel.face)
+new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8) }, tabs)
+local shopList = new("ScrollingFrame", {
+	Size = UDim2.new(1, -24, 1, -144),
+	Position = UDim2.fromOffset(12, 130),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 8,
+	ScrollBarImageColor3 = PINK,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ZIndex = 5,
+}, shopPanel.face)
+new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, shopList)
+new("UIPadding", { PaddingRight = UDim.new(0, 12), PaddingLeft = UDim.new(0, 2), PaddingTop = UDim.new(0, 4) }, shopList)
+
+local currentTab = "Flavors"
+local tabPieces = {}
+local renderShop
+
+local function shopRow(order, color, title, subtitle, buttonText, buttonColor, onBuy)
+	local row = new("Frame", { Size = UDim2.new(1, 0, 0, 76), BackgroundColor3 = WHITE, BorderSizePixel = 0, LayoutOrder = order, ZIndex = 6 }, shopList)
+	corner(row, 16)
+	new("UIStroke", { Color = OUTLINE, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, row)
+	local badge = new("Frame", { Size = UDim2.fromOffset(52, 52), Position = UDim2.fromOffset(12, 12), BackgroundColor3 = color, BorderSizePixel = 0, ZIndex = 7 }, row)
+	corner(badge, "round")
+	new("UIStroke", { Color = OUTLINE, Thickness = 3 }, badge)
+	local t = text(row, title, UDim2.new(1, -260, 0, 28), UDim2.fromOffset(76, 10), 24, OUTLINE, 0, Enum.TextXAlignment.Left)
+	t.ZIndex = 7
+	local s = text(row, subtitle, UDim2.new(1, -260, 0, 22), UDim2.fromOffset(76, 40), 16, Color3.fromRGB(140, 110, 130), 0, Enum.TextXAlignment.Left)
+	s.ZIndex = 7
+	s.TextWrapped = true
+	local buy = chunky(row, UDim2.fromOffset(160, 56), UDim2.new(1, -172, 0, 8), nil, buttonColor, 16, 6)
+	buy.holder.ZIndex = 7
+	text(buy.face, buttonText, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 22, WHITE, 3)
+	if onBuy then clickable(buy, onBuy) end
+end
+
+local function ownedList(attribute)
+	local set = {}
+	for _, id in ipairs(string.split(attribute or "", ",")) do
+		if id ~= "" then set[id] = true end
+	end
+	return set
+end
+
+renderShop = function()
+	for _, child in ipairs(shopList:GetChildren()) do
+		if child:IsA("Frame") then child:Destroy() end
+	end
+	local cash = player:GetAttribute("Cash") or 0
+	if currentTab == "Flavors" then
+		local mine = ownedList(player:GetAttribute("OwnedFlavors"))
+		local shop = ownedList(gameState:GetAttribute("ShopFlavors"))
+		for index, flavor in ipairs(Config.Flavors) do
+			local label, color, action
+			if mine[flavor.id] then
+				label, color = "OWNED", GREY
+			elseif shop[flavor.id] then
+				label, color = "PARTNER HAS", MINT
+				action = function() BuyUpgradeRemote:FireServer(flavor.id) end
+			else
+				label = money(flavor.cost)
+				color = cash >= flavor.cost and GREEN or RED
+				action = function() BuyUpgradeRemote:FireServer(flavor.id) end
+			end
+			shopRow(index, flavor.color, flavor.name, "Sells for $" .. flavor.price .. " per scoop", label, color, action)
+		end
+	elseif currentTab == "Upgrades" then
+		local mine = ownedList(player:GetAttribute("OwnedUpgrades"))
+		local shop = ownedList(gameState:GetAttribute("ShopUpgrades"))
+		for index, upgrade in ipairs(Config.Upgrades) do
+			local label, color, action
+			if mine[upgrade.id] then
+				label, color = "OWNED", GREY
+			elseif shop[upgrade.id] then
+				label, color = "PARTNER HAS", MINT
+			else
+				label = money(upgrade.cost)
+				color = cash >= upgrade.cost and GREEN or RED
+				action = function() BuyUpgradeRemote:FireServer(upgrade.id) end
+			end
+			shopRow(index, LILAC, upgrade.name, upgrade.desc, label, color, action)
+		end
+	else
+		local order = 0
+		for key, info in pairs(Config.GamePasses) do
+			order = order + 1
+			local descriptions = { DoubleCash = "Earn double cash forever", AutoWorker = "A worker serves customers for you (even fakes!)", VIP = "+20% cash, golden scoop, [VIP] chat tag" }
+			shopRow(order, YELLOW, info.name, descriptions[key] or "", "R$" .. info.robux, YELLOW, function() RequestRemote:FireServer("BuyPass", key) end)
+		end
+		local productOrder = { "FakeDetector", "CashSmall", "CashMedium", "CashLarge" }
+		for _, key in ipairs(productOrder) do
+			order = order + 1
+			local info = Config.Products[key]
+			local description = key == "FakeDetector" and "Shows if the customer is real or fake" or ("Cash that grows with your best day")
+			shopRow(order, PINK, info.name, description, "R$" .. info.robux, YELLOW, function() RequestRemote:FireServer("BuyProduct", key) end)
+		end
+	end
+	for name, piece in pairs(tabPieces) do
+		piece.setColor(name == currentTab and PINK or GREY)
+	end
+end
+
+for _, name in ipairs({ "Flavors", "Upgrades", "Robux" }) do
+	local piece = chunky(tabs, UDim2.fromOffset(150, 44), UDim2.fromOffset(0, 0), nil, GREY, 14, 5)
+	text(piece.face, string.upper(name), UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 20, WHITE, 2.5)
+	clickable(piece, function()
+		currentTab = name
+		renderShop()
+	end)
+	tabPieces[name] = piece
+end
+shopPanel.onOpen = renderShop
+
+franchisePanel = modal("FRANCHISE", LILAC, 520, 340)
+local franchiseInfo = text(franchisePanel.face, "", UDim2.new(1, -40, 0, 150), UDim2.fromOffset(20, 80), 22, OUTLINE, 0)
+franchiseInfo.TextWrapped = true
+local franchiseConfirm = chunky(franchisePanel.face, UDim2.fromOffset(260, 66), UDim2.new(0.5, -130, 1, -84), nil, LILAC, 18, 7)
+text(franchiseConfirm.face, "OPEN FRANCHISE!", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 24, WHITE, 3)
+clickable(franchiseConfirm, function()
+	RequestRemote:FireServer("Franchise")
+	closePanel()
+end)
+franchisePanel.onOpen = function()
+	local n = player:GetAttribute("Franchises") or 0
+	franchiseInfo.Text = "Open franchise #" .. (n + 1) .. "!\nYou lose your cash, upgrades and bought flavors.\nYou get +" .. math.floor(Config.FranchiseMultiplier * 100) .. "% cash FOREVER (now x" .. string.format("%.2f", 1 + (n + 1) * Config.FranchiseMultiplier) .. ")"
+end
+
+local tutorialFrame = chunky(root, UDim2.fromOffset(520, 70), UDim2.new(0.5, 0, 0, 180), Vector2.new(0.5, 0), YELLOW, 20, 7)
+tutorialFrame.holder.Visible = false
+tutorialFrame.holder.ZIndex = 45
+local tutorialText = text(tutorialFrame.face, "", UDim2.new(1, -20, 1, 0), UDim2.fromOffset(10, 0), 22, WHITE, 3)
+tutorialText.TextWrapped = true
+local arrow = text(root, "▼", UDim2.fromOffset(60, 60), UDim2.fromOffset(0, 0), 56, YELLOW, 4)
+arrow.Visible = false
+arrow.ZIndex = 46
+local arrowTarget = nil
+local activeTutorial = nil
+
+local function showTutorial(step)
+	if tutorialDone[step] then return end
+	activeTutorial = step
+	local messages = {
+		flavors = "Click the flavors to make the order, then press SERVE.",
+		refuse = "Something's wrong with this one... press REFUSE!",
+		night = "Lock the door! Shine your flashlight at it!",
+	}
+	tutorialText.Text = messages[step] or ""
+	tutorialFrame.holder.Visible = true
+	bump(tutorialFrame.holder, 0.5)
+	arrowTarget = step == "flavors" and flavorGrid or (step == "refuse" and refusePiece.holder or flashPiece.holder)
+	arrow.Visible = true
+	task.delay(14, function()
+		if activeTutorial == step and hideTutorial then hideTutorial(step) end
+	end)
+end
+
+hideTutorial = function(step)
+	if activeTutorial ~= step then return end
+	tutorialDone[step] = true
+	activeTutorial = nil
+	tutorialFrame.holder.Visible = false
+	arrow.Visible = false
+	arrowTarget = nil
+end
+
+local summary = chunky(gui, UDim2.fromOffset(460, 420), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5), CREAM, 26, 9)
+summary.holder.Visible = false
+summary.holder.ZIndex = 60
+local summaryScale = new("UIScale", { Scale = 1 }, summary.holder)
+local summaryHeader = new("Frame", { Size = UDim2.new(1, -24, 0, 60), Position = UDim2.fromOffset(12, 12), BackgroundColor3 = YELLOW, BorderSizePixel = 0, ZIndex = 5 }, summary.face)
+corner(summaryHeader, 18)
+new("UIStroke", { Color = OUTLINE, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, summaryHeader)
+local summaryTitle = text(summaryHeader, "GOOD MORNING!", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 32, WHITE, 3)
+local summaryRows = new("Frame", { Size = UDim2.new(1, -40, 1, -100), Position = UDim2.fromOffset(20, 84), BackgroundTransparency = 1, ZIndex = 5 }, summary.face)
+new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, summaryRows)
+
+local function showSummary(info)
+	for _, child in ipairs(summaryRows:GetChildren()) do
+		if child:IsA("TextLabel") then child:Destroy() end
+	end
+	summaryTitle.Text = "DAY " .. info.day .. " DONE!"
+	local rows = {
+		{ "Cash earned", money(info.earned), GREEN },
+		{ "Customers served", tostring(info.served), OUTLINE },
+		{ "Fakes caught", tostring(info.caught), GREEN },
+		{ "Fakes served", info.missed > 0 and ("You served " .. info.missed .. " fake" .. (info.missed == 1 and "" or "s") .. "!") or "None!", info.missed > 0 and RED or GREEN },
+		{ "Night", info.survived and ("Survived! +" .. money(info.bonus)) or ("Caught! Lost " .. money(info.lost)), info.survived and GREEN or RED },
+		{ "Night streak", tostring(info.streak), LILAC },
+	}
+	if info.perfect then table.insert(rows, { "PERFECT DAY!", "+" .. money(Config.PerfectDayBonus), YELLOW }) end
+	for index, row in ipairs(rows) do
+		local label = text(summaryRows, row[1] .. ":  " .. row[2], UDim2.new(1, 0, 0, 34), UDim2.fromOffset(0, 0), 23, row[3], 0)
+		label.LayoutOrder = index
+		label.TextTransparency = 1
+		task.delay(index * 0.25, function()
+			tween(label, 0.25, { TextTransparency = 0 })
+			play("CashDing", 1 + index * 0.08)
+		end)
+	end
+	summary.holder.Visible = true
+	summaryScale.Scale = 0.3
+	tween(summaryScale, 0.35, { Scale = uiScale.Scale }, Enum.EasingStyle.Back)
+	task.delay(Config.SummaryLength - 0.6, function()
+		tween(summaryScale, 0.25, { Scale = 0 }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+		task.wait(0.3)
+		summary.holder.Visible = false
+	end)
+end
+
+local fade = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = BLACK, BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 70 }, gui)
+local fadeText = text(fade, "", UDim2.fromScale(1, 0.2), UDim2.fromScale(0, 0.4), 54, WHITE, 4)
+fadeText.ZIndex = 71
+fadeText.TextTransparency = 1
+
+local scare = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = BLACK, BorderSizePixel = 0, Visible = false, ZIndex = 80 }, gui)
+local scareFace = new("Frame", { Size = UDim2.fromScale(0.75, 0.95), Position = UDim2.fromScale(0.5, 0.52), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = Color3.fromRGB(75, 75, 85), BorderSizePixel = 0, ZIndex = 81 }, scare)
+new("UIAspectRatioConstraint", { AspectRatio = 0.85 }, scareFace)
+corner(scareFace, 80)
+for _, x in ipairs({ 0.18, 0.56 }) do
+	local eye = new("Frame", { Size = UDim2.fromScale(0.26, 0.2), Position = UDim2.fromScale(x, 0.25), BackgroundColor3 = Color3.fromRGB(255, 20, 30), BorderSizePixel = 0, ZIndex = 82 }, scareFace)
+	corner(eye, "round")
+	new("UIStroke", { Color = Color3.fromRGB(255, 120, 120), Thickness = 6 }, eye)
+end
+local scareMouth = new("Frame", { Size = UDim2.fromScale(0.7, 0.2), Position = UDim2.fromScale(0.15, 0.62), BackgroundColor3 = BLACK, BorderSizePixel = 0, ZIndex = 82 }, scareFace)
+corner(scareMouth, 30)
+for i = 0, 7 do
+	local tooth = new("Frame", { Size = UDim2.fromScale(0.09, 0.5), Position = UDim2.fromScale(0.04 + i * 0.12, i % 2 == 0 and 0 or 0.5), BackgroundColor3 = Color3.fromRGB(235, 230, 215), BorderSizePixel = 0, Rotation = 45, ZIndex = 83 }, scareMouth)
+	corner(tooth, 4)
+end
+if Config.Images.Jumpscare ~= "" then
+	new("ImageLabel", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Image = Config.Images.Jumpscare, ScaleType = Enum.ScaleType.Crop, ZIndex = 85 }, scare)
+end
+
+local revive = chunky(gui, UDim2.fromOffset(480, 300), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5), NIGHT_PANEL, 26, 9)
+revive.holder.Visible = false
+revive.holder.ZIndex = 90
+local reviveScale = new("UIScale", { Scale = 1 }, revive.holder)
+text(revive.face, "YOU GOT CAUGHT!", UDim2.new(1, 0, 0, 56), UDim2.fromOffset(0, 14), 40, RED, 4)
+local reviveInfo = text(revive.face, "", UDim2.new(1, -40, 0, 60), UDim2.fromOffset(20, 72), 21, WHITE, 2.5)
+reviveInfo.TextWrapped = true
+local reviveCountdown = text(revive.face, "10", UDim2.new(1, 0, 0, 40), UDim2.fromOffset(0, 134), 38, YELLOW, 3)
+local reviveYes = chunky(revive.face, UDim2.fromOffset(220, 64), UDim2.new(0, 20, 1, -84), nil, GREEN, 18, 7)
+local reviveYesText = text(reviveYes.face, "REVIVE R$" .. Config.Products.Revive.robux, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 24, WHITE, 3)
+local reviveNo = chunky(revive.face, UDim2.fromOffset(200, 64), UDim2.new(1, -220, 1, -84), nil, GREY, 18, 7)
+text(reviveNo.face, "GIVE UP", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), 24, WHITE, 3)
+clickable(reviveYes, function() RequestRemote:FireServer("Revive") end)
+clickable(reviveNo, function() RequestRemote:FireServer("GiveUp") end)
+local reviveDeadline = 0
+
+local function hideRevive()
+	revive.holder.Visible = false
+	tween(fade, 0.4, { BackgroundTransparency = 1 })
+	tween(fadeText, 0.4, { TextTransparency = 1 })
+end
+
+local function onCaught(seconds, studioFree)
+	stopSound("NightAmbience")
+	play("Jumpscare")
+	scare.Visible = true
+	local started = os.clock()
+	while os.clock() - started < 0.8 do
+		scareFace.Position = UDim2.new(0.5, math.random(-30, 30), 0.52, math.random(-30, 30))
+		scareFace.Size = UDim2.fromScale(0.75 + (os.clock() - started) * 0.3, 0.95 + (os.clock() - started) * 0.3)
+		task.wait()
+	end
+	scare.Visible = false
+	scareFace.Size = UDim2.fromScale(0.75, 0.95)
+	fade.BackgroundTransparency = 0
+	reviveInfo.Text = "Revive to keep your cash and night streak?\nIf not, you lose today's cash and your streak."
+	reviveYesText.Text = studioFree and "REVIVE (FREE TEST)" or ("REVIVE R$" .. Config.Products.Revive.robux)
+	reviveDeadline = os.clock() + seconds
+	revive.holder.Visible = true
+	reviveScale.Scale = 0.3
+	tween(reviveScale, 0.35, { Scale = uiScale.Scale }, Enum.EasingStyle.Back)
+end
+
+local function fadeMessage(message, hold)
+	fadeText.Text = message
+	tween(fade, 0.6, { BackgroundTransparency = 0 })
+	tween(fadeText, 0.6, { TextTransparency = 0 })
+	task.delay(0.6 + (hold or 1.2), function()
+		tween(fade, 0.8, { BackgroundTransparency = 1 })
+		tween(fadeText, 0.8, { TextTransparency = 1 })
+	end)
+end
+
+local function applyTheme(night)
+	for _, item in ipairs(themed) do
+		item.piece.setColor(night and item.night or item.day)
+	end
+end
+
+local currentPhase = nil
+local function onPhase()
+	local phase = gameState:GetAttribute("Phase") or "Waiting"
+	if phase == currentPhase then return end
+	currentPhase = phase
+	local night = phase == "Night"
+	applyTheme(night)
+	orderPanel.holder.Visible = phase == "Day"
+	nightHud.Visible = night
+	alarmBanner.holder.Visible = false
+	if not night and flashOn then setFlash(false) end
+	if phase == "Day" then
+		stopSound("NightAmbience")
+		play("DayMusic")
+		buildFlavorButtons()
+		currentScoops = {}
+		refreshCone()
+	elseif night then
+		stopSound("DayMusic")
+		play("NightAmbience")
+		fadeMessage("NIGHT " .. (gameState:GetAttribute("Day") or 1), 1.2)
+	elseif phase == "Morning" then
+		stopSound("NightAmbience")
+		play("MorningChime")
+	end
+end
+gameState:GetAttributeChangedSignal("Phase"):Connect(onPhase)
+gameState:GetAttributeChangedSignal("ShopFlavors"):Connect(function()
+	if currentPhase == "Day" then buildFlavorButtons() end
+	if openPanel == shopPanel then renderShop() end
+end)
+gameState:GetAttributeChangedSignal("ShopUpgrades"):Connect(function()
+	if openPanel == shopPanel then renderShop() end
+end)
+onPhase()
+
+local lastCash = nil
+local function refreshPlayer()
+	local cash = player:GetAttribute("Cash") or 0
+	cashText.Text = money(cash)
+	if lastCash and cash > lastCash then bump(cashPill.holder, 1.12) end
+	lastCash = cash
+	local ready = player:GetAttribute("DailyReady") == true
+	dailyButton.holder.Visible = ready
+	dailyButton.label.Text = "DAILY " .. money(player:GetAttribute("DailyAmount") or 0)
+	franchiseButton.holder.Visible = player:GetAttribute("FranchiseReady") == true
+	local detectors = player:GetAttribute("Detectors") or 0
+	detectLabel.Text = detectors > 0 and ("FAKE DETECTOR x" .. detectors) or ("FAKE DETECTOR R$" .. Config.Products.FakeDetector.robux)
+	local battery = player:GetAttribute("Battery") or 0
+	local maxBattery = math.max(1, player:GetAttribute("BatteryMax") or Config.FlashlightBattery)
+	batteryFill.Size = UDim2.new(math.clamp(battery / maxBattery, 0, 1), -6, 1, -6)
+	batteryFill.BackgroundColor3 = battery / maxBattery < 0.25 and RED or YELLOW
+	if flashOn and player:GetAttribute("FlashOn") == false then
+		flashOn = false
+		flashPiece.setColor(YELLOW)
+		flashLabel.Text = "LIGHT"
+	end
+	if openPanel == shopPanel then renderShop() end
+end
+player.AttributeChanged:Connect(refreshPlayer)
+refreshPlayer()
+
+local camera = workspace.CurrentCamera
+local shakeUntil = 0
+local shakePower = 0
+
+local function shake(power, duration)
+	shakePower = math.max(shakePower, power)
+	shakeUntil = math.max(shakeUntil, os.clock() + duration)
+end
+
+local function nearMe(position, range)
+	local character = player.Character
+	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+	return rootPart and position and (rootPart.Position - position).Magnitude <= range
+end
+
+local creepyNext = 0
+
+EventRemote.OnClientEvent:Connect(function(kind, a, b, c)
+	if kind == "Toast" then
+		toast(a, b)
+	elseif kind == "Cash" then
+		if a > 0 then
+			floatText("+" .. money(a), GREEN, cashPill.holder)
+			play("CashDing")
+			if b then toast(b, "good") end
+		else
+			floatText(money(a), RED, cashPill.holder)
+			if b then toast(b, "bad") end
+		end
+	elseif kind == "Bought" then
+		toast("Bought " .. a .. "!", "good")
+		play("UpgradeBought")
+	elseif kind == "Franchised" then
+		fadeMessage("FRANCHISE #" .. a .. "!", 1.5)
+		play("UpgradeBought")
+	elseif kind == "Tutorial" then
+		showTutorial(a)
+	elseif kind == "Sound" then
+		play(a)
+	elseif kind == "Hiss" then
+		play("Hiss")
+	elseif kind == "PhaseStart" then
+		if a == "Day" then fadeMessage("DAY " .. b, 1) end
+	elseif kind == "Alarm" then
+		alarmText.Text = a .. " UNDER ATTACK!"
+		alarmBanner.holder.Visible = true
+		bump(alarmBanner.holder, 1.2)
+		play("Alarm")
+		task.delay(2.2, function() alarmBanner.holder.Visible = false end)
+	elseif kind == "Bang" then
+		if nearMe(b, 50) then shake(0.6, 0.3) end
+	elseif kind == "Crawl" then
+		if nearMe(nil, 0) then shake(0.2, 0.2) end
+	elseif kind == "EntryBroken" then
+		toast(a .. " IS BROKEN!", "bad")
+		shake(1, 0.5)
+	elseif kind == "MonsterFlinch" then
+		shake(0.3, 0.2)
+	elseif kind == "Caught" then
+		task.spawn(onCaught, a, b)
+	elseif kind == "Revived" then
+		hideRevive()
+		toast("Revived! The monsters got pushed out!", "good")
+		play("NightAmbience")
+	elseif kind == "Failed" then
+		revive.holder.Visible = false
+		fadeMessage("You lost today's cash...", 1.5)
+	elseif kind == "Summary" then
+		showSummary(a)
+	end
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.KeyCode == Enum.KeyCode.F then
+		setFlash(not flashOn)
+	end
+end)
+
+local motorCache = setmetatable({}, { __mode = "k" })
+local function motorsOf(model)
+	local cached = motorCache[model]
+	if cached then return cached end
+	local found = {}
+	for _, name in ipairs({ "LeftHip", "RightHip", "LeftShoulder", "RightShoulder", "Neck", "Waist", "LeftKnee", "RightKnee" }) do
+		found[name] = model:FindFirstChild(name, true)
+	end
+	local head = model:FindFirstChild("Head")
+	local faceGui = head and head:FindFirstChild("FaceGui")
+	found.eyes = faceGui and { faceGui:FindFirstChild("EyeL"), faceGui:FindFirstChild("EyeR") } or {}
+	found.blinkAt = os.clock() + math.random() * 4
+	found.offset = math.random() * 10
+	motorCache[model] = found
+	return found
+end
+
+local function animateModel(model, t, monster)
+	local rootPart = model:FindFirstChild("HumanoidRootPart")
+	if not rootPart then return end
+	local m = motorsOf(model)
+	local speed = Vector3.new(rootPart.AssemblyLinearVelocity.X, 0, rootPart.AssemblyLinearVelocity.Z).Magnitude
+	local walk = math.clamp(speed / 12, 0, 1)
+	local still = model:GetAttribute("Still") == true
+	local phase = t * (monster and 13 or 10) + m.offset
+	local swing = math.sin(phase) * 0.7 * walk
+	local idle = still and 0 or math.sin(t * 2 + m.offset) * 0.04
+	if m.LeftHip then m.LeftHip.Transform = CFrame.Angles(swing, 0, 0) end
+	if m.RightHip then m.RightHip.Transform = CFrame.Angles(-swing, 0, 0) end
+	if m.LeftShoulder then m.LeftShoulder.Transform = CFrame.Angles(-swing * 0.8 + (monster and 0.3 or 0), 0, idle) end
+	if m.RightShoulder then m.RightShoulder.Transform = CFrame.Angles(swing * 0.8 + (monster and 0.3 or 0), 0, -idle) end
+	if m.Waist then m.Waist.Transform = CFrame.Angles(idle + (monster and 0.15 or 0), 0, 0) end
+	if m.Neck then
+		local neck = CFrame.new()
+		if model:GetAttribute("HeadFollow") then
+			local character = player.Character
+			local myHead = character and character:FindFirstChild("Head")
+			if myHead then
+				local rel = rootPart.CFrame:PointToObjectSpace(myHead.Position)
+				local yaw = math.clamp(math.atan2(-rel.X, -rel.Z), -1.3, 1.3)
+				neck = CFrame.Angles(0, yaw, 0)
+			end
+		elseif monster then
+			if math.random() < 0.04 then
+				neck = CFrame.Angles(math.random() * 0.8 - 0.4, math.random() * 1.2 - 0.6, math.random() * 0.8 - 0.4)
+				m.twitch = neck
+				m.twitchUntil = t + 0.15
+			elseif m.twitchUntil and t < m.twitchUntil then
+				neck = m.twitch
+			else
+				neck = CFrame.Angles(0.25, 0, 0)
+			end
+		elseif not still then
+			neck = CFrame.Angles(math.sin(t * 1.3 + m.offset) * 0.05, math.sin(t * 0.7 + m.offset) * 0.15, 0)
+		end
+		m.Neck.Transform = neck
+	end
+	if not still and not monster and #m.eyes == 2 and m.eyes[1] and m.eyes[2] then
+		local blinking = t >= m.blinkAt and t < m.blinkAt + 0.12
+		if t >= m.blinkAt + 0.12 then m.blinkAt = t + 2.5 + math.random() * 3 end
+		for _, eye in ipairs(m.eyes) do
+			eye.Size = blinking and UDim2.fromScale(0.24, 0.03) or UDim2.fromScale(0.24, 0.24)
+			eye.Position = UDim2.new(eye.Position.X.Scale, 0, blinking and 0.41 or 0.3, 0)
+		end
+	end
+end
+
+local customersFolder = workspace:WaitForChild("Customers")
+local monstersFolder = workspace:WaitForChild("Monsters")
+local monitor = workspace:WaitForChild("IceCreamMap"):WaitForChild("Shop"):WaitForChild("SecurityMonitor")
+local monitorScreen = monitor:WaitForChild("SurfaceGui"):WaitForChild("Screen")
+local shopMarker = new("Frame", { Size = UDim2.fromScale(40 / 90, 30 / 75), Position = UDim2.fromScale(25 / 90, 15 / 75), BackgroundColor3 = Color3.fromRGB(40, 90, 70), BorderSizePixel = 0 }, monitorScreen)
+new("UIStroke", { Color = Color3.fromRGB(120, 255, 180), Thickness = 2 }, shopMarker)
+new("TextLabel", { Size = UDim2.new(1, 0, 0, 20), BackgroundTransparency = 1, Text = "CAM 1", TextColor3 = Color3.fromRGB(120, 255, 180), Font = FONT, TextScaled = true }, monitorScreen)
+local dots = {}
+local lastMonitor = 0
+
+RunService.RenderStepped:Connect(function(dt)
+	local t = os.clock()
+	local phase = gameState:GetAttribute("Phase") or "Waiting"
+	local endsAt = gameState:GetAttribute("EndsAt") or 0
+	local left = math.max(0, math.floor(endsAt - workspace:GetServerTimeNow()))
+	local clock = string.format("%d:%02d", math.floor(left / 60), left % 60)
+	local day = gameState:GetAttribute("Day") or 1
+	if phase == "Day" then
+		phaseText.Text = "DAY " .. day .. " — " .. clock
+	elseif phase == "Night" then
+		phaseText.Text = "NIGHT " .. day .. " — " .. clock
+	elseif phase == "Morning" then
+		phaseText.Text = "GOOD MORNING!"
+	else
+		phaseText.Text = "OPENING..."
+	end
+	if phase == "Night" then
+		for _, name in ipairs({ "Front", "Left", "Right", "Back" }) do
+			local row = entryRows[name]
+			local entryState = gameState:GetAttribute("Entry_" .. name .. "_State") or ""
+			local health = gameState:GetAttribute("Entry_" .. name .. "_Health") or 0
+			local maxHealth = math.max(1, gameState:GetAttribute("Entry_" .. name .. "_Max") or 100)
+			local protected = entryState == "Locked" or entryState == "Boarded"
+			local ratio = protected and math.clamp(health / maxHealth, 0, 1) or 0
+			row.fill.Size = UDim2.fromScale(ratio, 1)
+			row.fill.BackgroundColor3 = ratio > 0.5 and GREEN or (ratio > 0.25 and YELLOW or RED)
+			local labels = { Open = "OPEN!", Closed = "UNLOCKED", Locked = "LOCKED", Glass = "NO BOARDS", Boarded = "BOARDED", Broken = "BROKEN!" }
+			row.status.Text = labels[entryState] or entryState
+			row.status.TextColor3 = protected and GREEN or RED
+		end
+		skipQuietPiece.holder.Visible = gameState:GetAttribute("QuietNight") == true and gameState:GetAttribute("SkipAvailable") == true
+		skipNightPiece.holder.Visible = gameState:GetAttribute("QuietNight") ~= true
+		if gameState:GetAttribute("QuietNight") and t >= creepyNext then
+			creepyNext = t + 6 + math.random() * 7
+			play(math.random() < 0.5 and "CreepyFootsteps" or "CreepyKnock", 0.8 + math.random() * 0.4)
+		end
+	end
+	if revive.holder.Visible then
+		reviveCountdown.Text = tostring(math.max(0, math.ceil(reviveDeadline - t)))
+	end
+	if arrow.Visible and arrowTarget then
+		local center = centerOf(arrowTarget)
+		local top = (arrowTarget.AbsolutePosition.Y - root.AbsolutePosition.Y) / uiScale.Scale
+		arrow.Position = UDim2.fromOffset(center.X - 30, top - 62 + math.sin(t * 6) * 8)
+	end
+	local character = player.Character
+	local hum = character and character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		if t < shakeUntil then
+			hum.CameraOffset = Vector3.new((math.random() - 0.5) * shakePower, (math.random() - 0.5) * shakePower, 0)
+		elseif shakePower > 0 then
+			shakePower = 0
+			hum.CameraOffset = Vector3.new()
+		end
+	end
+	for _, model in ipairs(customersFolder:GetChildren()) do animateModel(model, t, false) end
+	for _, model in ipairs(monstersFolder:GetChildren()) do animateModel(model, t, true) end
+	if monitor.Transparency < 1 and t - lastMonitor > 0.2 then
+		lastMonitor = t
+		local monsters = monstersFolder:GetChildren()
+		for i, model in ipairs(monsters) do
+			local dot = dots[i]
+			if not dot then
+				dot = new("Frame", { Size = UDim2.fromOffset(12, 12), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = Color3.fromRGB(255, 40, 40), BorderSizePixel = 0 }, monitorScreen)
+				corner(dot, "round")
+				dots[i] = dot
+			end
+			local rootPart = model:FindFirstChild("HumanoidRootPart")
+			if rootPart then
+				dot.Visible = true
+				dot.Position = UDim2.fromScale(math.clamp((rootPart.Position.X + 45) / 90, 0, 1), math.clamp((rootPart.Position.Z - 20) / 75, 0, 1))
+			else
+				dot.Visible = false
+			end
+		end
+		for i = #monsters + 1, #dots do dots[i].Visible = false end
+	end
+end)
+
+local function fit()
+	local size = gui.AbsoluteSize
+	if size.X <= 0 then return end
+	uiScale.Scale = math.clamp(math.min(size.X / 1100, size.Y / 640), 0.5, 1.3)
+	if openPanel then openPanel.scale.Scale = uiScale.Scale end
+end
+gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+fit()
+
+pcall(function()
+	TextChatService.OnIncomingMessage = function(message)
+		local properties = Instance.new("TextChatMessageProperties")
+		local source = message.TextSource
+		local sender = source and Players:GetPlayerByUserId(source.UserId)
+		if sender and sender:GetAttribute("VIP") then
+			properties.PrefixText = "<font color=\"#FFD24A\">[VIP]</font> " .. message.PrefixText
+		end
+		return properties
+	end
+end)
+
+refreshCone()

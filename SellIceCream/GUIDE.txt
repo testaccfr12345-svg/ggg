@@ -1,0 +1,117 @@
+SELL ICE CREAM! - SETUP GUIDE
+=============================
+
+3 SCRIPTS TO PASTE (exact place, type and name):
+
+1) Config.txt
+   Where: ReplicatedStorage
+   Type:  ModuleScript
+   Name:  Config      (must be exactly "Config")
+
+2) Server.txt
+   Where: ServerScriptService
+   Type:  Script
+   Name:  IceCreamServer
+
+3) Client.txt
+   Where: StarterPlayer > StarterPlayerScripts
+   Type:  LocalScript
+   Name:  IceCreamClient
+
+How to add each one in Studio / Studio Lite:
+- Find the place (ReplicatedStorage, ServerScriptService, StarterPlayer > StarterPlayerScripts) in the Explorer.
+- Press + next to it, pick the type (ModuleScript / Script / LocalScript).
+- Rename it to the name above.
+- Open it, select all the old text, delete it, paste the whole .txt file.
+
+Remove your OLD scripts first (vote UI, Space Station, etc.) or they will run too.
+The game builds the map, shop and all UI by itself. You do not need to build anything.
+
+
+SETTINGS TO TURN ON
+- Max players: Game Settings > Places (or on the Creator Hub) set Max Players to 2.
+  (The script also kicks a 3rd player.)
+- Saving in Studio: Game Settings > Security > "Enable Studio Access to API Services" ON.
+  Without it the game still works, it just doesn't save while testing in Studio.
+
+
+TEST CHECKLIST (play in Studio)
+Day
+[ ] You spawn behind the counter in a pink shop on a street.
+[ ] Top shows "DAY 1 — 3:59" counting down and your cash.
+[ ] Customers walk from the street end into the shop and line up (max 3).
+[ ] The first customer shows a speech bubble with the order and a green bar that turns yellow, then red.
+[ ] Tutorial popup + arrow: "Click the flavors to make the order, then press SERVE."
+[ ] Click flavors: scoops stack on the cone. CLEAR empties it.
+[ ] SERVE the right order: cash goes up, "+$" pops up, the customer smiles and leaves.
+[ ] Serve within 8 seconds: you get a tip.
+[ ] Serve a wrong order: "Wrong order!" and $0.
+[ ] Let a customer wait 20s: they leave angry.
+[ ] The 3rd customer has black eyes + popup "Something's wrong with this one... press REFUSE!"
+[ ] REFUSE the fake: its face glitches, it runs off, +$15.
+[ ] REFUSE a real customer: -$10 "Complaint!".
+[ ] SHOP button: buy Mint ($150) with enough cash. Mint shows up as a flavor button and a tub.
+[ ] Buy upgrades and see them say OWNED.
+[ ] DAILY button gives cash once per day.
+
+Night
+[ ] When the day ends: screen fades, "NIGHT 1", dark fog, red tint, shop lights off.
+[ ] Safety panel top right shows the 4 entry points.
+[ ] Walk to the front door inside: hold "Lock Door" (1.5s). It closes and shows LOCKED.
+[ ] Back door says "Needs Back Door Lock" until you buy the upgrade.
+[ ] Windows say "Needs Window Boards" until you buy the upgrade, then "Board Window" (2s).
+[ ] If you served a fake: a monster appears outside (tall, red eyes) after about 10s.
+[ ] It goes to an entry. Locked door: banging, screen shake, health bar drops. Window: crawls in after 3s.
+[ ] Hold "Repair" on a damaged door to fill the health back up.
+[ ] Press F (PC) or the LIGHT button (phone) and point your character at the monster for 2s: it screams and runs away.
+[ ] The battery bar drains while the light is on and refills when it's off.
+[ ] Let the monster touch you: jumpscare, then "YOU GOT CAUGHT!" with a 10s countdown.
+[ ] In Studio the revive button says "REVIVE (FREE TEST)". Revive: monsters pushed out, you keep playing.
+[ ] Or GIVE UP: you lose today's cash, streak goes to 0, you go to the lobby.
+[ ] Served no fakes? "Quiet night": creepy sounds only, and a "SKIP TO MORNING" button after 20s.
+
+Morning
+[ ] A summary card shows cash earned, customers served, fakes caught, fakes served, night result, streak.
+[ ] Then DAY 2 starts automatically.
+[ ] leaderstats shows Cash and Night.
+
+Extra
+[ ] Reach $25,000: FRANCHISE button appears. It resets cash, upgrades and bought flavors, and the sign shows the franchise number.
+[ ] Lobby at the street end has the BEST NIGHT STREAK board (only fills in a published game with API access on).
+[ ] Security Camera upgrade: monitor on the back wall shows red dots for monsters.
+[ ] Alarm Bell upgrade: "FRONT DOOR UNDER ATTACK!" banner when a monster attacks.
+[ ] 2 players: both can serve and fight. Upgrades either player owns work for the shop.
+
+
+PLACEHOLDER IDS TO REPLACE (all in Config)
+Everything set to 0 or "" is a placeholder. 0 = feature shows but can't be bought yet.
+In Studio, any product with id 0 is given FREE so you can test it.
+
+Game passes (Config.GamePasses):
+- DoubleCash.id  (2x Cash, R$199)
+- AutoWorker.id  (Auto-Worker, R$299)
+- VIP.id         (VIP, R$149)
+
+Developer products (Config.Products):
+- Revive.id        (R$25)
+- FakeDetector.id  (Fake Detector x3, R$39)
+- SkipNight.id     (R$15)
+- CashSmall.id     (R$49)
+- CashMedium.id    (R$99)
+- CashLarge.id     (R$199)
+
+Badges (Config.Badges):
+- FirstDay, Catch10, Catch100, SurviveNight10, SurviveNight25, PerfectDay, FirstFranchise
+
+Sounds (Config.Sounds) - put "rbxassetid://NUMBER" in each:
+- DayMusic, NightAmbience, DoorBang, WindowCrawl, MonsterScream, Jumpscare,
+  FakeServed, MorningChime, Hiss, CreepyFootsteps, CreepyKnock, Alarm
+- Already filled with Roblox built-in sounds (you can replace them): CashDing, UpgradeBought, Click
+
+Images (Config.Images):
+- Jumpscare (optional; without it a monster face is drawn with code)
+
+
+NOTES
+- Flashlight hits are checked on the server (safer than trusting the client), so FlashlightHit is only kept as a placeholder.
+- Customers are built with HumanoidDescription colors (skin, shirt, pants) plus a code-made hair piece, so no catalog items are needed.
