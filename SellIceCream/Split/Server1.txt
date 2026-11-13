@@ -1,0 +1,785 @@
+return function(G)
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local DataStoreService = game:GetService("DataStoreService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local BadgeService = game:GetService("BadgeService")
+local PathfindingService = game:GetService("PathfindingService")
+local PhysicsService = game:GetService("PhysicsService")
+local Lighting = game:GetService("Lighting")
+
+local Config = require(ReplicatedStorage:WaitForChild("Config"))
+
+local IS_STUDIO = RunService:IsStudio()
+local rng = Random.new()
+
+local FLAVOR_BY_ID = {}
+for _, flavor in ipairs(Config.Flavors) do FLAVOR_BY_ID[flavor.id] = flavor end
+local UPGRADE_BY_ID = {}
+for _, upgrade in ipairs(Config.Upgrades) do UPGRADE_BY_ID[upgrade.id] = upgrade end
+
+local PINK = Color3.fromRGB(255, 160, 200)
+local MINT = Color3.fromRGB(150, 230, 200)
+local CREAM = Color3.fromRGB(255, 244, 228)
+local LILAC = Color3.fromRGB(205, 180, 255)
+local SKY = Color3.fromRGB(160, 215, 255)
+local WHITE = Color3.new(1, 1, 1)
+local DARK = Color3.fromRGB(40, 30, 45)
+local WOOD = Color3.fromRGB(196, 140, 100)
+local RED = Color3.fromRGB(230, 60, 70)
+
+pcall(function() PhysicsService:RegisterCollisionGroup("NPC") end)
+pcall(function() PhysicsService:CollisionGroupSetCollidable("NPC", "NPC", false) end)
+
+local remotes = Instance.new("Folder")
+remotes.Name = "IceCreamRemotes"
+remotes.Parent = ReplicatedStorage
+local function remoteEvent(name)
+	local r = Instance.new("RemoteEvent")
+	r.Name = name
+	r.Parent = remotes
+	return r
+end
+local ServeRemote = remoteEvent("Serve")
+local RefuseRemote = remoteEvent("Refuse")
+local BuyUpgradeRemote = remoteEvent("BuyUpgrade")
+local ToggleFlashlightRemote = remoteEvent("ToggleFlashlight")
+local FlashlightHitRemote = remoteEvent("FlashlightHit")
+local RequestRemote = remoteEvent("Request")
+local EventRemote = remoteEvent("Event")
+
+local gameState = Instance.new("Folder")
+gameState.Name = "GameState"
+gameState.Parent = ReplicatedStorage
+
+local function send(player, kind, a, b, c)
+	if player and player.Parent then EventRemote:FireClient(player, kind, a, b, c) end
+end
+local function sendAll(kind, a, b, c)
+	EventRemote:FireAllClients(kind, a, b, c)
+end
+local function toast(player, text, style)
+	send(player, "Toast", text, style or "info")
+end
+
+local function make(className, props, parent)
+	local instance = Instance.new(className)
+	for key, value in pairs(props) do instance[key] = value end
+	instance.Parent = parent
+	return instance
+end
+
+local function part(parent, size, cf, color, material, extra)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if extra then
+		for key, value in pairs(extra) do p[key] = value end
+	end
+	p.Parent = parent
+	return p
+end
+
+local function cylinder(parent, height, diameter, cf, color, material, extra)
+	local p = part(parent, Vector3.new(height, diameter, diameter), cf * CFrame.Angles(0, 0, math.rad(90)), color, material, extra)
+	p.Shape = Enum.PartType.Cylinder
+	return p
+end
+
+local function ball(parent, diameter, cf, color, material, extra)
+	local p = Instance.new("Part")
+	p.Shape = Enum.PartType.Ball
+	p.Anchored = true
+	p.Size = Vector3.new(diameter, diameter, diameter)
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	if extra then
+		for key, value in pairs(extra) do p[key] = value end
+	end
+	p.Parent = parent
+	return p
+end
+
+local function textOn(adornee, face, text, textColor, strokeColor)
+	local gui = make("SurfaceGui", { Face = face, CanvasSize = Vector2.new(400, 100), LightInfluence = 0 }, adornee)
+	local label = make("TextLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = text,
+		TextScaled = true,
+		Font = Enum.Font.FredokaOne,
+		TextColor3 = textColor,
+	}, gui)
+	make("UIStroke", { Color = strokeColor or DARK, Thickness = 3 }, label)
+	return label
+end
+
+local function soundIn(parentPart, key, volume)
+	local id = Config.Sounds[key]
+	if not id or id == "" or not parentPart then return nil end
+	local sound = make("Sound", { SoundId = id, Volume = volume or 1, RollOffMaxDistance = 120 }, parentPart)
+	sound:Play()
+	sound.Ended:Connect(function() sound:Destroy() end)
+	task.delay(10, function() if sound.Parent then sound:Destroy() end end)
+	return sound
+end
+
+local mapFolder = Instance.new("Folder")
+mapFolder.Name = "IceCreamMap"
+mapFolder.Parent = workspace
+local customerFolder = Instance.new("Folder")
+customerFolder.Name = "Customers"
+customerFolder.Parent = workspace
+local monsterFolder = Instance.new("Folder")
+monsterFolder.Name = "Monsters"
+monsterFolder.Parent = workspace
+
+local oldBaseplate = workspace:FindFirstChild("Baseplate")
+if oldBaseplate then oldBaseplate:Destroy() end
+for _, child in ipairs(workspace:GetChildren()) do
+	if child:IsA("SpawnLocation") then child:Destroy() end
+end
+
+part(mapFolder, Vector3.new(420, 2, 260), CFrame.new(0, -1, 20), Color3.fromRGB(170, 225, 180), Enum.Material.Grass)
+part(mapFolder, Vector3.new(400, 0.4, 30), CFrame.new(0, 0.2, 0), Color3.fromRGB(125, 128, 145), Enum.Material.Asphalt)
+for x = -190, 190, 20 do
+	part(mapFolder, Vector3.new(8, 0.42, 0.8), CFrame.new(x, 0.21, 0), WHITE, nil, { CanCollide = false })
+end
+part(mapFolder, Vector3.new(400, 0.6, 9), CFrame.new(0, 0.3, 19.5), CREAM, Enum.Material.Concrete)
+part(mapFolder, Vector3.new(400, 0.6, 9), CFrame.new(0, 0.3, -19.5), CREAM, Enum.Material.Concrete)
+
+local function decoShop(center, rotation, color, label)
+	local cf = CFrame.new(center) * CFrame.Angles(0, rotation, 0)
+	part(mapFolder, Vector3.new(30, 16, 22), cf * CFrame.new(0, 8, 0), color)
+	part(mapFolder, Vector3.new(32, 1, 24), cf * CFrame.new(0, 16.5, 0), WHITE)
+	part(mapFolder, Vector3.new(8, 10, 0.4), cf * CFrame.new(0, 5, -11.1), DARK)
+	local sign = part(mapFolder, Vector3.new(20, 3.5, 0.6), cf * CFrame.new(0, 13, -11.3), WHITE)
+	textOn(sign, Enum.NormalId.Front, label, color)
+	for i = -1, 1, 2 do
+		part(mapFolder, Vector3.new(6, 5, 0.3), cf * CFrame.new(i * 9, 7, -11.1), SKY, Enum.Material.Glass, { Transparency = 0.3 })
+	end
+end
+decoShop(Vector3.new(-62, 0, 52), 0, LILAC, "CLOSED")
+decoShop(Vector3.new(62, 0, 52), 0, SKY, "CLOSED")
+decoShop(Vector3.new(-62, 0, -52), math.pi, MINT, "BAKERY")
+decoShop(Vector3.new(0, 0, -52), math.pi, PINK, "TOYS")
+decoShop(Vector3.new(62, 0, -52), math.pi, Color3.fromRGB(255, 220, 140), "FLOWERS")
+
+for x = -170, 170, 34 do
+	for _, z in ipairs({ 25, -25 }) do
+		if math.abs(x) > 24 or z < 0 then
+			cylinder(mapFolder, 9, 0.6, CFrame.new(x, 4.5, z), WHITE)
+			local lamp = ball(mapFolder, 1.6, CFrame.new(x, 9.4, z), CREAM, Enum.Material.Neon, { CanCollide = false })
+			make("PointLight", { Range = 22, Brightness = 1.4, Color = Color3.fromRGB(255, 220, 200) }, lamp)
+		end
+	end
+end
+
+local lobbyCF = CFrame.new(165, 0, 0)
+part(mapFolder, Vector3.new(36, 1, 50), lobbyCF * CFrame.new(0, 0.5, 0), PINK, Enum.Material.SmoothPlastic)
+local spawnLocation = make("SpawnLocation", {
+	Anchored = true,
+	Size = Vector3.new(10, 1, 10),
+	CFrame = lobbyCF * CFrame.new(-6, 1.1, 0),
+	Color = MINT,
+	Material = Enum.Material.SmoothPlastic,
+	Neutral = true,
+	Duration = 0,
+	TopSurface = Enum.SurfaceType.Smooth,
+}, mapFolder)
+local boardPart = part(mapFolder, Vector3.new(1, 20, 26), lobbyCF * CFrame.new(10, 11, 0), DARK)
+local boardGui = make("SurfaceGui", { Face = Enum.NormalId.Left, CanvasSize = Vector2.new(520, 400), LightInfluence = 0 }, boardPart)
+make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(45, 35, 60) }, boardGui)
+local boardTitle = make("TextLabel", {
+	Size = UDim2.new(1, 0, 0, 60),
+	BackgroundTransparency = 1,
+	Text = "BEST NIGHT STREAK",
+	TextScaled = true,
+	Font = Enum.Font.FredokaOne,
+	TextColor3 = Color3.fromRGB(255, 210, 90),
+}, boardGui)
+make("UIStroke", { Color = DARK, Thickness = 3 }, boardTitle)
+local boardList = make("ScrollingFrame", {
+	Size = UDim2.new(1, -20, 1, -70),
+	Position = UDim2.fromOffset(10, 64),
+	BackgroundTransparency = 1,
+	ScrollBarThickness = 6,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+}, boardGui)
+make("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, boardList)
+
+local SHOP_ORIGIN = Vector3.new(0, 0, 50)
+local function S(x, y, z)
+	return CFrame.new(SHOP_ORIGIN + Vector3.new(x, y, z))
+end
+local function SP(x, y, z)
+	return SHOP_ORIGIN + Vector3.new(x, y, z)
+end
+
+local shopFolder = make("Folder", { Name = "Shop" }, mapFolder)
+local WALL = Color3.fromRGB(255, 205, 220)
+local WALL_H = 14
+
+part(shopFolder, Vector3.new(40, 1, 30), S(0, 0.5, 0), Color3.fromRGB(255, 236, 242))
+for x = -18, 18, 4 do
+	for z = -13, 13, 4 do
+		if ((x + z) / 4) % 2 == 0 then
+			part(shopFolder, Vector3.new(4, 0.05, 4), S(x, 1.02, z), Color3.fromRGB(255, 200, 220), nil, { CanCollide = false })
+		end
+	end
+end
+
+local function wall(size, cf)
+	return part(shopFolder, size, cf, WALL)
+end
+wall(Vector3.new(17, WALL_H, 1), S(-11.5, 1 + WALL_H / 2, -15))
+wall(Vector3.new(17, WALL_H, 1), S(11.5, 1 + WALL_H / 2, -15))
+wall(Vector3.new(6, WALL_H - 9, 1), S(0, 10 + (WALL_H - 9) / 2, -15))
+wall(Vector3.new(1, WALL_H, 15), S(-20, 1 + WALL_H / 2, -7.5))
+wall(Vector3.new(1, WALL_H, 7), S(-20, 1 + WALL_H / 2, 11.5))
+wall(Vector3.new(1, 3, 8), S(-20, 2.5, 4))
+wall(Vector3.new(1, WALL_H - 9, 8), S(-20, 10 + (WALL_H - 9) / 2, 4))
+wall(Vector3.new(1, WALL_H, 15), S(20, 1 + WALL_H / 2, -7.5))
+wall(Vector3.new(1, WALL_H, 7), S(20, 1 + WALL_H / 2, 11.5))
+wall(Vector3.new(1, 3, 8), S(20, 2.5, 4))
+wall(Vector3.new(1, WALL_H - 9, 8), S(20, 10 + (WALL_H - 9) / 2, 4))
+wall(Vector3.new(30, WALL_H, 1), S(-5, 1 + WALL_H / 2, 15))
+wall(Vector3.new(5, WALL_H, 1), S(17.5, 1 + WALL_H / 2, 15))
+wall(Vector3.new(5, WALL_H - 9, 1), S(12.5, 10 + (WALL_H - 9) / 2, 15))
+part(shopFolder, Vector3.new(42, 1, 32), S(0, WALL_H + 1.5, 0), MINT)
+for i = 0, 7 do
+	part(shopFolder, Vector3.new(5.25, 0.4, 7), S(-18.4 + i * 5.25, 12.6, -18.2) * CFrame.Angles(math.rad(-20), 0, 0), i % 2 == 0 and PINK or WHITE)
+end
+
+local shopSign = part(shopFolder, Vector3.new(26, 5, 0.8), S(0, WALL_H + 4.5, -15.2), WHITE)
+local shopSignTitle = textOn(shopSign, Enum.NormalId.Front, "SELL ICE CREAM!", Color3.fromRGB(255, 120, 170))
+local nameSignPart = part(shopFolder, Vector3.new(22, 2.4, 0.6), S(0, WALL_H + 0.8, -15.6), PINK)
+local nameSign = textOn(nameSignPart, Enum.NormalId.Front, "OPEN SOON", WHITE)
+
+part(shopFolder, Vector3.new(24, 4, 3), S(0, 3, -4), Color3.fromRGB(255, 180, 205))
+part(shopFolder, Vector3.new(25, 0.6, 3.6), S(0, 5.3, -4), CREAM)
+for i = -10, 10, 5 do
+	part(shopFolder, Vector3.new(0.4, 3.6, 0.2), S(i, 3, -5.55), WHITE, nil, { CanCollide = false })
+end
+
+cylinder(shopFolder, 3, 0.4, S(0, 7, -3.5), WHITE)
+local orderScreen = part(shopFolder, Vector3.new(7, 3, 0.4), S(0, 9.6, -3.5), DARK)
+local orderScreenGui = make("SurfaceGui", { Face = Enum.NormalId.Back, CanvasSize = Vector2.new(420, 180), LightInfluence = 0 }, orderScreen)
+local orderScreenText = make("TextLabel", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(30, 25, 45),
+	Text = "WAITING...",
+	TextScaled = true,
+	Font = Enum.Font.FredokaOne,
+	TextColor3 = Color3.fromRGB(150, 255, 210),
+}, orderScreenGui)
+local orderScreenFront = make("SurfaceGui", { Face = Enum.NormalId.Front, CanvasSize = Vector2.new(420, 180), LightInfluence = 0 }, orderScreen)
+make("TextLabel", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(255, 150, 190),
+	Text = "ORDER HERE",
+	TextScaled = true,
+	Font = Enum.Font.FredokaOne,
+	TextColor3 = WHITE,
+}, orderScreenFront)
+
+part(shopFolder, Vector3.new(22, 4, 3), S(-5, 3, 12.5), Color3.fromRGB(190, 240, 220))
+part(shopFolder, Vector3.new(23, 0.5, 3.6), S(-5, 5.25, 12.5), CREAM)
+local tubParts = {}
+for index, flavor in ipairs(Config.Flavors) do
+	local x = -14.5 + (index - 1) * 2.6
+	cylinder(shopFolder, 1.2, 2.2, S(x, 6.1, 12.5), WHITE)
+	local scoop = ball(shopFolder, 1.9, S(x, 6.8, 12.5), flavor.color, nil, { CanCollide = false })
+	tubParts[flavor.id] = scoop
+end
+
+local lightSwitch = part(shopFolder, Vector3.new(1, 1.4, 0.3), S(17, 5, 14.4), WHITE)
+part(shopFolder, Vector3.new(0.3, 0.6, 0.2), S(17, 5.1, 14.2), PINK, nil, { CanCollide = false })
+local switchPrompt = make("ProximityPrompt", {
+	ActionText = "Lights",
+	ObjectText = "Switch",
+	HoldDuration = 0,
+	MaxActivationDistance = 8,
+	RequiresLineOfSight = false,
+}, lightSwitch)
+
+local monitor = part(shopFolder, Vector3.new(5, 3.4, 0.4), S(-12, 9, 14.3), DARK, nil, { Transparency = 1, CanCollide = false })
+monitor.Name = "SecurityMonitor"
+local monitorGui = make("SurfaceGui", { Face = Enum.NormalId.Front, CanvasSize = Vector2.new(300, 200), LightInfluence = 0, Enabled = false }, monitor)
+make("Frame", { Name = "Screen", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(10, 30, 20) }, monitorGui)
+
+local lamps = {}
+for _, x in ipairs({ -10, 0, 10 }) do
+	local lamp = ball(shopFolder, 1.6, S(x, WALL_H + 0.2, 0), CREAM, Enum.Material.Neon, { CanCollide = false })
+	local light = make("PointLight", { Range = 26, Brightness = 1.6, Color = Color3.fromRGB(255, 235, 240) }, lamp)
+	table.insert(lamps, { part = lamp, light = light })
+end
+
+local worker = nil
+
+local COUNTER_SPOT = S(0, 4, 2)
+local LOBBY_SPOT = lobbyCF * CFrame.new(-6, 4, 0)
+local STREET_SPAWN = Vector3.new(-175, 1, 19)
+local STREET_FRONT = Vector3.new(0, 1, 19)
+local LINE_SLOTS = { SP(0, 1, -7), SP(0, 1, -11), SP(0, 1, -19) }
+local SHOP_MIN = SP(-20, -5, -15)
+local SHOP_MAX = SP(20, 30, 15)
+local PLOT_MIN = SP(-45, -10, -30)
+local PLOT_MAX = SP(45, 40, 45)
+local OUTSIDE_POINTS = {
+	SP(-30, 1, -5), SP(-30, 1, 22), SP(30, 1, -5), SP(30, 1, 22), SP(0, 1, 30), SP(-14, 1, -22), SP(14, 1, -22), SP(-25, 1, 32), SP(25, 1, 32),
+}
+
+local function inBox(position, minV, maxV)
+	return position.X >= minV.X and position.X <= maxV.X and position.Y >= minV.Y and position.Y <= maxV.Y
+		and position.Z >= minV.Z and position.Z <= maxV.Z
+end
+
+local entries = {}
+local ENTRY_ORDER = { "Front", "Left", "Right", "Back" }
+
+local function newDoor(name, display, hingeCF, width, outsidePos, insidePos, startState)
+	local closedCF = hingeCF * CFrame.new(width / 2, 4.5, 0)
+	local door = part(shopFolder, Vector3.new(width, 9, 0.6), closedCF, WOOD)
+	local knob = ball(shopFolder, 0.6, closedCF * CFrame.new(width / 2 - 0.8, 0, 0.5), Color3.fromRGB(255, 215, 90), Enum.Material.Metal, { CanCollide = false })
+	local lockLight = part(shopFolder, Vector3.new(0.6, 0.6, 0.2), closedCF * CFrame.new(width / 2 - 0.8, 1.2, 0.45), RED, Enum.Material.Neon, { CanCollide = false })
+	local entry = {
+		name = name, display = display, kind = "door",
+		hinge = hingeCF, width = width, door = door, knob = knob, lockLight = lockLight,
+		outside = outsidePos, inside = insidePos, state = startState, health = Config.DoorHealth, maxHealth = Config.DoorHealth,
+		startState = startState,
+	}
+	entries[name] = entry
+	return entry
+end
+
+local function newWindow(name, display, centerCF, outsidePos, insidePos)
+	local glass = part(shopFolder, Vector3.new(0.3, 6, 8), centerCF, SKY, Enum.Material.Glass, { Transparency = 0.35 })
+	local boards = {}
+	for i = -1, 1 do
+		local board = part(shopFolder, Vector3.new(0.5, 1.4, 9), centerCF * CFrame.new(0, i * 2, 0) * CFrame.Angles(math.rad(i * 6), 0, 0), WOOD, Enum.Material.WoodPlanks, { Transparency = 1, CanCollide = false })
+		table.insert(boards, board)
+	end
+	local entry = {
+		name = name, display = display, kind = "window",
+		glass = glass, boards = boards, center = centerCF,
+		outside = outsidePos, inside = insidePos, state = "Glass", health = Config.WindowBoardHealth, maxHealth = Config.WindowBoardHealth,
+		startState = "Glass",
+	}
+	entries[name] = entry
+	return entry
+end
+
+newDoor("Front", "FRONT DOOR", S(-3, 1, -15), 6, SP(0, 1, -19), SP(0, 1, -10), "Open")
+newWindow("Left", "LEFT WINDOW", S(-20, 7, 4), SP(-24, 1, 4), SP(-16, 1, 4))
+newWindow("Right", "RIGHT WINDOW", S(20, 7, 4), SP(24, 1, 4), SP(16, 1, 4))
+newDoor("Back", "BACK DOOR", S(10, 1, 15), 5, SP(12.5, 1, 19), SP(12.5, 1, 10), "Closed")
+
+local profiles = {}
+local passCache = {}
+
+local function hasPass(player, key)
+	local info = Config.GamePasses[key]
+	if not info or info.id == 0 then return false end
+	passCache[player] = passCache[player] or {}
+	if passCache[player][key] == nil then
+		local ok, owns = pcall(function()
+			return MarketplaceService:UserOwnsGamePassAsync(player.UserId, info.id)
+		end)
+		passCache[player][key] = ok and owns == true
+	end
+	return passCache[player][key]
+end
+
+local function anyoneHasPass(key)
+	for _, player in ipairs(Players:GetPlayers()) do
+		if profiles[player] and hasPass(player, key) then return player end
+	end
+	return nil
+end
+
+local function shopHasUpgrade(id)
+	for _, profile in pairs(profiles) do
+		if profile.data.upgrades[id] then return true end
+	end
+	return false
+end
+
+local function shopFlavors()
+	local list = {}
+	for _, flavor in ipairs(Config.Flavors) do
+		for _, profile in pairs(profiles) do
+			if profile.data.flavors[flavor.id] then
+				table.insert(list, flavor.id)
+				break
+			end
+		end
+	end
+	if #list == 0 then
+		for _, id in ipairs(Config.StartFlavors) do table.insert(list, id) end
+	end
+	return list
+end
+
+local function cashMultiplier(player)
+	local profile = profiles[player]
+	if not profile then return 1 end
+	local multiplier = 1 + profile.data.franchises * Config.FranchiseMultiplier
+	if hasPass(player, "DoubleCash") then multiplier = multiplier * 2 end
+	if hasPass(player, "VIP") then multiplier = multiplier * (1 + Config.VIPBonus) end
+	return multiplier
+end
+
+local function awardBadge(player, key)
+	local id = Config.Badges[key]
+	if not id or id == 0 then return end
+	task.spawn(function()
+		pcall(function() BadgeService:AwardBadge(player.UserId, id) end)
+	end)
+end
+
+local function joinList(set)
+	local list = {}
+	for id, owned in pairs(set) do
+		if owned then table.insert(list, id) end
+	end
+	table.sort(list)
+	return table.concat(list, ",")
+end
+
+local function today()
+	return math.floor(os.time() / 86400)
+end
+
+local function dailyInfo(data)
+	local day = today()
+	if data.lastDaily == day then return false, 0 end
+	local streak = 1
+	if data.lastDaily == day - 1 then
+		streak = data.dailyStreak + 1
+		if streak > Config.DailyRewardMaxDays then streak = 1 end
+	end
+	return true, streak
+end
+
+local refreshShop
+
+local function publish(player)
+	local profile = profiles[player]
+	if not profile then return end
+	local data = profile.data
+	if profile.leaderCash then profile.leaderCash.Value = math.floor(data.cash) end
+	if profile.leaderNight then profile.leaderNight.Value = data.streak end
+	player:SetAttribute("Cash", math.floor(data.cash))
+	player:SetAttribute("OwnedFlavors", joinList(data.flavors))
+	player:SetAttribute("OwnedUpgrades", joinList(data.upgrades))
+	player:SetAttribute("Streak", data.streak)
+	player:SetAttribute("BestNight", data.bestNight)
+	player:SetAttribute("Franchises", data.franchises)
+	player:SetAttribute("Detectors", data.detectors)
+	player:SetAttribute("FranchiseReady", data.cash >= Config.FranchiseCost)
+	local ready, streak = dailyInfo(data)
+	player:SetAttribute("DailyReady", ready)
+	player:SetAttribute("DailyAmount", Config.DailyRewardBase * streak)
+	player:SetAttribute("VIP", hasPass(player, "VIP"))
+	player:SetAttribute("Multiplier", cashMultiplier(player))
+end
+
+local function addCash(player, amount, reason)
+	local profile = profiles[player]
+	if not profile or amount == 0 then return end
+	profile.data.cash = math.max(0, profile.data.cash + amount)
+	if amount > 0 then profile.today.earned = profile.today.earned + amount end
+	publish(player)
+	send(player, "Cash", math.floor(amount), reason)
+end
+
+local store = nil
+local bestStore = nil
+pcall(function() store = DataStoreService:GetDataStore(Config.DataStoreName) end)
+pcall(function() bestStore = DataStoreService:GetOrderedDataStore(Config.LeaderboardStoreName) end)
+
+local function defaultData()
+	local flavors = {}
+	for _, id in ipairs(Config.StartFlavors) do flavors[id] = true end
+	return {
+		cash = Config.StartCash, flavors = flavors, upgrades = {}, streak = 0, bestNight = 0,
+		fakesCaught = 0, franchises = 0, dailyStreak = 0, lastDaily = -1, tutorialDone = false,
+		day = 1, highestDay = 1, detectors = 0, receipts = {},
+	}
+end
+
+local function sanitize(raw)
+	local data = defaultData()
+	if type(raw) ~= "table" then return data end
+	data.cash = tonumber(raw.cash) or data.cash
+	data.streak = tonumber(raw.streak) or 0
+	data.bestNight = tonumber(raw.bestNight) or 0
+	data.fakesCaught = tonumber(raw.fakesCaught) or 0
+	data.franchises = tonumber(raw.franchises) or 0
+	data.dailyStreak = tonumber(raw.dailyStreak) or 0
+	data.lastDaily = tonumber(raw.lastDaily) or -1
+	data.tutorialDone = raw.tutorialDone == true
+	data.day = tonumber(raw.day) or 1
+	data.highestDay = tonumber(raw.highestDay) or data.day
+	data.detectors = tonumber(raw.detectors) or 0
+	if type(raw.flavors) == "table" then
+		for _, id in ipairs(raw.flavors) do
+			if FLAVOR_BY_ID[id] then data.flavors[id] = true end
+		end
+	end
+	if type(raw.upgrades) == "table" then
+		for _, id in ipairs(raw.upgrades) do
+			if UPGRADE_BY_ID[id] then data.upgrades[id] = true end
+		end
+	end
+	if type(raw.receipts) == "table" then
+		for _, id in ipairs(raw.receipts) do
+			if type(id) == "string" then table.insert(data.receipts, id) end
+		end
+	end
+	return data
+end
+
+local function serialize(data)
+	local flavors, upgrades = {}, {}
+	for id, owned in pairs(data.flavors) do if owned then table.insert(flavors, id) end end
+	for id, owned in pairs(data.upgrades) do if owned then table.insert(upgrades, id) end end
+	local receipts = {}
+	for i = math.max(1, #data.receipts - 49), #data.receipts do table.insert(receipts, data.receipts[i]) end
+	return {
+		cash = math.floor(data.cash), flavors = flavors, upgrades = upgrades, streak = data.streak,
+		bestNight = data.bestNight, fakesCaught = data.fakesCaught, franchises = data.franchises,
+		dailyStreak = data.dailyStreak, lastDaily = data.lastDaily, tutorialDone = data.tutorialDone,
+		day = data.day, highestDay = data.highestDay, detectors = data.detectors, receipts = receipts,
+	}
+end
+
+local function withRetries(callback)
+	for attempt = 1, 3 do
+		local ok, result = pcall(callback)
+		if ok then return true, result end
+		task.wait(attempt * 1.5)
+	end
+	return false, nil
+end
+
+local function loadData(player)
+	if not store then return IS_STUDIO, nil end
+	local ok, raw = withRetries(function()
+		return store:GetAsync("player_" .. player.UserId)
+	end)
+	return ok, raw
+end
+
+local function saveData(player)
+	local profile = profiles[player]
+	if not profile or not profile.canSave or not store then return false end
+	local payload = serialize(profile.data)
+	local ok = withRetries(function()
+		store:SetAsync("player_" .. player.UserId, payload)
+	end)
+	if bestStore then
+		pcall(function() bestStore:SetAsync(tostring(player.UserId), profile.data.bestNight) end)
+	end
+	return ok
+end
+
+local state = {
+	phase = "Waiting", day = 1, endsAt = 0, tutorial = false, tutorialNight = false,
+	line = {}, customers = {}, spawnedToday = 0, fakesServedToday = 0, fakesCaughtToday = 0,
+	monsters = {}, nightOver = false, quiet = false, skipAvailable = false, survivedBySkip = false,
+	lightsOn = true,
+}
+
+local function setPhase(phase, length)
+	state.phase = phase
+	state.endsAt = workspace:GetServerTimeNow() + (length or 0)
+	gameState:SetAttribute("Phase", phase)
+	gameState:SetAttribute("Day", state.day)
+	gameState:SetAttribute("EndsAt", state.endsAt)
+end
+
+local function setLights(on)
+	state.lightsOn = on
+	for _, lamp in ipairs(lamps) do
+		lamp.light.Enabled = on
+		lamp.part.Material = on and Enum.Material.Neon or Enum.Material.SmoothPlastic
+		lamp.part.Color = on and CREAM or Color3.fromRGB(90, 90, 100)
+	end
+end
+
+local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or make("Atmosphere", {}, Lighting)
+local grade = Lighting:FindFirstChild("IceCreamGrade") or make("ColorCorrectionEffect", { Name = "IceCreamGrade" }, Lighting)
+
+local function applyLighting(night)
+	local info = TweenInfo.new(2.5, Enum.EasingStyle.Sine)
+	if night then
+		TweenService:Create(Lighting, info, {
+			ClockTime = 0, Brightness = 0.4, Ambient = Color3.fromRGB(22, 20, 32), OutdoorAmbient = Color3.fromRGB(28, 26, 42),
+			FogEnd = 110, FogStart = 10, FogColor = Color3.fromRGB(12, 10, 20),
+		}):Play()
+		TweenService:Create(atmosphere, info, { Density = 0.55, Color = Color3.fromRGB(25, 20, 35), Decay = Color3.fromRGB(40, 10, 20), Haze = 2.5 }):Play()
+		TweenService:Create(grade, info, { TintColor = Color3.fromRGB(255, 205, 205), Saturation = -0.25, Contrast = 0.15, Brightness = -0.05 }):Play()
+	else
+		TweenService:Create(Lighting, info, {
+			ClockTime = 14, Brightness = 2.4, Ambient = Color3.fromRGB(150, 140, 160), OutdoorAmbient = Color3.fromRGB(175, 165, 190),
+			FogEnd = 1000, FogStart = 200, FogColor = Color3.fromRGB(255, 220, 235),
+		}):Play()
+		TweenService:Create(atmosphere, info, { Density = 0.25, Color = Color3.fromRGB(255, 225, 238), Decay = Color3.fromRGB(255, 200, 220), Haze = 1 }):Play()
+		TweenService:Create(grade, info, { TintColor = Color3.fromRGB(255, 250, 252), Saturation = 0.15, Contrast = 0.05, Brightness = 0.02 }):Play()
+	end
+end
+
+local function updateShopVisuals()
+	local flavors = shopFlavors()
+	local owned = {}
+	for _, id in ipairs(flavors) do owned[id] = true end
+	for id, scoop in pairs(tubParts) do
+		scoop.Transparency = owned[id] and 0 or 1
+	end
+	gameState:SetAttribute("ShopFlavors", table.concat(flavors, ","))
+	local upgrades = {}
+	for _, upgrade in ipairs(Config.Upgrades) do
+		if shopHasUpgrade(upgrade.id) then table.insert(upgrades, upgrade.id) end
+	end
+	gameState:SetAttribute("ShopUpgrades", table.concat(upgrades, ","))
+	local camera = shopHasUpgrade("SecurityCamera")
+	monitor.Transparency = camera and 0 or 1
+	monitorGui.Enabled = camera
+	shopSignTitle.TextColor3 = shopHasUpgrade("NeonSign") and Color3.fromRGB(255, 60, 200) or Color3.fromRGB(255, 120, 170)
+	shopSign.Material = shopHasUpgrade("NeonSign") and Enum.Material.Neon or Enum.Material.SmoothPlastic
+	local names = {}
+	local franchise = 0
+	for player, profile in pairs(profiles) do
+		table.insert(names, player.DisplayName)
+		franchise = math.max(franchise, profile.data.franchises)
+	end
+	if #names == 0 then
+		nameSign.Text = "OPEN SOON"
+	else
+		local text = table.concat(names, " & ") .. "'S SHOP"
+		if franchise > 0 then text = text .. "  #" .. (franchise + 1) end
+		nameSign.Text = text
+	end
+	local maxHealth = shopHasUpgrade("ReinforcedDoor") and Config.ReinforcedDoorHealth or Config.DoorHealth
+	entries.Front.maxHealth = maxHealth
+	local autoOwner = anyoneHasPass("AutoWorker")
+	if autoOwner and not worker then
+		task.spawn(function()
+			local desc = Instance.new("HumanoidDescription")
+			desc.HeadColor = Color3.fromRGB(255, 220, 190)
+			desc.LeftArmColor = desc.HeadColor
+			desc.RightArmColor = desc.HeadColor
+			desc.TorsoColor = PINK
+			desc.LeftLegColor = WHITE
+			desc.RightLegColor = WHITE
+			local ok, model = pcall(function()
+				return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+			end)
+			if ok and model and not worker then
+				model.Name = "AutoWorker"
+				model:PivotTo(S(6, 4, 0))
+				for _, p in ipairs(model:GetDescendants()) do
+					if p:IsA("BasePart") then p.Anchored = true end
+				end
+				local hum = model:FindFirstChildOfClass("Humanoid")
+				if hum then hum.DisplayName = "Auto-Worker" end
+				model.Parent = shopFolder
+				worker = model
+			end
+		end)
+	elseif not autoOwner and worker then
+		worker:Destroy()
+		worker = nil
+	end
+end
+
+refreshShop = function()
+	updateShopVisuals()
+	for player in pairs(profiles) do publish(player) end
+end
+
+G.BuyUpgradeRemote = BuyUpgradeRemote
+G.COUNTER_SPOT = COUNTER_SPOT
+G.Config = Config
+G.DARK = DARK
+G.ENTRY_ORDER = ENTRY_ORDER
+G.FLAVOR_BY_ID = FLAVOR_BY_ID
+G.FlashlightHitRemote = FlashlightHitRemote
+G.IS_STUDIO = IS_STUDIO
+G.LILAC = LILAC
+G.LINE_SLOTS = LINE_SLOTS
+G.LOBBY_SPOT = LOBBY_SPOT
+G.MINT = MINT
+G.MarketplaceService = MarketplaceService
+G.OUTSIDE_POINTS = OUTSIDE_POINTS
+G.PINK = PINK
+G.PLOT_MAX = PLOT_MAX
+G.PLOT_MIN = PLOT_MIN
+G.PathfindingService = PathfindingService
+G.Players = Players
+G.RED = RED
+G.RefuseRemote = RefuseRemote
+G.RequestRemote = RequestRemote
+G.SHOP_MAX = SHOP_MAX
+G.SHOP_MIN = SHOP_MIN
+G.SKY = SKY
+G.SP = SP
+G.STREET_FRONT = STREET_FRONT
+G.STREET_SPAWN = STREET_SPAWN
+G.ServeRemote = ServeRemote
+G.ToggleFlashlightRemote = ToggleFlashlightRemote
+G.TweenService = TweenService
+G.UPGRADE_BY_ID = UPGRADE_BY_ID
+G.WHITE = WHITE
+G.addCash = addCash
+G.anyoneHasPass = anyoneHasPass
+G.applyLighting = applyLighting
+G.awardBadge = awardBadge
+G.bestStore = bestStore
+G.boardList = boardList
+G.cashMultiplier = cashMultiplier
+G.customerFolder = customerFolder
+G.dailyInfo = dailyInfo
+G.entries = entries
+G.gameState = gameState
+G.hasPass = hasPass
+G.inBox = inBox
+G.loadData = loadData
+G.make = make
+G.monsterFolder = monsterFolder
+G.orderScreenText = orderScreenText
+G.part = part
+G.passCache = passCache
+G.profiles = profiles
+G.publish = publish
+G.refreshShop = refreshShop
+G.rng = rng
+G.sanitize = sanitize
+G.saveData = saveData
+G.send = send
+G.sendAll = sendAll
+G.setLights = setLights
+G.setPhase = setPhase
+G.shopFlavors = shopFlavors
+G.shopFolder = shopFolder
+G.shopHasUpgrade = shopHasUpgrade
+G.soundIn = soundIn
+G.state = state
+G.store = store
+G.switchPrompt = switchPrompt
+G.toast = toast
+G.today = today
+G.updateShopVisuals = updateShopVisuals
+end

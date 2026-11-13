@@ -1,0 +1,5 @@
+local G = {}
+local folder = script.Parent
+for i = 1, 3 do
+	require(folder:WaitForChild("IceCreamServer" .. i))(G)
+end

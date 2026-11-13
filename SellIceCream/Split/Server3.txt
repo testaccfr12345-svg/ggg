@@ -1,0 +1,882 @@
+return function(G)
+local BuyUpgradeRemote = G.BuyUpgradeRemote
+local COUNTER_SPOT = G.COUNTER_SPOT
+local Config = G.Config
+local FLAVOR_BY_ID = G.FLAVOR_BY_ID
+local FlashlightHitRemote = G.FlashlightHitRemote
+local IS_STUDIO = G.IS_STUDIO
+local LOBBY_SPOT = G.LOBBY_SPOT
+local MarketplaceService = G.MarketplaceService
+local OUTSIDE_POINTS = G.OUTSIDE_POINTS
+local PLOT_MAX = G.PLOT_MAX
+local PLOT_MIN = G.PLOT_MIN
+local PathfindingService = G.PathfindingService
+local Players = G.Players
+local RequestRemote = G.RequestRemote
+local SHOP_MAX = G.SHOP_MAX
+local SHOP_MIN = G.SHOP_MIN
+local SP = G.SP
+local ToggleFlashlightRemote = G.ToggleFlashlightRemote
+local TweenService = G.TweenService
+local UPGRADE_BY_ID = G.UPGRADE_BY_ID
+local WHITE = G.WHITE
+local applyLighting = G.applyLighting
+local awardBadge = G.awardBadge
+local bestStore = G.bestStore
+local boardList = G.boardList
+local buildRig = G.buildRig
+local currentCustomer = G.currentCustomer
+local customerFolder = G.customerFolder
+local dailyInfo = G.dailyInfo
+local entries = G.entries
+local gameState = G.gameState
+local hasPass = G.hasPass
+local inBox = G.inBox
+local loadData = G.loadData
+local make = G.make
+local monsterFolder = G.monsterFolder
+local passCache = G.passCache
+local placeRig = G.placeRig
+local playersInGame = G.playersInGame
+local profiles = G.profiles
+local publish = G.publish
+local randomOf = G.randomOf
+local refreshEntryAttributes = G.refreshEntryAttributes
+local refreshPrompt = G.refreshPrompt
+local refreshShop = G.refreshShop
+local repairing = G.repairing
+local resetEntries = G.resetEntries
+local rng = G.rng
+local runDay = G.runDay
+local sanitize = G.sanitize
+local saveData = G.saveData
+local send = G.send
+local sendAll = G.sendAll
+local serveCooldown = G.serveCooldown
+local setEntryVisual = G.setEntryVisual
+local setLights = G.setLights
+local setPhase = G.setPhase
+local shopHasUpgrade = G.shopHasUpgrade
+local soundIn = G.soundIn
+local state = G.state
+local store = G.store
+local teleport = G.teleport
+local toast = G.toast
+local today = G.today
+local tutorialStep = G.tutorialStep
+local updateOrderScreen = G.updateOrderScreen
+local updateShopVisuals = G.updateShopVisuals
+
+local function setFrozen(player, frozen)
+	local character = player.Character
+	local hum = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if hum then
+		hum.WalkSpeed = frozen and 0 or Config.PlayerSpeed
+		hum.JumpPower = frozen and 0 or 50
+		hum.JumpHeight = frozen and 0 or 7.2
+	end
+	if root then root.Anchored = frozen end
+end
+
+local function setFlashlight(player, on)
+	local profile = profiles[player]
+	if not profile then return end
+	if on and (state.phase ~= "Night" or profile.battery <= 0 or profile.caught or profile.failed) then on = false end
+	profile.flashOn = on
+	player:SetAttribute("FlashOn", on)
+	local head = player.Character and player.Character:FindFirstChild("Head")
+	local existing = head and head:FindFirstChild("Flashlight")
+	if on and head and not existing then
+		local better = shopHasUpgrade("BetterFlashlight")
+		make("SpotLight", { Name = "Flashlight", Range = Config.FlashlightRange + 5, Angle = better and 55 or 45, Brightness = better and 8 or 5, Face = Enum.NormalId.Front, Shadows = true, Color = Color3.fromRGB(255, 245, 220) }, head)
+	elseif not on and existing then
+		existing:Destroy()
+	end
+end
+
+ToggleFlashlightRemote.OnServerEvent:Connect(function(player, on)
+	if type(on) ~= "boolean" then return end
+	setFlashlight(player, on)
+end)
+
+FlashlightHitRemote.OnServerEvent:Connect(function() end)
+
+local function newMonster()
+	local model = buildRig("monster")
+	if not model then return nil end
+	model.Name = "Monster"
+	local spawnPoint = randomOf({ SP(0, 1, 32), SP(-30, 1, 30), SP(30, 1, 30) })
+	placeRig(model, monsterFolder, CFrame.new(spawnPoint + Vector3.new(0, 4, 0)))
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	hum.WalkSpeed = Config.MonsterSpeed
+	local monster = { model = model, hum = hum, root = model:FindFirstChild("HumanoidRootPart"), state = "wander", exposure = {}, alive = true, tick = 0 }
+	table.insert(state.monsters, monster)
+	return monster
+end
+
+local function monsterTarget(monster)
+	local best, bestDist = nil, math.huge
+	for player, profile in pairs(profiles) do
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if root and not profile.caught and not profile.failed and inBox(root.Position, PLOT_MIN, PLOT_MAX) then
+			local d = (root.Position - monster.root.Position).Magnitude
+			if d < bestDist then best, bestDist = player, d end
+		end
+	end
+	return best, bestDist
+end
+
+local function chooseEntry()
+	local options = {}
+	local total = 0
+	for _, entry in pairs(entries) do
+		local weight = 1
+		if entry.state == "Open" or entry.state == "Broken" or entry.state == "Closed" then
+			weight = 6
+		elseif entry.state == "Glass" then
+			weight = 4
+		else
+			weight = 1 + (1 - entry.health / entry.maxHealth) * 3
+		end
+		total = total + weight
+		table.insert(options, { entry = entry, weight = weight })
+	end
+	local roll = rng:NextNumber() * total
+	for _, option in ipairs(options) do
+		roll = roll - option.weight
+		if roll <= 0 then return option.entry end
+	end
+	return entries.Front
+end
+
+local alarmTimes = {}
+local function alarm(entry)
+	if not shopHasUpgrade("AlarmBell") then return end
+	local now = os.clock()
+	if alarmTimes[entry.name] and now - alarmTimes[entry.name] < 2.5 then return end
+	alarmTimes[entry.name] = now
+	sendAll("Alarm", entry.display)
+end
+
+local function breakEntry(entry)
+	entry.state = "Broken"
+	entry.health = 0
+	setEntryVisual(entry)
+	refreshPrompt(entry)
+	sendAll("EntryBroken", entry.display)
+end
+
+local function retreatMonster(monster, seconds)
+	monster.state = "retreat"
+	monster.retreatUntil = os.clock() + seconds
+	monster.exposure = {}
+	if monster.root and inBox(monster.root.Position, SHOP_MIN, SHOP_MAX) then
+		monster.model:PivotTo(CFrame.new(randomOf(OUTSIDE_POINTS) + Vector3.new(0, 4, 0)))
+	end
+	monster.hum:MoveTo(randomOf(OUTSIDE_POINTS))
+end
+
+local function flashMonster(monster, player)
+	if monster.state == "retreat" then return end
+	soundIn(monster.root, "MonsterScream", 1.2)
+	sendAll("MonsterFlinch", monster.model)
+	monster.hum.WalkSpeed = 0
+	task.delay(0.5, function()
+		if monster.alive then
+			monster.hum.WalkSpeed = Config.MonsterSpeed
+			retreatMonster(monster, Config.MonsterRetreatTime)
+		end
+	end)
+	monster.state = "flinch"
+	if player then toast(player, "It ran away!", "good") end
+end
+
+local endNight
+
+local function failPlayer(player)
+	local profile = profiles[player]
+	if not profile or not profile.caught then return end
+	profile.caught = false
+	profile.failed = true
+	profile.data.cash = math.max(0, profile.data.cash - profile.today.earned)
+	profile.today.lost = profile.today.earned
+	profile.data.streak = 0
+	publish(player)
+	setFrozen(player, false)
+	teleport(player, LOBBY_SPOT)
+	send(player, "Failed")
+	local active = 0
+	for p, other in pairs(profiles) do
+		if p.Parent and not other.failed then active = active + 1 end
+	end
+	if active == 0 then state.nightOver = true end
+end
+
+local function revivePlayer(player)
+	local profile = profiles[player]
+	if not profile or not profile.caught then return false end
+	profile.caught = false
+	profile.reviving = false
+	for _, monster in ipairs(state.monsters) do
+		if monster.alive then retreatMonster(monster, 6) end
+	end
+	setFrozen(player, false)
+	teleport(player, COUNTER_SPOT)
+	send(player, "Revived")
+	return true
+end
+
+local function catchPlayer(player)
+	local profile = profiles[player]
+	if not profile or profile.caught or profile.failed then return end
+	profile.caught = true
+	setFlashlight(player, false)
+	setFrozen(player, true)
+	local deadline = os.clock() + Config.ReviveTime
+	send(player, "Caught", Config.ReviveTime, Config.Products.Revive.id == 0 and IS_STUDIO)
+	task.spawn(function()
+		while profile.caught and player.Parent do
+			if os.clock() > deadline and not profile.reviving then break end
+			if profile.reviving and os.clock() > deadline + 25 then break end
+			task.wait(0.2)
+		end
+		if profile.caught and player.Parent then failPlayer(player) end
+	end)
+end
+
+local function monsterLoop(monster)
+	local path = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 7, AgentCanJump = false })
+	local lastPath = 0
+	local lastBang = 0
+	while monster.alive and state.phase == "Night" and not state.nightOver do
+		local dt = 0.15
+		monster.tick = monster.tick + 1
+		local now = os.clock()
+		if monster.state ~= "flinch" then
+			monster.hum.WalkSpeed = (monster.tick % 3 == 0) and 0 or Config.MonsterSpeed * 1.45
+		end
+		if monster.state == "wander" then
+			if not monster.wanderUntil then
+				monster.wanderUntil = now + rng:NextNumber(Config.MonsterWanderMin, Config.MonsterWanderMax)
+				monster.hum:MoveTo(randomOf(OUTSIDE_POINTS))
+			elseif now >= monster.wanderUntil then
+				monster.wanderUntil = nil
+				monster.entry = chooseEntry()
+				monster.state = "approach"
+				monster.lastMove = 0
+			end
+		elseif monster.state == "approach" then
+			local entry = monster.entry
+			if now - (monster.lastMove or 0) > 1.5 then
+				monster.hum:MoveTo(entry.outside)
+				monster.lastMove = now
+			end
+			local flat = Vector3.new(entry.outside.X, monster.root.Position.Y, entry.outside.Z)
+			if (monster.root.Position - flat).Magnitude < 3.2 then
+				monster.state = "attack"
+				monster.crawl = 0
+			end
+		elseif monster.state == "attack" then
+			local entry = monster.entry
+			if entry.state == "Closed" then
+				entry.state = "Open"
+				setEntryVisual(entry)
+				refreshPrompt(entry)
+			end
+			if entry.state == "Open" or entry.state == "Broken" then
+				monster.state = "enter"
+			elseif entry.state == "Glass" then
+				monster.crawl = (monster.crawl or 0) + dt
+				if not monster.crawlSound then
+					monster.crawlSound = true
+					soundIn(entry.glass, "WindowCrawl", 1)
+					sendAll("Crawl", entry.display)
+				end
+				alarm(entry)
+				if monster.crawl >= Config.WindowCrawlTime then
+					breakEntry(entry)
+					monster.crawlSound = nil
+					monster.state = "enter"
+				end
+			else
+				entry.health = entry.health - Config.MonsterDamage * dt
+				refreshEntryAttributes(entry)
+				refreshPrompt(entry)
+				alarm(entry)
+				if now - lastBang > 0.55 then
+					lastBang = now
+					soundIn(entry.kind == "door" and entry.door or entry.boards[2], "DoorBang", 1.2)
+					sendAll("Bang", entry.display, entry.kind == "door" and entry.door.Position or entry.boards[2].Position)
+				end
+				if entry.health <= 0 then
+					breakEntry(entry)
+					monster.state = "enter"
+				end
+			end
+		elseif monster.state == "enter" then
+			monster.model:PivotTo(CFrame.new(monster.entry.inside + Vector3.new(0, 4, 0)))
+			monster.state = "chase"
+			lastPath = 0
+		elseif monster.state == "chase" then
+			local target, distance = monsterTarget(monster)
+			if target then
+				local targetRoot = target.Character.HumanoidRootPart
+				if distance <= Config.CatchDistance then
+					catchPlayer(target)
+				elseif now - lastPath > 0.6 then
+					lastPath = now
+					local ok = pcall(function() path:ComputeAsync(monster.root.Position, targetRoot.Position) end)
+					local moved = false
+					if ok and path.Status == Enum.PathStatus.Success then
+						local waypoints = path:GetWaypoints()
+						local waypoint = waypoints[math.min(3, #waypoints)]
+						if waypoint then
+							monster.hum:MoveTo(waypoint.Position)
+							moved = true
+						end
+					end
+					if not moved then monster.hum:MoveTo(targetRoot.Position) end
+				end
+			else
+				if now - lastPath > 1.5 then
+					lastPath = now
+					monster.hum:MoveTo(SP(rng:NextNumber(-14, 14), 1, rng:NextNumber(-12, 10)))
+				end
+			end
+		elseif monster.state == "retreat" then
+			if now >= (monster.retreatUntil or 0) then
+				monster.entry = chooseEntry()
+				monster.state = "approach"
+				monster.lastMove = 0
+			end
+		end
+		task.wait(dt)
+	end
+end
+
+local function clearMonsters()
+	for _, monster in ipairs(state.monsters) do
+		monster.alive = false
+		local model = monster.model
+		for _, p in ipairs(model:GetDescendants()) do
+			if p:IsA("BasePart") then
+				TweenService:Create(p, TweenInfo.new(1.2), { Transparency = 1 }):Play()
+			end
+		end
+		task.delay(1.3, function() if model.Parent then model:Destroy() end end)
+	end
+	state.monsters = {}
+end
+
+local function flashlightTick(dt)
+	for player, profile in pairs(profiles) do
+		local maxBattery = shopHasUpgrade("BetterFlashlight") and Config.FlashlightBatteryUpgraded or Config.FlashlightBattery
+		if profile.flashOn then
+			profile.battery = math.max(0, profile.battery - dt)
+			if profile.battery <= 0 then setFlashlight(player, false) end
+		else
+			profile.battery = math.min(maxBattery, profile.battery + Config.FlashlightRecharge * dt)
+		end
+		player:SetAttribute("Battery", math.floor(profile.battery * 10) / 10)
+		player:SetAttribute("BatteryMax", maxBattery)
+		if profile.flashOn and state.phase == "Night" then
+			local character = player.Character
+			local head = character and character:FindFirstChild("Head")
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if head and root then
+				local stun = shopHasUpgrade("BetterFlashlight") and Config.FlashlightStunUpgraded or Config.FlashlightStun
+				for _, monster in ipairs(state.monsters) do
+					if monster.alive and monster.state ~= "retreat" and monster.state ~= "flinch" and monster.root then
+						local offset = monster.root.Position - head.Position
+						local lit = false
+						if offset.Magnitude <= Config.FlashlightRange and offset.Magnitude > 0 then
+							local dot = root.CFrame.LookVector:Dot(offset.Unit)
+							if dot > 0.72 then
+								local params = RaycastParams.new()
+								params.FilterType = Enum.RaycastFilterType.Exclude
+								params.FilterDescendantsInstances = { character, monster.model, customerFolder }
+								local hit = workspace:Raycast(head.Position, offset, params)
+								lit = hit == nil or (hit.Instance and hit.Instance.Transparency > 0.5)
+							end
+						end
+						if lit then
+							monster.exposure[player] = (monster.exposure[player] or 0) + dt
+							if monster.exposure[player] >= stun then flashMonster(monster, player) end
+						else
+							monster.exposure[player] = 0
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+local function runNight()
+	state.nightOver = false
+	state.survivedBySkip = false
+	state.monsters = {}
+	setPhase("Night", Config.NightLength)
+	applyLighting(true)
+	setLights(false)
+	updateOrderScreen()
+	resetEntries()
+	for _, entry in pairs(entries) do refreshPrompt(entry) end
+	local count = state.fakesServedToday
+	if state.tutorialNight then count = math.min(count, 1) end
+	state.quiet = count == 0
+	state.skipAvailable = false
+	gameState:SetAttribute("QuietNight", state.quiet)
+	gameState:SetAttribute("SkipAvailable", false)
+	for player, profile in pairs(profiles) do
+		local maxBattery = shopHasUpgrade("BetterFlashlight") and Config.FlashlightBatteryUpgraded or Config.FlashlightBattery
+		profile.battery = maxBattery
+		profile.caught = false
+		profile.failed = false
+		teleport(player, COUNTER_SPOT)
+	end
+	sendAll("PhaseStart", "Night", state.day)
+	if state.tutorialNight then tutorialStep("night") end
+	local spawned = 0
+	local nextSpawn = os.clock() + Config.MonsterFirstSpawn
+	local started = os.clock()
+	local last = os.clock()
+	while workspace:GetServerTimeNow() < state.endsAt and not state.nightOver do
+		if #playersInGame() == 0 then break end
+		local now = os.clock()
+		local dt = now - last
+		last = now
+		if spawned < count and now >= nextSpawn then
+			spawned = spawned + 1
+			nextSpawn = now + Config.MonsterSpawnInterval
+			task.spawn(function()
+				local monster = newMonster()
+				if monster then monsterLoop(monster) end
+			end)
+		end
+		if state.quiet and not state.skipAvailable and now - started >= Config.SkipQuietAfter then
+			state.skipAvailable = true
+			gameState:SetAttribute("SkipAvailable", true)
+		end
+		for player, entry in pairs(repairing) do
+			if player.Parent and entry.health < entry.maxHealth and (entry.state == "Locked" or entry.state == "Boarded") then
+				entry.health = math.min(entry.maxHealth, entry.health + Config.RepairPerSecond * dt)
+				refreshEntryAttributes(entry)
+				if entry.health >= entry.maxHealth then
+					repairing[player] = nil
+					refreshPrompt(entry)
+				end
+			else
+				repairing[player] = nil
+			end
+		end
+		flashlightTick(dt)
+		task.wait(0.1)
+	end
+	for key in pairs(repairing) do repairing[key] = nil end
+	for player in pairs(profiles) do setFlashlight(player, false) end
+	clearMonsters()
+	local anySurvivor = false
+	for player, profile in pairs(profiles) do
+		if profile.caught then
+			profile.caught = false
+			profile.failed = true
+			profile.data.cash = math.max(0, profile.data.cash - profile.today.earned)
+			profile.data.streak = 0
+			setFrozen(player, false)
+		end
+		if not profile.failed then anySurvivor = true end
+	end
+	return anySurvivor
+end
+
+endNight = function()
+	state.nightOver = true
+end
+
+local function runSummary()
+	setPhase("Morning", Config.SummaryLength)
+	applyLighting(false)
+	setLights(true)
+	for _, entry in pairs(entries) do refreshPrompt(entry) end
+	local perfect = state.fakesServedToday == 0
+	for player, profile in pairs(profiles) do
+		local data = profile.data
+		local survived = not profile.failed
+		local bonus = 0
+		if survived then
+			data.streak = data.streak + 1
+			data.bestNight = math.max(data.bestNight, data.streak)
+			bonus = Config.SurviveBonusPerStreak * data.streak
+			if perfect then bonus = bonus + Config.PerfectDayBonus end
+			data.cash = data.cash + bonus
+			if data.streak >= 10 then awardBadge(player, "SurviveNight10") end
+			if data.streak >= 25 then awardBadge(player, "SurviveNight25") end
+		end
+		if perfect then awardBadge(player, "PerfectDay") end
+		awardBadge(player, "FirstDay")
+		data.tutorialDone = true
+		data.day = state.day + 1
+		data.highestDay = math.max(data.highestDay, data.day)
+		publish(player)
+		send(player, "Summary", {
+			day = state.day,
+			earned = math.floor(profile.today.earned),
+			served = profile.today.served,
+			caught = profile.today.caught,
+			missed = state.fakesServedToday,
+			survived = survived,
+			bonus = bonus,
+			perfect = perfect,
+			streak = data.streak,
+			lost = profile.today.lost or 0,
+		})
+		task.spawn(saveData, player)
+	end
+	sendAll("Sound", "MorningChime")
+	task.wait(Config.SummaryLength)
+end
+
+local function grantProduct(player, key)
+	local profile = profiles[player]
+	if not profile then return false end
+	local data = profile.data
+	if key == "Revive" then
+		if not revivePlayer(player) then
+			data.cash = data.cash + 25 * math.max(1, data.highestDay)
+			toast(player, "Revive wasn't needed, you got cash instead!", "good")
+		end
+	elseif key == "FakeDetector" then
+		data.detectors = data.detectors + Config.DetectorPack
+		toast(player, "+" .. Config.DetectorPack .. " Fake Detectors!", "good")
+	elseif key == "SkipNight" then
+		if state.phase == "Night" then
+			state.survivedBySkip = true
+			state.nightOver = true
+		else
+			data.detectors = data.detectors + 1
+			toast(player, "It's not night, you got a Fake Detector instead!", "good")
+		end
+	else
+		local info = Config.Products[key]
+		if not info or not info.cash then return false end
+		local amount = info.cash * math.max(1, data.highestDay)
+		data.cash = data.cash + amount
+		send(player, "Cash", amount, "Cash pack!")
+	end
+	publish(player)
+	return true
+end
+
+local PRODUCT_BY_ID = {}
+for key, info in pairs(Config.Products) do
+	if info.id ~= 0 then PRODUCT_BY_ID[info.id] = key end
+end
+
+MarketplaceService.ProcessReceipt = function(receipt)
+	local player = Players:GetPlayerByUserId(receipt.PlayerId)
+	local profile = player and profiles[player]
+	if not profile then return Enum.ProductPurchaseDecision.NotProcessedYet end
+	for _, id in ipairs(profile.data.receipts) do
+		if id == receipt.PurchaseId then return Enum.ProductPurchaseDecision.PurchaseGranted end
+	end
+	local key = PRODUCT_BY_ID[receipt.ProductId]
+	if not key then return Enum.ProductPurchaseDecision.NotProcessedYet end
+	local ok = pcall(grantProduct, player, key)
+	if not ok then return Enum.ProductPurchaseDecision.NotProcessedYet end
+	table.insert(profile.data.receipts, receipt.PurchaseId)
+	if profile.canSave and not saveData(player) then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	return Enum.ProductPurchaseDecision.PurchaseGranted
+end
+
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
+	if not purchased then return end
+	for key, info in pairs(Config.GamePasses) do
+		if info.id == passId then
+			passCache[player] = passCache[player] or {}
+			passCache[player][key] = true
+			toast(player, info.name .. " unlocked!", "good")
+		end
+	end
+	refreshShop()
+end)
+
+MarketplaceService.PromptProductPurchaseFinished:Connect(function(userId, productId, purchased)
+	local player = Players:GetPlayerByUserId(userId)
+	local profile = player and profiles[player]
+	if profile and PRODUCT_BY_ID[productId] == "Revive" and not purchased then
+		profile.reviving = false
+	end
+end)
+
+local function promptProduct(player, key)
+	local info = Config.Products[key]
+	if not info then return end
+	if info.id == 0 then
+		if IS_STUDIO then
+			grantProduct(player, key)
+			toast(player, "(Studio test) " .. info.name .. " given free", "info")
+		else
+			toast(player, info.name .. " is not set up yet", "bad")
+		end
+		return
+	end
+	if key == "Revive" and profiles[player] then profiles[player].reviving = true end
+	MarketplaceService:PromptProductPurchase(player, info.id)
+end
+
+local function buyUpgrade(player, id)
+	local profile = profiles[player]
+	if type(id) ~= "string" or not profile then return end
+	local data = profile.data
+	local flavor = FLAVOR_BY_ID[id]
+	local upgrade = UPGRADE_BY_ID[id]
+	if not flavor and not upgrade then return end
+	local owned = flavor and data.flavors[id] or (upgrade and data.upgrades[id])
+	if owned then
+		toast(player, "You already own that!", "info")
+		return
+	end
+	local cost = flavor and flavor.cost or upgrade.cost
+	if data.cash < cost then
+		toast(player, "Not enough cash!", "bad")
+		return
+	end
+	data.cash = data.cash - cost
+	if flavor then data.flavors[id] = true else data.upgrades[id] = true end
+	send(player, "Bought", flavor and flavor.name or upgrade.name)
+	refreshShop()
+	for _, entry in pairs(entries) do refreshPrompt(entry) end
+end
+
+BuyUpgradeRemote.OnServerEvent:Connect(buyUpgrade)
+
+local requestTimes = {}
+RequestRemote.OnServerEvent:Connect(function(player, action, argument)
+	local profile = profiles[player]
+	if not profile or type(action) ~= "string" then return end
+	local now = os.clock()
+	if requestTimes[player] and now - requestTimes[player] < 0.25 then return end
+	requestTimes[player] = now
+	local data = profile.data
+	if action == "Daily" then
+		local ready, streak = dailyInfo(data)
+		if not ready then return end
+		data.lastDaily = today()
+		data.dailyStreak = streak
+		local amount = Config.DailyRewardBase * streak
+		data.cash = data.cash + amount
+		send(player, "Cash", amount, "Daily reward! Day " .. streak)
+		publish(player)
+	elseif action == "Franchise" then
+		if data.cash < Config.FranchiseCost then return end
+		data.cash = 0
+		data.upgrades = {}
+		data.flavors = {}
+		for _, id in ipairs(Config.StartFlavors) do data.flavors[id] = true end
+		data.franchises = data.franchises + 1
+		awardBadge(player, "FirstFranchise")
+		send(player, "Franchised", data.franchises)
+		refreshShop()
+	elseif action == "Revive" then
+		if profile.caught then promptProduct(player, "Revive") end
+	elseif action == "GiveUp" then
+		if profile.caught then failPlayer(player) end
+	elseif action == "SkipQuiet" then
+		if state.phase == "Night" and state.skipAvailable then
+			state.nightOver = true
+		end
+	elseif action == "BuyProduct" then
+		if type(argument) == "string" and Config.Products[argument] then
+			if argument == "Revive" and not profile.caught then return end
+			promptProduct(player, argument)
+		end
+	elseif action == "BuyPass" then
+		local info = type(argument) == "string" and Config.GamePasses[argument]
+		if not info then return end
+		if hasPass(player, argument) then
+			toast(player, "You already own " .. info.name, "info")
+		elseif info.id == 0 then
+			toast(player, info.name .. " is not set up yet", "bad")
+		else
+			MarketplaceService:PromptGamePassPurchase(player, info.id)
+		end
+	elseif action == "Detect" then
+		local customer = currentCustomer()
+		if state.phase ~= "Day" or not customer or customer.detected then return end
+		if data.detectors <= 0 then
+			promptProduct(player, "FakeDetector")
+			return
+		end
+		data.detectors = data.detectors - 1
+		customer.detected = true
+		make("Highlight", {
+			FillColor = customer.fake and Color3.fromRGB(255, 40, 40) or Color3.fromRGB(60, 255, 100),
+			OutlineColor = WHITE,
+			FillTransparency = 0.35,
+		}, customer.model)
+		publish(player)
+	end
+end)
+
+local function setupLeaderstats(player, profile)
+	local folder = Instance.new("Folder")
+	folder.Name = "leaderstats"
+	local cash = Instance.new("IntValue")
+	cash.Name = "Cash"
+	cash.Parent = folder
+	local night = Instance.new("IntValue")
+	night.Name = "Night"
+	night.Parent = folder
+	folder.Parent = player
+	profile.leaderCash = cash
+	profile.leaderNight = night
+end
+
+local firstDayDecided = false
+
+local function onPlayerAdded(player)
+	if #Players:GetPlayers() > Config.MaxPlayers then
+		player:Kick("This server is full (" .. Config.MaxPlayers .. " players max). Please join another server!")
+		return
+	end
+	local ok, raw = loadData(player)
+	if not player.Parent then return end
+	local canSave = true
+	if not ok then
+		if IS_STUDIO then
+			canSave = false
+		else
+			player:Kick("We couldn't load your save. Please rejoin in a minute so your progress is safe!")
+			return
+		end
+	end
+	if not store then canSave = false end
+	local profile = {
+		data = sanitize(raw), canSave = canSave, battery = Config.FlashlightBattery,
+		today = { earned = 0, served = 0, caught = 0, missed = 0 }, flashOn = false,
+	}
+	profiles[player] = profile
+	setupLeaderstats(player, profile)
+	if not firstDayDecided then
+		state.day = math.max(1, profile.data.day)
+		firstDayDecided = true
+	end
+	publish(player)
+	refreshShop()
+	if not canSave then
+		task.delay(3, function() toast(player, "Saving is off in Studio (turn on API access to test saving)", "info") end)
+	end
+	player.CharacterAdded:Connect(function(character)
+		local hum = character:WaitForChild("Humanoid", 10)
+		if hum then hum.WalkSpeed = Config.PlayerSpeed end
+		task.wait(0.3)
+		if profile.failed then
+			teleport(player, LOBBY_SPOT)
+		else
+			teleport(player, COUNTER_SPOT)
+		end
+	end)
+	if player.Character then teleport(player, COUNTER_SPOT) end
+	if state.phase == "Night" then
+		profile.failed = true
+		teleport(player, LOBBY_SPOT)
+		toast(player, "A night is happening! You'll join in the morning.", "info")
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in ipairs(Players:GetPlayers()) do task.spawn(onPlayerAdded, player) end
+
+Players.PlayerRemoving:Connect(function(player)
+	saveData(player)
+	profiles[player] = nil
+	passCache[player] = nil
+	serveCooldown[player] = nil
+	requestTimes[player] = nil
+	repairing[player] = nil
+	refreshShop()
+end)
+
+game:BindToClose(function()
+	local pending = 0
+	for player in pairs(profiles) do
+		pending = pending + 1
+		task.spawn(function()
+			saveData(player)
+			pending = pending - 1
+		end)
+	end
+	local started = os.clock()
+	while pending > 0 and os.clock() - started < 25 do task.wait(0.2) end
+end)
+
+task.spawn(function()
+	while true do
+		task.wait(Config.AutosaveInterval)
+		for player in pairs(profiles) do task.spawn(saveData, player) end
+	end
+end)
+
+local nameCache = {}
+local function refreshBoard()
+	if not bestStore then return end
+	local ok, pages = pcall(function() return bestStore:GetSortedAsync(false, Config.LeaderboardSize) end)
+	if not ok or not pages then return end
+	local entriesList = pages:GetCurrentPage()
+	for _, child in ipairs(boardList:GetChildren()) do
+		if child:IsA("TextLabel") then child:Destroy() end
+	end
+	for rank, item in ipairs(entriesList) do
+		local userId = tonumber(item.key)
+		local name = nameCache[userId]
+		if not name and userId then
+			local okName, result = pcall(function() return Players:GetNameFromUserIdAsync(userId) end)
+			name = okName and result or ("Player " .. item.key)
+			nameCache[userId] = name
+		end
+		local row = make("TextLabel", {
+			Size = UDim2.new(1, -10, 0, 30),
+			BackgroundColor3 = rank % 2 == 0 and Color3.fromRGB(70, 55, 90) or Color3.fromRGB(85, 65, 110),
+			Text = "#" .. rank .. "   " .. (name or "?") .. "   " .. item.value,
+			TextScaled = true,
+			Font = Enum.Font.FredokaOne,
+			TextColor3 = rank <= 3 and Color3.fromRGB(255, 215, 90) or WHITE,
+			LayoutOrder = rank,
+		}, boardList)
+		make("UICorner", { CornerRadius = UDim.new(0, 8) }, row)
+	end
+end
+
+task.spawn(function()
+	while true do
+		refreshBoard()
+		task.wait(Config.LeaderboardRefresh)
+	end
+end)
+
+applyLighting(false)
+setLights(true)
+updateShopVisuals()
+gameState:SetAttribute("Phase", "Waiting")
+
+task.spawn(function()
+	while true do
+		if #playersInGame() == 0 then
+			setPhase("Waiting", 0)
+			task.wait(1)
+		else
+			runDay()
+			if #playersInGame() > 0 then
+				runNight()
+				runSummary()
+				state.day = state.day + 1
+			end
+		end
+	end
+end)
+
+end

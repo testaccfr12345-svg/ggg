@@ -1892,7 +1892,7 @@ local function runNight()
 		flashlightTick(dt)
 		task.wait(0.1)
 	end
-	repairing = {}
+	for key in pairs(repairing) do repairing[key] = nil end
 	for player in pairs(profiles) do setFlashlight(player, false) end
 	clearMonsters()
 	local anySurvivor = false
