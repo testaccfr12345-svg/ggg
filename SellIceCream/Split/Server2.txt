@@ -1,5 +1,5 @@
 local G = {}
-require(script.Parent:WaitForChild("IceCreamServer1"))(G)
+require(script:FindFirstChild("IceCreamServer1") or script.Parent:WaitForChild("IceCreamServer1"))(G)
 local ARM_PARTS = G.ARM_PARTS
 local BuyUpgradeRemote = G.BuyUpgradeRemote
 local COUNTER_SPOT = G.COUNTER_SPOT
