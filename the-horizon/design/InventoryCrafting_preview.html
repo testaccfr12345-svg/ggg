@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Horizon — Inventory, Crafting &amp; Hotbar (preview)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap">
+<style>
+html,body{margin:0;height:100%;background:#0d1110;overflow:hidden}
+#viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#root{width:1280px;height:720px;position:relative;overflow:hidden;flex:none;transform-origin:center center;font-family:'Patrick Hand','Comic Sans MS',sans-serif;color:#EDE8DC;background:#2E3F3A}
+
+body{margin:0}
+a{color:#EDE8DC}a:hover{color:#FFFFFF}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed}
+.hz-row::-webkit-scrollbar{height:6px}
+.hz-row::-webkit-scrollbar-thumb{background:rgba(237,232,220,0.25);border-radius:3px}
+@keyframes hzOpen{from{opacity:0;transform:scale(0.98)}to{opacity:1;transform:scale(1)}}
+@keyframes hzFade{from{opacity:0}to{opacity:1}}
+@keyframes hzIn{0%{transform:scale(0.5);opacity:0}70%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
+@keyframes hzFlash{0%{box-shadow:0 0 0 0 currentColor}100%{box-shadow:0 0 0 10px transparent}}
+@keyframes hzPIn{from{transform:translateX(21px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes hzPOut{from{transform:translateX(0);opacity:1}to{transform:translateX(21px);opacity:0}}
+@keyframes hzTick{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}
+.hz-in{animation:hzIn 0.28s ease-out}
+.hz-flash-a,.hz-flash-b{animation:hzFlash 0.7s ease-out 2}
+.hz-pin{animation:hzPIn 0.28s cubic-bezier(0.25,1,0.5,1)}
+.hz-pout{animation:hzPOut 0.28s cubic-bezier(0.5,0,0.75,0) forwards}
+.hz-tick-a,.hz-tick-b{animation:hzTick 0.3s ease-out}
+@media (prefers-reduced-motion: reduce){.hz-in,.hz-flash-a,.hz-flash-b,.hz-pin,.hz-pout,.hz-tick-a,.hz-tick-b{animation:none}}
+
+@keyframes hzOpen{from{transform:scale(0.94)}to{transform:scale(1)}}
+@keyframes hzFromLeft{from{transform:translateX(-28px)}to{transform:translateX(0)}}
+@keyframes hzFromRight{from{transform:translateX(28px)}to{transform:translateX(0)}}
+#note{position:fixed;left:8px;bottom:6px;font:12px system-ui,sans-serif;color:#7c8682}
+</style>
+</head>
+<body>
+<!--
+  Standalone preview of the approved UI design (same as the Claude Design canvas:
+  https://claude.ai/artifact/THsdwNwjTZUf2NXa1FVNbJ), with the latest decisions:
+  hotbar stays visible, inventory button next to slot 8, yellow per-item crafting bar.
+  Open in any browser. Tab = open/close, 1-8 = hotbar. Icons are placeholders; the
+  Roblox script uses the real rbxassetid images.
+-->
+<div id="viewport"><div id="root"></div></div>
+<div id="note">Tab = inventory · 1–8 = hotbar · click Craft / All to test the queue</div>
+<script>(function(global,factory){typeof exports==="object"&&typeof module!=="undefined"?module.exports=factory():typeof define==="function"&&define.amd?define(factory):(global=global||self,global.morphdom=factory())})(this,function(){"use strict";var DOCUMENT_FRAGMENT_NODE=11;function morphAttrs(fromNode,toNode){var toNodeAttrs=toNode.attributes;var attr;var attrName;var attrNamespaceURI;var attrValue;var fromValue;if(toNode.nodeType===DOCUMENT_FRAGMENT_NODE||fromNode.nodeType===DOCUMENT_FRAGMENT_NODE){return}for(var i=toNodeAttrs.length-1;i>=0;i--){attr=toNodeAttrs[i];attrName=attr.name;attrNamespaceURI=attr.namespaceURI;attrValue=attr.value;if(attrNamespaceURI){attrName=attr.localName||attrName;fromValue=fromNode.getAttributeNS(attrNamespaceURI,attrName);if(fromValue!==attrValue){if(attr.prefix==="xmlns"){attrName=attr.name}fromNode.setAttributeNS(attrNamespaceURI,attrName,attrValue)}}else{fromValue=fromNode.getAttribute(attrName);if(fromValue!==attrValue){fromNode.setAttribute(attrName,attrValue)}}}var fromNodeAttrs=fromNode.attributes;for(var d=fromNodeAttrs.length-1;d>=0;d--){attr=fromNodeAttrs[d];attrName=attr.name;attrNamespaceURI=attr.namespaceURI;if(attrNamespaceURI){attrName=attr.localName||attrName;if(!toNode.hasAttributeNS(attrNamespaceURI,attrName)){fromNode.removeAttributeNS(attrNamespaceURI,attrName)}}else{if(!toNode.hasAttribute(attrName)){fromNode.removeAttribute(attrName)}}}}var range;var NS_XHTML="http://www.w3.org/1999/xhtml";var doc=typeof document==="undefined"?undefined:document;var HAS_TEMPLATE_SUPPORT=!!doc&&"content"in doc.createElement("template");var HAS_RANGE_SUPPORT=!!doc&&doc.createRange&&"createContextualFragment"in doc.createRange();function createFragmentFromTemplate(str){var template=doc.createElement("template");template.innerHTML=str;return template.content.childNodes[0]}function createFragmentFromRange(str){if(!range){range=doc.createRange();range.selectNode(doc.body)}var fragment=range.createContextualFragment(str);return fragment.childNodes[0]}function createFragmentFromWrap(str){var fragment=doc.createElement("body");fragment.innerHTML=str;return fragment.childNodes[0]}function toElement(str){str=str.trim();if(HAS_TEMPLATE_SUPPORT){return createFragmentFromTemplate(str)}else if(HAS_RANGE_SUPPORT){return createFragmentFromRange(str)}return createFragmentFromWrap(str)}function compareNodeNames(fromEl,toEl){var fromNodeName=fromEl.nodeName;var toNodeName=toEl.nodeName;var fromCodeStart,toCodeStart;if(fromNodeName===toNodeName){return true}fromCodeStart=fromNodeName.charCodeAt(0);toCodeStart=toNodeName.charCodeAt(0);if(fromCodeStart<=90&&toCodeStart>=97){return fromNodeName===toNodeName.toUpperCase()}else if(toCodeStart<=90&&fromCodeStart>=97){return toNodeName===fromNodeName.toUpperCase()}else{return false}}function createElementNS(name,namespaceURI){return!namespaceURI||namespaceURI===NS_XHTML?doc.createElement(name):doc.createElementNS(namespaceURI,name)}function moveChildren(fromEl,toEl){var curChild=fromEl.firstChild;while(curChild){var nextChild=curChild.nextSibling;toEl.appendChild(curChild);curChild=nextChild}return toEl}function syncBooleanAttrProp(fromEl,toEl,name){if(fromEl[name]!==toEl[name]){fromEl[name]=toEl[name];if(fromEl[name]){fromEl.setAttribute(name,"")}else{fromEl.removeAttribute(name)}}}var specialElHandlers={OPTION:function(fromEl,toEl){var parentNode=fromEl.parentNode;if(parentNode){var parentName=parentNode.nodeName.toUpperCase();if(parentName==="OPTGROUP"){parentNode=parentNode.parentNode;parentName=parentNode&&parentNode.nodeName.toUpperCase()}if(parentName==="SELECT"&&!parentNode.hasAttribute("multiple")){if(fromEl.hasAttribute("selected")&&!toEl.selected){fromEl.setAttribute("selected","selected");fromEl.removeAttribute("selected")}parentNode.selectedIndex=-1}}syncBooleanAttrProp(fromEl,toEl,"selected")},INPUT:function(fromEl,toEl){syncBooleanAttrProp(fromEl,toEl,"checked");syncBooleanAttrProp(fromEl,toEl,"disabled");if(fromEl.value!==toEl.value){fromEl.value=toEl.value}if(!toEl.hasAttribute("value")){fromEl.removeAttribute("value")}},TEXTAREA:function(fromEl,toEl){var newValue=toEl.value;if(fromEl.value!==newValue){fromEl.value=newValue}var firstChild=fromEl.firstChild;if(firstChild){var oldValue=firstChild.nodeValue;if(oldValue==newValue||!newValue&&oldValue==fromEl.placeholder){return}firstChild.nodeValue=newValue}},SELECT:function(fromEl,toEl){if(!toEl.hasAttribute("multiple")){var selectedIndex=-1;var i=0;var curChild=fromEl.firstChild;var optgroup;var nodeName;while(curChild){nodeName=curChild.nodeName&&curChild.nodeName.toUpperCase();if(nodeName==="OPTGROUP"){optgroup=curChild;curChild=optgroup.firstChild}else{if(nodeName==="OPTION"){if(curChild.hasAttribute("selected")){selectedIndex=i;break}i++}curChild=curChild.nextSibling;if(!curChild&&optgroup){curChild=optgroup.nextSibling;optgroup=null}}}fromEl.selectedIndex=selectedIndex}}};var ELEMENT_NODE=1;var DOCUMENT_FRAGMENT_NODE$1=11;var TEXT_NODE=3;var COMMENT_NODE=8;function noop(){}function defaultGetNodeKey(node){if(node){return node.getAttribute&&node.getAttribute("id")||node.id}}function morphdomFactory(morphAttrs){return function morphdom(fromNode,toNode,options){if(!options){options={}}if(typeof toNode==="string"){if(fromNode.nodeName==="#document"||fromNode.nodeName==="HTML"||fromNode.nodeName==="BODY"){var toNodeHtml=toNode;toNode=doc.createElement("html");toNode.innerHTML=toNodeHtml}else{toNode=toElement(toNode)}}else if(toNode.nodeType===DOCUMENT_FRAGMENT_NODE$1){toNode=toNode.firstElementChild}var getNodeKey=options.getNodeKey||defaultGetNodeKey;var onBeforeNodeAdded=options.onBeforeNodeAdded||noop;var onNodeAdded=options.onNodeAdded||noop;var onBeforeElUpdated=options.onBeforeElUpdated||noop;var onElUpdated=options.onElUpdated||noop;var onBeforeNodeDiscarded=options.onBeforeNodeDiscarded||noop;var onNodeDiscarded=options.onNodeDiscarded||noop;var onBeforeElChildrenUpdated=options.onBeforeElChildrenUpdated||noop;var skipFromChildren=options.skipFromChildren||noop;var addChild=options.addChild||function(parent,child){return parent.appendChild(child)};var childrenOnly=options.childrenOnly===true;var fromNodesLookup=Object.create(null);var keyedRemovalList=[];function addKeyedRemoval(key){keyedRemovalList.push(key)}function walkDiscardedChildNodes(node,skipKeyedNodes){if(node.nodeType===ELEMENT_NODE){var curChild=node.firstChild;while(curChild){var key=undefined;if(skipKeyedNodes&&(key=getNodeKey(curChild))){addKeyedRemoval(key)}else{onNodeDiscarded(curChild);if(curChild.firstChild){walkDiscardedChildNodes(curChild,skipKeyedNodes)}}curChild=curChild.nextSibling}}}function removeNode(node,parentNode,skipKeyedNodes){if(onBeforeNodeDiscarded(node)===false){return}if(parentNode){parentNode.removeChild(node)}onNodeDiscarded(node);walkDiscardedChildNodes(node,skipKeyedNodes)}function indexTree(node){if(node.nodeType===ELEMENT_NODE||node.nodeType===DOCUMENT_FRAGMENT_NODE$1){var curChild=node.firstChild;while(curChild){var key=getNodeKey(curChild);if(key){fromNodesLookup[key]=curChild}indexTree(curChild);curChild=curChild.nextSibling}}}indexTree(fromNode);function handleNodeAdded(el){onNodeAdded(el);var curChild=el.firstChild;while(curChild){var nextSibling=curChild.nextSibling;var key=getNodeKey(curChild);if(key){var unmatchedFromEl=fromNodesLookup[key];if(unmatchedFromEl&&compareNodeNames(curChild,unmatchedFromEl)){curChild.parentNode.replaceChild(unmatchedFromEl,curChild);morphEl(unmatchedFromEl,curChild)}else{handleNodeAdded(curChild)}}else{handleNodeAdded(curChild)}curChild=nextSibling}}function cleanupFromEl(fromEl,curFromNodeChild,curFromNodeKey){while(curFromNodeChild){var fromNextSibling=curFromNodeChild.nextSibling;if(curFromNodeKey=getNodeKey(curFromNodeChild)){addKeyedRemoval(curFromNodeKey)}else{removeNode(curFromNodeChild,fromEl,true)}curFromNodeChild=fromNextSibling}}function morphEl(fromEl,toEl,childrenOnly){var toElKey=getNodeKey(toEl);if(toElKey){delete fromNodesLookup[toElKey]}if(!childrenOnly){var beforeUpdateResult=onBeforeElUpdated(fromEl,toEl);if(beforeUpdateResult===false){return}else if(beforeUpdateResult instanceof HTMLElement){fromEl=beforeUpdateResult;indexTree(fromEl)}morphAttrs(fromEl,toEl);onElUpdated(fromEl);if(onBeforeElChildrenUpdated(fromEl,toEl)===false){return}}if(fromEl.nodeName!=="TEXTAREA"){morphChildren(fromEl,toEl)}else{specialElHandlers.TEXTAREA(fromEl,toEl)}}function morphChildren(fromEl,toEl){var skipFrom=skipFromChildren(fromEl,toEl);var curToNodeChild=toEl.firstChild;var curFromNodeChild=fromEl.firstChild;var curToNodeKey;var curFromNodeKey;var fromNextSibling;var toNextSibling;var matchingFromEl;outer:while(curToNodeChild){toNextSibling=curToNodeChild.nextSibling;curToNodeKey=getNodeKey(curToNodeChild);while(!skipFrom&&curFromNodeChild){fromNextSibling=curFromNodeChild.nextSibling;if(curToNodeChild.isSameNode&&curToNodeChild.isSameNode(curFromNodeChild)){curToNodeChild=toNextSibling;curFromNodeChild=fromNextSibling;continue outer}curFromNodeKey=getNodeKey(curFromNodeChild);var curFromNodeType=curFromNodeChild.nodeType;var isCompatible=undefined;if(curFromNodeType===curToNodeChild.nodeType){if(curFromNodeType===ELEMENT_NODE){if(curToNodeKey){if(curToNodeKey!==curFromNodeKey){if(matchingFromEl=fromNodesLookup[curToNodeKey]){if(fromNextSibling===matchingFromEl){isCompatible=false}else{fromEl.insertBefore(matchingFromEl,curFromNodeChild);if(curFromNodeKey){addKeyedRemoval(curFromNodeKey)}else{removeNode(curFromNodeChild,fromEl,true)}curFromNodeChild=matchingFromEl;curFromNodeKey=getNodeKey(curFromNodeChild)}}else{isCompatible=false}}}else if(curFromNodeKey){isCompatible=false}isCompatible=isCompatible!==false&&compareNodeNames(curFromNodeChild,curToNodeChild);if(isCompatible){morphEl(curFromNodeChild,curToNodeChild)}}else if(curFromNodeType===TEXT_NODE||curFromNodeType==COMMENT_NODE){isCompatible=true;if(curFromNodeChild.nodeValue!==curToNodeChild.nodeValue){curFromNodeChild.nodeValue=curToNodeChild.nodeValue}}}if(isCompatible){curToNodeChild=toNextSibling;curFromNodeChild=fromNextSibling;continue outer}if(curFromNodeKey){addKeyedRemoval(curFromNodeKey)}else{removeNode(curFromNodeChild,fromEl,true)}curFromNodeChild=fromNextSibling}if(curToNodeKey&&(matchingFromEl=fromNodesLookup[curToNodeKey])&&compareNodeNames(matchingFromEl,curToNodeChild)){if(!skipFrom){addChild(fromEl,matchingFromEl)}morphEl(matchingFromEl,curToNodeChild)}else{var onBeforeNodeAddedResult=onBeforeNodeAdded(curToNodeChild);if(onBeforeNodeAddedResult!==false){if(onBeforeNodeAddedResult){curToNodeChild=onBeforeNodeAddedResult}if(curToNodeChild.actualize){curToNodeChild=curToNodeChild.actualize(fromEl.ownerDocument||doc)}addChild(fromEl,curToNodeChild);handleNodeAdded(curToNodeChild)}}curToNodeChild=toNextSibling;curFromNodeChild=fromNextSibling}cleanupFromEl(fromEl,curFromNodeChild,curFromNodeKey);var specialElHandler=specialElHandlers[fromEl.nodeName];if(specialElHandler){specialElHandler(fromEl,toEl)}}var morphedNode=fromNode;var morphedNodeType=morphedNode.nodeType;var toNodeType=toNode.nodeType;if(!childrenOnly){if(morphedNodeType===ELEMENT_NODE){if(toNodeType===ELEMENT_NODE){if(!compareNodeNames(fromNode,toNode)){onNodeDiscarded(fromNode);morphedNode=moveChildren(fromNode,createElementNS(toNode.nodeName,toNode.namespaceURI))}}else{morphedNode=toNode}}else if(morphedNodeType===TEXT_NODE||morphedNodeType===COMMENT_NODE){if(toNodeType===morphedNodeType){if(morphedNode.nodeValue!==toNode.nodeValue){morphedNode.nodeValue=toNode.nodeValue}return morphedNode}else{morphedNode=toNode}}}if(morphedNode===toNode){onNodeDiscarded(fromNode)}else{if(toNode.isSameNode&&toNode.isSameNode(morphedNode)){return}morphEl(morphedNode,toNode,childrenOnly);if(keyedRemovalList){for(var i=0,len=keyedRemovalList.length;i<len;i++){var elToRemove=fromNodesLookup[keyedRemovalList[i]];if(elToRemove){removeNode(elToRemove,elToRemove.parentNode,false)}}}}if(!childrenOnly&&morphedNode!==fromNode&&fromNode.parentNode){if(morphedNode.actualize){morphedNode=morphedNode.actualize(fromNode.ownerDocument||doc)}fromNode.parentNode.replaceChild(morphedNode,fromNode)}return morphedNode}}var morphdom=morphdomFactory(morphAttrs);return morphdom});</script>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+var handlers=[];function H(fn){handlers.push(fn);return handlers.length-1;}
+var queued=false,comp=null;
+function schedule(){if(!queued){queued=true;requestAnimationFrame(render);}}
+class DCLogic{constructor(props){this.props=props||{};this.state={};}setState(o){Object.assign(this.state,typeof o==='function'?o(this.state):o);schedule();}}
+var ICON = {helmet: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNMTAgMzEgQzEwIDE4IDE2IDEwIDI0IDEwIEMzMiAxMCAzOCAxOCAzOCAzMSBMMzIgMzEgTDMyIDI1IEwxNiAyNSBMMTYgMzEgWiIvPjwvZz48L3N2Zz4=',chest: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNMTYgOCBMOSAxMiBMNSAyMyBMMTIgMjUgTDE0IDE5IEwxNCA0MCBMMzQgNDAgTDM0IDE5IEwzNiAyNSBMNDMgMjMgTDM5IDEyIEwzMiA4IEMzMCAxMiAxOCAxMiAxNiA4IFoiLz48L2c+PC9zdmc+',gloves: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNMTQgNDAgTDE0IDIwIEMxNCAxMiAxOCA4IDI0IDggQzMwIDggMzQgMTIgMzQgMjAgTDM0IDI2IEwzOCAyMiBDNDAgMjAgNDMgMjIgNDEgMjUgTDM0IDM0IEwzNCA0MCBaIi8+PHBhdGggZD0iTTE0IDM0IEwzNCAzNCIvPjwvZz48L3N2Zz4=',leggings: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNMTMgOCBMMzUgOCBMMzcgNDAgTDI3IDQwIEwyNCAxOSBMMjEgNDAgTDExIDQwIFoiLz48cGF0aCBkPSJNMTMgMTMgTDM1IDEzIi8+PC9nPjwvc3ZnPg==',boots: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIj48cGF0aCBkPSJNMTUgOCBMMjYgOCBMMjYgMjkgTDM4IDMxIEM0MSAzMiA0MSA0MCAzOCA0MCBMMTMgNDAgWiIvPjxwYXRoIGQ9Ik0xMyAzNSBMNDAgMzUiLz48L2c+PC9zdmc+'};
+
+var HZ_B = '/_blob/';
+var HZ_ITEMS = {
+  planks: { name: 'Planks', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNNSAxMS41IEg0MyBWMjEuNSBINSBaIiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48cGF0aCBkPSJNNSAyNi41IEg0MyBWMzYuNSBINSBaIiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48cGF0aCBkPSJNMTAgMTYuNSBRMTYgMTQuNSAyMiAxNi41IiBzdHJva2Utd2lkdGg9IjEuNSIvPjxwYXRoIGQ9Ik0yNyAzMS41IFEzMyAyOS41IDM5IDMxLjUiIHN0cm9rZS13aWR0aD0iMS41Ii8+PGNpcmNsZSBjeD0iMzguNSIgY3k9IjE2LjUiIHI9IjEuMyIgZmlsbD0iI0VERThEQyIgc3Ryb2tlPSJub25lIi8+PGNpcmNsZSBjeD0iOS41IiBjeT0iMzEuNSIgcj0iMS4zIiBmaWxsPSIjRURFOERDIiBzdHJva2U9Im5vbmUiLz48L2c+PC9zdmc+' },
+  stone: { name: 'Stone', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOCAzMyBRNy41IDIyLjUgMTYgMTcgTDI1IDExIFEzNCA5LjUgMzkuNSAxNyBRNDMuNSAyNSAzOS41IDMzIFEzMy41IDM5LjUgMjIuNSAzOS41IFExMSAzOS41IDggMzMgWiIgZmlsbD0icmdiYSgyMzcsMjMyLDIyMCwwLjIpIi8+PHBhdGggZD0iTTI1IDExIEwyNCAyMyBMMzkuNSAyNSIgc3Ryb2tlLXdpZHRoPSIxLjYiLz48cGF0aCBkPSJNMjQgMjMgTDEzIDI4IiBzdHJva2Utd2lkdGg9IjEuNiIvPjwvZz48L3N2Zz4=' },
+  leaves: { name: 'Leaves', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOCA0MCBDOCAyMSAyMSA4IDQwIDggQzQwIDI3IDI3IDQwIDggNDAgWiIgZmlsbD0icmdiYSgyMzcsMjMyLDIyMCwwLjIpIi8+PHBhdGggZD0iTTggNDAgTDMxIDE3IiBzdHJva2Utd2lkdGg9IjEuOCIvPjxwYXRoIGQ9Ik0xOCAzMCBMMTcuNSAyMiIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48cGF0aCBkPSJNMjMuNSAyNC41IEwzMSAyNCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48L2c+PC9zdmc+' },
+  rope: { name: 'Rope', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIyMyIgY3k9IjIzIiByPSIxNSIgZmlsbD0icmdiYSgyMzcsMjMyLDIyMCwwLjIpIi8+PGNpcmNsZSBjeD0iMjMiIGN5PSIyMyIgcj0iOS41Ii8+PGNpcmNsZSBjeD0iMjMiIGN5PSIyMyIgcj0iNCIvPjxwYXRoIGQ9Ik0zNiAzMCBRNDAgMzUgNDQgMzQiIHN0cm9rZS13aWR0aD0iMi42Ii8+PC9nPjwvc3ZnPg==', desc: 'Used in most tool recipes.' },
+  fiber: { name: 'Fiber', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTQgNDIgQzE3IDMxIDExIDIwIDE2IDciIHN0cm9rZS13aWR0aD0iMi4yIi8+PHBhdGggZD0iTTIzIDQyIEMyNiAzMSAyMCAyMCAyNSA3IiBzdHJva2Utd2lkdGg9IjIuMiIvPjxwYXRoIGQ9Ik0zMiA0MiBDMzUgMzEgMjkgMjAgMzQgNyIgc3Ryb2tlLXdpZHRoPSIyLjIiLz48cGF0aCBkPSJNMTEgMjQgUTI0IDIwIDM3IDIyIEwzNyAyNyBRMjQgMjUgMTEgMjkgWiIgZmlsbD0icmdiYSgyMzcsMjMyLDIyMCwwLjIpIi8+PC9nPjwvc3ZnPg==' },
+  scrap: { name: 'Scrap', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNNiAzMSBMMTQuNSAxNy41IEwyNiAyMiBMMjEgMzUuNSBaIiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48cGF0aCBkPSJNMjcgMTEgTDM4LjUgOSBMNDEuNSAyMi41IEwzMCAyNS41IFoiIGZpbGw9InJnYmEoMjM3LDIzMiwyMjAsMC4yKSIvPjxwYXRoIGQ9Ik0yNS41IDMwIEwzNiAzMiBMMzMgNDEuNSBMMjMuNSAzOS41IFoiIGZpbGw9InJnYmEoMjM3LDIzMiwyMjAsMC4yKSIvPjxjaXJjbGUgY3g9IjE2IiBjeT0iMjciIHI9IjEuNSIgZmlsbD0iI0VERThEQyIgc3Ryb2tlPSJub25lIi8+PGNpcmNsZSBjeD0iMzQiIGN5PSIxNyIgcj0iMS41IiBmaWxsPSIjRURFOERDIiBzdHJva2U9Im5vbmUiLz48L2c+PC9zdmc+' },
+  plastic: { name: 'Plastic', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAgNiBIMjggVjExIEwzMiAxNiBWNDAgUTMyIDQzIDI5IDQzIEgxOSBRMTYgNDMgMTYgNDAgVjE2IEwyMCAxMSBaIiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48cGF0aCBkPSJNMTYgMjQgTDIyIDIxIEwyNyAyNyBMMzIgMjMiIHN0cm9rZS13aWR0aD0iMS42Ii8+PC9nPjwvc3ZnPgo=' },
+  nails: { name: 'Nails', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTAgOS41IEwyMiA5LjUiIHN0cm9rZS13aWR0aD0iMyIvPjxwYXRoIGQ9Ik0xNiAxMCBMMTYgMzQgTDE2IDQwLjUiIHN0cm9rZS13aWR0aD0iMi42Ii8+PHBhdGggZD0iTTI2IDEzLjUgTDM4IDEzLjUiIHN0cm9rZS13aWR0aD0iMyIvPjxwYXRoIGQ9Ik0zMiAxNCBMMzIgMzcuNSBMMzIgNDIiIHN0cm9rZS13aWR0aD0iMi42Ii8+PC9nPjwvc3ZnPg==', desc: 'Used for building.' },
+  hide: { name: 'Hide', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTQgOC41IEwzNCA4LjUgTDM4LjUgMTcuNSBMMzUuNSAyOS41IEw0MC41IDM5LjUgTDI4LjUgMzYuNSBMMjQgNDEuNSBMMTkuNSAzNi41IEw3LjUgMzkuNSBMMTIuNSAyOS41IEw5LjUgMTcuNSBaIiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48cGF0aCBkPSJNMjQgMTMgTDI0IDMzIiBzdHJva2Utd2lkdGg9IjEuNCIvPjwvZz48L3N2Zz4=' },
+  cup_clean: { name: 'Clean Water Cup', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIuNSAxMC41IEwzNS41IDEwLjUgTDMyIDQwIEwxNiA0MCBaIiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48cGF0aCBkPSJNMTQuNCAyMiBMMzMuNiAyMiBMMzIgNDAgTDE2IDQwIFoiIGZpbGw9InJnYmEoMjM3LDIzMiwyMjAsMC4yKSIvPjxwYXRoIGQ9Ik0yNCAyNyBDMjIuMiAyOS41IDIxLjUgMzEgMjEuNSAzMi41IEEyLjUgMi41IDAgMCAwIDI2LjUgMzIuNSBDMjYuNSAzMSAyNS44IDI5LjUgMjQgMjcgWiIgc3Ryb2tlLXdpZHRoPSIxLjYiLz48L2c+PC9zdmc+', desc: 'Safe drinking water.' },
+  cup_sea: { name: 'Seawater Cup', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIuNSAxMC41IEwzNS41IDEwLjUgTDMyIDQwIEwxNiA0MCBaIiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48cGF0aCBkPSJNMTQuMiAyMC41IEMxOCAxOCAyMSAyMyAyNCAyMC41IEMyNyAxOCAzMCAyMyAzMy44IDIwLjUgTDMyIDQwIEwxNiA0MCBaIiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48L2c+PC9zdmc+' },
+  stone_axe: { name: 'Stone Axe', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTUgNDMgTDI5LjUgNS41IiBzdHJva2Utd2lkdGg9IjQuNCIvPjxwYXRoIGQ9Ik0yNy41IDEwLjUgUTMzIDExLjUgMzcgNy41IFE0My41IDE1LjUgNDAgMjggUTM1IDIzIDMwIDIxIEwyNSAxOCBaIiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48L2c+PC9zdmc+', desc: 'Chops trees for wood.' },
+  stone_pickaxe: { name: 'Stone Pickaxe', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgNDEuNSBMMjkgMTUuNSIgc3Ryb2tlLXdpZHRoPSI0LjQiLz48cGF0aCBkPSJNMTEuNSAxMCBRMzMgLTAuNSA0NCAyNS41IFEzNyAxNi41IDMxIDE1LjUgUTI2IDE0LjUgMjIgMTMuNSBRMTYgMTIgMTEuNSAxMCBaIiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48cGF0aCBkPSJNMjYgMTIuNSBMMzMgMTcuNSIgc3Ryb2tlLXdpZHRoPSIzLjIiLz48L2c+PC9zdmc+', desc: 'Mines stone from rocks.' },
+  stone_spear: { name: 'Stone Spear', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOCA0MSBMMzEgMTgiIHN0cm9rZS13aWR0aD0iMy40Ii8+PHBhdGggZD0iTTMwIDE5LjUgUTMwLjUgMTAuNSA0MS41IDYuNSBRMzcuNSAxNy41IDI4LjUgMTggWiIgZmlsbD0icmdiYSgyMzcsMjMyLDIyMCwwLjIpIi8+PHBhdGggZD0iTTI2IDE5LjUgTDI5LjUgMjMiIHN0cm9rZS13aWR0aD0iMi42Ii8+PC9nPjwvc3ZnPg==', desc: 'A long-reach thrusting weapon.' },
+  wooden_club: { name: 'Wooden Club', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOS41IDQxLjUgTDIwLjUgMzAuNSIgc3Ryb2tlLXdpZHRoPSI0LjQiLz48cGF0aCBkPSJNMTguNSAzMi41IFExNS41IDIyLjUgMjQuNSAxMy41IFEzMiA2IDM5LjUgOS41IFE0NCAxNiAzNyAyNCBRMjguNSAzMi41IDE4LjUgMzIuNSBaIiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48Y2lyY2xlIGN4PSIzMSIgY3k9IjE1IiByPSIxLjQiIGZpbGw9IiNFREU4REMiIHN0cm9rZT0ibm9uZSIvPjxjaXJjbGUgY3g9IjI2IiBjeT0iMjMiIHI9IjEuNCIgZmlsbD0iI0VERThEQyIgc3Ryb2tlPSJub25lIi8+PC9nPjwvc3ZnPg==', desc: 'A heavy, simple striking weapon.' },
+  stone_sword: { name: 'Stone Sword', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMzUuNSA2LjUgTDQxLjUgNi41IEw0MS41IDEyLjUgTDIwLjUgMzMuNSBMMTQuNSAyNy41IFoiIGZpbGw9InJnYmEoMjM3LDIzMiwyMjAsMC4yKSIvPjxwYXRoIGQ9Ik0zOC41IDkuNSBMMTcuNSAzMC41IiBzdHJva2Utd2lkdGg9IjEuNiIvPjxwYXRoIGQ9Ik0xMSAyNC41IEwyMy41IDM3IiBzdHJva2Utd2lkdGg9IjMuMiIvPjxwYXRoIGQ9Ik0xNS41IDMyLjUgTDkuNSAzOC41IiBzdHJva2Utd2lkdGg9IjMuNiIvPjxjaXJjbGUgY3g9IjgiIGN5PSI0MCIgcj0iMi4yIiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48L2c+PC9zdmc+', desc: 'A basic slashing weapon.' },
+  torch: { name: 'Torch', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAgNDIuNSBMMjYgMjMiIHN0cm9rZS13aWR0aD0iNC40Ii8+PHBhdGggZD0iTTI3LjUgMjEgQzE5LjUgMTggMjEgMTAgMjYuNSA0IEMyNy41IDkuNSAzNCAxMSAzMi41IDE3IEMzMS44IDE5LjggMjkuOCAyMS4zIDI3LjUgMjEgWiIgZmlsbD0icmdiYSgyMzcsMjMyLDIyMCwwLjIpIi8+PHBhdGggZD0iTTI3LjQgMTkgQzI1IDE3LjggMjUuNCAxNC42IDI3LjIgMTIuNCBDMjcuOCAxNC40IDMwIDE1LjIgMjkuNCAxNy40IEMyOSAxOC42IDI4LjMgMTkuMiAyNy40IDE5IFoiIGZpbGw9InJnYmEoMjM3LDIzMiwyMjAsMC4yKSIvPjxwYXRoIGQ9Ik0yMC41IDI3LjUgTDI3LjUgMjkuNSIgc3Ryb2tlLXdpZHRoPSIyLjYiLz48L2c+PC9zdmc+', desc: 'Lights up the dark.' },
+  wooden_shield: { name: 'Wooden Shield', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjQgNS41IEwzOS41IDEwLjUgTDM5LjUgMjMuNSBDMzkuNSAzMi41IDMyLjUgMzkgMjQgNDIuNSBDMTUuNSAzOSA4LjUgMzIuNSA4LjUgMjMuNSBMOC41IDEwLjUgWiIgZmlsbD0icmdiYSgyMzcsMjMyLDIyMCwwLjIpIi8+PHBhdGggZD0iTTE2LjUgOCBMMTYuNSAzOC41IiBzdHJva2Utd2lkdGg9IjEuNiIvPjxwYXRoIGQ9Ik0zMS41IDggTDMxLjUgMzguNSIgc3Ryb2tlLXdpZHRoPSIxLjYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjIyIiByPSI0IiBmaWxsPSJyZ2JhKDIzNywyMzIsMjIwLDAuMikiLz48L2c+PC9zdmc+', desc: 'Blocks incoming attacks.' },
+  map: { name: 'Map', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNNi41IDEyIEwxNy41IDggTDMwLjUgMTIgTDQxLjUgOCBMNDEuNSAzNiBMMzAuNSA0MCBMMTcuNSAzNiBMNi41IDQwIFoiIGZpbGw9InJnYmEoMjM3LDIzMiwyMjAsMC4yKSIvPjxwYXRoIGQ9Ik0xNy41IDggTDE3LjUgMzYiIHN0cm9rZS13aWR0aD0iMS42Ii8+PHBhdGggZD0iTTMwLjUgMTIgTDMwLjUgNDAiIHN0cm9rZS13aWR0aD0iMS42Ii8+PHBhdGggZD0iTTEwLjUgMzEgUTE2IDI0IDIyIDI3IFEyNyAzMCAzMyAyMiIgc3Ryb2tlLXdpZHRoPSIxLjYiLz48cGF0aCBkPSJNMzQgMTcuNSBMMzggMjEuNSBNMzggMTcuNSBMMzQgMjEuNSIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9nPjwvc3ZnPg==', desc: 'Shows the islands and where you are.' },
+  compass: { name: 'Compass', icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRURFOERDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSIxNyIgZmlsbD0icmdiYSgyMzcsMjMyLDIyMCwwLjIpIi8+PGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMTIuNSIgc3Ryb2tlLXdpZHRoPSIxLjQiLz48cGF0aCBkPSJNMjQgMTIgTDI4LjIgMjQgTDE5LjggMjQgWiIgZmlsbD0iI0VERThEQyIvPjxwYXRoIGQ9Ik0yNCAzNiBMMjguMiAyNCBMMTkuOCAyNCBaIi8+PC9nPjwvc3ZnPg==', desc: 'Points the way while you explore.' }
+};
+// Recipes from the design doc, plus Wooden Shield, Map and Compass from your old crafting script.
+var HZ_RECIPES = {
+  tools: [
+    { id: 'stone_pickaxe', mats: [['planks', 4], ['stone', 4], ['rope', 2]] },
+    { id: 'stone_axe', mats: [['planks', 3], ['stone', 4], ['rope', 2]] },
+    { id: 'stone_spear', mats: [['planks', 3], ['stone', 1], ['rope', 1]] },
+    { id: 'wooden_club', mats: [['planks', 3], ['rope', 1]] },
+    { id: 'stone_sword', mats: [['planks', 3], ['stone', 5], ['rope', 2]] },
+    { id: 'torch', mats: [['planks', 1], ['leaves', 4], ['rope', 1]] },
+    { id: 'wooden_shield', mats: [['planks', 6], ['rope', 2], ['hide', 1]] },
+    { id: 'map', mats: [['hide', 2], ['fiber', 2]] },
+    { id: 'compass', mats: [['scrap', 3], ['plastic', 1]] }
+  ],
+  resources: [
+    { id: 'rope', mats: [['leaves', 3]] },
+    { id: 'nails', mats: [['scrap', 1]] }
+  ],
+  consumables: [
+    { id: 'cup_clean', mats: null }
+  ]
+};
+// Placeholder craft times in seconds — change these to whatever the real game uses.
+var HZ_TIMES = { stone_pickaxe: 4, stone_axe: 4, stone_spear: 3, wooden_club: 2.5, stone_sword: 5, torch: 2, wooden_shield: 4, map: 3, compass: 3, rope: 1.5, nails: 1 };
+var HZ_QMAX = 8;
+var HZ_CAT_NAMES = { tools: 'Tools', resources: 'Resources', consumables: 'Consumables' };
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      open: true,
+      cat: 'tools',
+      sel: 'stone_pickaxe',
+      inv: { planks: 12, stone: 9, leaves: 14, rope: 3, fiber: 6, scrap: 2, hide: 3, cup_clean: 1 },
+      invSel: null,
+      hot: ['stone_axe', 'torch', 'cup_sea', null, null, null, null, null],
+      hotSel: 0,
+      queue: [],
+      elapsed: 0,
+      started: false,
+      finish: null,
+      leaving: false,
+      flashId: null,
+      flashTick: 0
+    };
+    this.uid = 0;
+    this.timers = [];
+    this.finishTimers = [];
+    this.ticker = null;
+  }
+  componentDidMount() {
+    var self = this;
+    this.ticker = setInterval(function () { self.onTick(); }, 100);
+  }
+  componentWillUnmount() {
+    if (this.ticker) clearInterval(this.ticker);
+    this.timers.concat(this.finishTimers).forEach(function (t) { clearTimeout(t); });
+  }
+  later(fn, ms) {
+    this.timers.push(setTimeout(fn, ms));
+  }
+  reserved() {
+    // materials still needed for queued items that have not started yet
+    var s = this.state;
+    var need = {};
+    s.queue.forEach(function (j, i) {
+      var units = j.count - (i === 0 && s.started ? 1 : 0);
+      j.mats.forEach(function (m) { need[m[0]] = (need[m[0]] || 0) + m[1] * units; });
+    });
+    return need;
+  }
+  available(id) {
+    return (this.state.inv[id] || 0) - (this.reserved()[id] || 0);
+  }
+  maxCraftable(r) {
+    var self = this;
+    if (!r.mats) return 0;
+    var n = Infinity;
+    r.mats.forEach(function (m) { n = Math.min(n, Math.floor(self.available(m[0]) / m[1])); });
+    return Math.max(0, n === Infinity ? 0 : n);
+  }
+  canCraft(r) {
+    return this.maxCraftable(r) > 0;
+  }
+  canQueue(r) {
+    var q = this.state.queue;
+    var last = q[q.length - 1];
+    return !!(last && last.id === r.id) || q.length < HZ_QMAX;
+  }
+  current() {
+    var s = this.state;
+    var list = HZ_RECIPES[s.cat];
+    return list.find(function (r) { return r.id === s.sel; }) || list[0];
+  }
+  addToQueue(n) {
+    var s = this.state;
+    var r = this.current();
+    if (n < 1 || !this.canQueue(r)) return;
+    var queue = s.queue.slice();
+    var last = queue[queue.length - 1];
+    if (last && last.id === r.id) {
+      queue[queue.length - 1] = Object.assign({}, last, { count: last.count + n, total: last.total + n });
+    } else {
+      queue.push({ uid: ++this.uid, id: r.id, dur: HZ_TIMES[r.id] || 3, mats: r.mats, count: n, total: n });
+    }
+    this.finishTimers.forEach(function (t) { clearTimeout(t); });
+    this.finishTimers = [];
+    this.setState({ queue: queue, invSel: null, finish: null, leaving: false });
+  }
+  craft() {
+    if (this.canCraft(this.current())) this.addToQueue(1);
+  }
+  craftAll() {
+    this.addToQueue(this.maxCraftable(this.current()));
+  }
+  clearQueue() {
+    // clears everything except the item currently being made
+    var s = this.state;
+    if (!s.queue.length) return;
+    if (s.started) this.setState({ queue: [Object.assign({}, s.queue[0], { count: 1, total: s.queue[0].total - s.queue[0].count + 1 })] });
+    else this.setState({ queue: [], elapsed: 0 });
+  }
+  onTick() {
+    var s = this.state;
+    if (!s.queue.length) return;
+    var job = s.queue[0];
+    var inv = Object.assign({}, s.inv);
+    if (!s.started) {
+      // materials are taken when each item starts
+      var ok = job.mats.every(function (m) { return (inv[m[0]] || 0) >= m[1]; });
+      if (!ok) {
+        this.setState({ queue: s.queue.slice(1), elapsed: 0, started: false });
+        return;
+      }
+      job.mats.forEach(function (m) { inv[m[0]] = inv[m[0]] - m[1]; });
+      this.setState({ inv: inv, started: true, elapsed: 0 });
+      return;
+    }
+    var e = s.elapsed + 0.1;
+    if (e < job.dur - 0.0001) {
+      this.setState({ elapsed: e });
+      return;
+    }
+    var self = this;
+    inv[job.id] = (inv[job.id] || 0) + 1;
+    var queue = s.queue.slice();
+    if (job.count > 1) queue[0] = Object.assign({}, job, { count: job.count - 1 }); else queue.shift();
+    var finish = null;
+    if (!queue.length) {
+      // hold for 0.65s, then slide out (same timing as the old CraftingProgress)
+      finish = { id: job.id, total: job.total };
+      this.finishTimers = [
+        setTimeout(function () { self.setState({ leaving: true }); }, 650),
+        setTimeout(function () { self.setState({ finish: null, leaving: false }); }, 930)
+      ];
+    }
+    var tick = s.flashTick + 1;
+    this.setState({ inv: inv, queue: queue, elapsed: 0, started: false, flashId: job.id, flashTick: tick, finish: finish || s.finish });
+    this.later(function () {
+      if (self.state.flashTick === tick) self.setState({ flashId: null });
+    }, 1500);
+  }
+  renderVals() {
+    var s = this.state;
+    var self = this;
+    var accent = this.props.accent || '#E9B949';
+    var accent2 = accent;
+    var alpha = this.props.panelAlpha != null ? this.props.panelAlpha : 0.68;
+    var panelBg = 'rgba(16, 21, 19, ' + alpha + ')';
+    var hx = String(accent2).replace('#', '');
+    var hn = parseInt(hx.length === 3 ? hx[0] + hx[0] + hx[1] + hx[1] + hx[2] + hx[2] : hx.slice(0, 6), 16);
+    if (isNaN(hn)) hn = 0xE9B949;
+    var accent2Soft = 'rgba(' + ((hn >> 16) & 255) + ', ' + ((hn >> 8) & 255) + ', ' + (hn & 255) + ', 0.35)';
+
+    var queuedById = {};
+    s.queue.forEach(function (j) { queuedById[j.id] = (queuedById[j.id] || 0) + j.count; });
+
+    var cats = ['tools', 'resources', 'consumables'].map(function (id) {
+      var on = s.cat === id;
+      return {
+        label: HZ_CAT_NAMES[id],
+        bg: on ? accent : 'rgba(255, 255, 255, 0.07)',
+        fg: on ? '#1B1A14' : '#EDE8DC',
+        pressed: on ? 'true' : 'false',
+        pick: function () { self.setState({ cat: id, sel: HZ_RECIPES[id][0].id }); }
+      };
+    });
+
+    var cur = this.current();
+    var recipes = HZ_RECIPES[s.cat].map(function (r) {
+      var on = r.id === cur.id;
+      var n = queuedById[r.id] || 0;
+      return {
+        name: HZ_ITEMS[r.id].name,
+        icon: HZ_ITEMS[r.id].icon,
+        border: on ? accent : 'transparent',
+        bg: on ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+        iconOpacity: self.canCraft(r) || n ? '1' : '0.45',
+        queued: n > 0,
+        queuedText: 'x' + n,
+        pick: function () { self.setState({ sel: r.id }); }
+      };
+    });
+
+    var mats = (cur.mats || []).map(function (m) {
+      var have = Math.max(0, self.available(m[0]));
+      var ok = have >= m[1];
+      return {
+        name: HZ_ITEMS[m[0]].name,
+        icon: HZ_ITEMS[m[0]].icon,
+        have: String(have),
+        need: String(m[1]),
+        color: ok ? '#EDE8DC' : '#F4A47C',
+        statusColor: ok ? accent2 : '#F4A47C',
+        status: ok ? 'Ready' : 'Need ' + (m[1] - have) + ' more'
+      };
+    });
+    var can = this.canCraft(cur);
+    var full = !this.canQueue(cur);
+    var maxN = this.maxCraftable(cur);
+
+    var keys = Object.keys(s.inv).filter(function (k) { return s.inv[k] > 0; });
+    var flashCls = s.flashTick % 2 ? 'hz-flash-a' : 'hz-flash-b';
+    var slots = [];
+    for (var i = 0; i < 30; i++) {
+      (function (idx) {
+        var k = keys[idx];
+        var on = s.invSel === idx && !!k;
+        slots.push({
+          has: !!k,
+          icon: k ? HZ_ITEMS[k].icon : '',
+          count: k && s.inv[k] > 1 ? String(s.inv[k]) : '',
+          label: k ? HZ_ITEMS[k].name + ', ' + s.inv[k] : 'Empty slot',
+          border: on ? accent : 'transparent',
+          cls: k && k === s.flashId ? flashCls : '',
+          pick: function () { self.setState({ invSel: idx }); }
+        });
+      })(i);
+    }
+    var selKey = s.invSel != null ? keys[s.invSel] : null;
+
+    var hot = s.hot.map(function (id, idx) {
+      var on = s.hotSel === idx;
+      return {
+        num: String(idx + 1),
+        has: !!id,
+        icon: id ? HZ_ITEMS[id].icon : '',
+        label: 'Hotbar slot ' + (idx + 1) + (id ? ', ' + HZ_ITEMS[id].name : ', empty'),
+        pressed: on ? 'true' : 'false',
+        border: on ? accent : 'rgba(255, 255, 255, 0.10)',
+        bg: on ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.06)',
+        pick: function () { self.setState({ hotSel: idx }); }
+      };
+    });
+    var hotId = s.hot[s.hotSel];
+
+    var job = s.queue[0];
+    var qCount = queuedById[cur.id] || 0;
+    var unit = job ? (s.started ? Math.min(1, s.elapsed / job.dur) : 0) : 1;
+
+    return {
+      accent: accent,
+      accent2: accent2,
+      accent2Soft: accent2Soft,
+      panelBg: panelBg,
+      open: s.open,
+      closed: !s.open,
+      openInv: function () { self.setState({ open: true }); },
+      closeInv: function () { self.setState({ open: false }); },
+      usedSlots: String(keys.length),
+      invInfo: selKey ? HZ_ITEMS[selKey].name + '  x' + s.inv[selKey] : 'Click an item',
+      slots: slots,
+      cats: cats,
+      recipes: recipes,
+      curIcon: HZ_ITEMS[cur.id].icon,
+      curName: HZ_ITEMS[cur.id].name,
+      curCat: HZ_CAT_NAMES[s.cat] + (HZ_TIMES[cur.id] ? '  ·  ' + HZ_TIMES[cur.id] + 's to craft' : ''),
+      curDesc: HZ_ITEMS[cur.id].desc || '',
+      hasRecipe: !!cur.mats,
+      noRecipe: !cur.mats,
+      mats: mats,
+      queuedLine: qCount ? qCount + ' in queue' : '',
+      canClear: s.queue.length > 1 || (s.queue.length === 1 && (s.queue[0].count > 1 || !s.started)),
+      clearQueue: function () { self.clearQueue(); },
+      craft: function () { self.craft(); },
+      craftAll: function () { self.craftAll(); },
+      craftDisabled: !can || full,
+      craftLabel: full ? 'Queue full' : (can ? 'Craft' : (cur.mats ? 'Missing materials' : 'Recipe not set')),
+      craftBg: can && !full ? accent : 'rgba(255, 255, 255, 0.08)',
+      craftFg: can && !full ? '#1B1A14' : 'rgba(237, 232, 220, 0.6)',
+      allLabel: maxN > 1 ? 'All (' + maxN + ')' : 'All',
+      allBorder: can && !full ? accent : 'rgba(255, 255, 255, 0.12)',
+      allFg: can && !full ? accent : 'rgba(237, 232, 220, 0.5)',
+      hot: hot,
+      hotName: hotId ? HZ_ITEMS[hotId].name : 'Empty hand',
+      showProg: s.queue.length > 0 || !!s.finish,
+      pCls: s.leaving ? 'hz-pout' : 'hz-pin',
+      pTitle: job ? 'Crafting ' + HZ_ITEMS[job.id].name : (s.finish ? 'Crafted ' + HZ_ITEMS[s.finish.id].name : ''),
+      pDesc: job ? (Math.max(0, job.dur * job.count - (s.started ? s.elapsed : 0)).toFixed(1) + 's left' + (s.queue.length > 1 ? '  ·  ' + (s.queue.length - 1) + ' more queued' : '')) : 'Done',
+      pSub: job ? (s.queue.length > 1 ? 'Crafting  ·  next: ' + HZ_ITEMS[s.queue[1].id].name + ' x' + s.queue[1].count : 'Crafting...') : 'Added to inventory',
+      pAmount: job ? 'x' + job.count : (s.finish ? 'x' + s.finish.total : ''),
+      pTime: job ? Math.max(0, job.dur * job.count - (s.started ? s.elapsed : 0)).toFixed(1) + 's' : 'Done',
+      pIcon: job ? HZ_ITEMS[job.id].icon : (s.finish ? HZ_ITEMS[s.finish.id].icon : ''),
+      pDone: !job && !!s.finish,
+      pRingOff: String((100.53 * (1 - unit)).toFixed(2)),
+      pTickCls: s.flashId ? (s.flashTick % 2 ? 'hz-tick-a' : 'hz-tick-b') : '',
+      pAria: job ? 'Crafting ' + job.count + ' ' + HZ_ITEMS[job.id].name : (s.finish ? 'Crafted ' + s.finish.total + ' ' + HZ_ITEMS[s.finish.id].name : ''),
+      pPct: String((unit * 100).toFixed(1)),
+      pTrans: unit < 0.08 ? 'none' : 'width 0.1s linear',
+    };
+  }
+}
+
+function T(v) {
+  const prog = v.showProg ? `
+  <div id="prog" class="${v.pCls}" role="status" style="position:absolute;right:8px;top:12px;width:190px;color:#FFFFFF;text-shadow:0 1px 3px rgba(0,0,0,0.7)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+      <span style="font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.pTitle)}</span>
+      <span style="flex:none;font-size:17px">${esc(v.pAmount)}</span>
+    </div>
+    <div style="margin-top:3px;height:4px;border-radius:2px;background:rgba(255,255,255,0.2);overflow:hidden">
+      <div style="height:4px;width:${v.pPct}%;border-radius:2px;background:${v.accent};transition:${v.pTrans}"></div>
+    </div>
+  </div>` : '';
+
+  const closedHud = v.closed ? `
+  <div id="crosshair" aria-hidden="true" style="position:absolute;left:631px;top:351px;width:18px;height:18px">
+    <div style="position:absolute;left:8px;top:0;width:2px;height:18px;background:rgba(255,255,255,0.7)"></div>
+    <div style="position:absolute;left:0;top:8px;width:18px;height:2px;background:rgba(255,255,255,0.7)"></div>
+  </div>
+  <div id="hotname" style="position:absolute;left:0;bottom:100px;width:1280px;text-align:center;font-size:20px;color:#EDE8DC;text-shadow:0 1px 3px rgba(0,0,0,0.6)">${esc(v.hotName)}</div>` : '';
+
+  const equip = [['Helmet', ICON.helmet], ['Chestplate', ICON.chest], ['Gloves', ICON.gloves], ['Leggings', ICON.leggings], ['Boots', ICON.boots]].map(([n, src]) => `
+        <button type="button" aria-label="${n} slot, empty" title="${n}" style="width:64px;height:64px;border-radius:8px;border:2px dashed rgba(237,232,220,0.18);background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;padding:0"><img src="${src}" alt="" style="width:36px;height:36px;opacity:0.3"></button>`).join('');
+
+  const slots = v.slots.map(sl => `
+          <button type="button" class="${sl.cls}" aria-label="${esc(sl.label)}" data-h="${H(sl.pick)}" style="position:relative;width:64px;height:64px;border-radius:8px;border:2px solid ${sl.border};background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;padding:0;color:${v.accent}">
+            ${sl.has ? `<img src="${sl.icon}" alt="" style="width:52px;height:52px"><span style="position:absolute;right:6px;bottom:2px;font-size:17px;color:#EDE8DC">${esc(sl.count)}</span>` : ''}
+          </button>`).join('');
+
+  const cats = v.cats.map(c => `
+          <button type="button" aria-pressed="${c.pressed}" data-h="${H(c.pick)}" style="height:36px;padding:0 16px;border-radius:18px;border:none;font-size:19px;background:${c.bg};color:${c.fg}">${esc(c.label)}</button>`).join('');
+
+  const recipes = v.recipes.map(r => `
+          <button type="button" aria-label="${esc(r.name)}" data-h="${H(r.pick)}" style="position:relative;flex:none;width:90px;height:100px;border-radius:10px;border:2px solid ${r.border};background:${r.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:4px;color:#EDE8DC">
+            <img src="${r.icon}" alt="" style="width:56px;height:56px;opacity:${r.iconOpacity}">
+            <span style="font-size:16px;line-height:1.05;text-align:center">${esc(r.name)}</span>
+            ${r.queued ? `<span style="position:absolute;right:5px;top:4px;min-width:22px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:10px;background:${v.accent};color:#1B1A14;font-size:14px;line-height:20px">${esc(r.queuedText)}</span>` : ''}
+          </button>`).join('');
+
+  const mats = v.hasRecipe ? v.mats.map(m => `
+            <div style="height:48px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;padding:0 12px">
+              <img src="${m.icon}" alt="" style="width:40px;height:40px">
+              <div style="flex-grow:1;display:flex;flex-direction:column;line-height:1.05">
+                <span style="font-size:19px">${esc(m.name)}</span>
+                <span style="font-size:15px;color:${m.statusColor || m.color}">${esc(m.status)}</span>
+              </div>
+              <span style="font-size:21px;color:${m.color}">${esc(m.have)} / ${esc(m.need)}</span>
+            </div>`).join('') : `
+            <div style="border-radius:10px;border:2px dashed rgba(237,232,220,0.2);padding:16px;font-size:18px;color:rgba(237,232,220,0.75)">Recipe not set yet</div>`;
+
+  const menu = v.open ? `
+  <div id="dim" style="position:absolute;left:0;top:0;width:1280px;height:720px;background:rgba(6,9,8,0.42);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:hzFade 0.12s ease-out"></div>
+  <div id="menu" style="position:absolute;left:0;top:62px;width:1280px;display:flex;justify-content:center;gap:20px;animation:hzOpen 0.16s cubic-bezier(0.34,1.56,0.64,1)">
+    <section aria-label="Inventory" style="width:464px;height:560px;box-sizing:border-box;padding:20px;border-radius:14px;background:${v.panelBg};display:flex;flex-direction:column;animation:hzFromLeft 0.16s cubic-bezier(0.25,1,0.5,1)">
+      <div style="height:32px;display:flex;align-items:center;justify-content:space-between">
+        <h2 style="margin:0;font-size:30px;font-weight:400;letter-spacing:1px">Inventory</h2>
+        <span style="font-size:19px;color:rgba(237,232,220,0.7)">${esc(v.usedSlots)} / 30</span>
+      </div>
+      <div style="margin-top:12px;font-size:17px;color:rgba(237,232,220,0.7)">Equipment</div>
+      <div style="margin-top:6px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;width:352px">${equip}
+      </div>
+      <div style="margin-top:14px;display:flex;justify-content:space-between;font-size:17px">
+        <span style="color:rgba(237,232,220,0.7)">Backpack</span>
+        <span style="color:#EDE8DC">${esc(v.invInfo)}</span>
+      </div>
+      <div style="margin-top:6px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px">${slots}
+      </div>
+    </section>
+    <section aria-label="Crafting" style="width:640px;height:560px;box-sizing:border-box;padding:20px;border-radius:14px;background:${v.panelBg};display:flex;flex-direction:column;animation:hzFromRight 0.16s cubic-bezier(0.25,1,0.5,1)">
+      <div style="height:36px;display:flex;align-items:center;gap:8px">
+        <h2 style="margin:0;font-size:30px;font-weight:400;letter-spacing:1px;flex-grow:1">Crafting</h2>${cats}
+        <button type="button" aria-label="Close inventory" data-h="${H(v.closeInv)}" style="width:36px;height:36px;margin-left:6px;border-radius:18px;border:none;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;padding:0">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"><path d="M3 3 L13 13 M13 3 L3 13" stroke="#EDE8DC" stroke-width="2" stroke-linecap="round"></path></svg>
+        </button>
+      </div>
+      <div class="hz-row" style="margin-top:16px;height:112px;display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;box-sizing:border-box">${recipes}
+      </div>
+      <div style="margin-top:14px;flex-grow:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px">
+        <div style="border-radius:12px;background:rgba(255,255,255,0.05);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:16px;text-align:center">
+          <img src="${v.curIcon}" alt="" style="width:156px;height:156px">
+          <div style="margin-top:8px;font-size:32px;line-height:1">${esc(v.curName)}</div>
+          <div style="font-size:16px;color:rgba(237,232,220,0.7)">${esc(v.curCat)}</div>
+          <div style="margin-top:6px;font-size:18px;color:rgba(237,232,220,0.85);max-width:240px">${esc(v.curDesc)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:17px;color:rgba(237,232,220,0.7)">Required materials</div>${mats}
+          <div style="flex-grow:1"></div>
+          <div style="height:26px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <span style="font-size:17px;color:rgba(237,232,220,0.7)">${esc(v.queuedLine)}</span>
+            ${v.canClear ? `<button type="button" data-h="${H(v.clearQueue)}" style="height:26px;padding:0 10px;border-radius:13px;border:none;background:rgba(255,255,255,0.08);color:#EDE8DC;font-size:15px">Clear queue</button>` : ''}
+          </div>
+          <div style="display:flex;gap:8px">
+            <button type="button" data-h="${H(v.craft)}" ${v.craftDisabled ? 'disabled' : ''} style="flex-grow:1;height:52px;border-radius:12px;border:none;font-size:26px;letter-spacing:1px;background:${v.craftBg};color:${v.craftFg}">${esc(v.craftLabel)}</button>
+            <button type="button" data-h="${H(v.craftAll)}" ${v.craftDisabled ? 'disabled' : ''} style="flex:none;width:104px;height:52px;box-sizing:border-box;border-radius:12px;border:2px solid ${v.allBorder};background:transparent;font-size:20px;color:${v.allFg}">${esc(v.allLabel)}</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>` : '';
+
+  const hot = v.hot.map(h => `
+      <button type="button" aria-label="${esc(h.label)}" aria-pressed="${h.pressed}" data-h="${H(h.pick)}" style="position:relative;width:64px;height:64px;border-radius:8px;border:2px solid ${h.border};background:${h.bg};display:flex;align-items:center;justify-content:center;padding:0;color:#EDE8DC">
+        <span style="position:absolute;left:6px;top:1px;font-size:15px;color:rgba(237,232,220,0.75)">${esc(h.num)}</span>
+        ${h.has ? `<img src="${h.icon}" alt="" style="width:40px;height:40px">` : ''}
+      </button>`).join('');
+
+  return `
+  <svg aria-hidden="true" width="1280" height="720" viewBox="0 0 1280 720" style="position:absolute;left:0;top:0">
+    <rect x="0" y="0" width="1280" height="430" fill="#2E3F3A"></rect>
+    <rect x="0" y="430" width="1280" height="290" fill="#1F2E2D"></rect>
+    <path d="M0 432 C90 392 170 372 260 398 C320 414 360 430 420 432 Z" fill="#1A2522"></path>
+    <path d="M520 432 C600 360 700 330 790 372 C840 396 880 420 960 432 Z" fill="#18221F"></path>
+    <path d="M1040 432 C1100 404 1170 396 1280 412 L1280 432 Z" fill="#1A2522"></path>
+    <path d="M660 340 L690 300 L712 330 L730 312 L760 352" fill="none" stroke="#18221F" stroke-width="6"></path>
+  </svg>${closedHud}${menu}${prog}
+  <div id="hotbargroup" style="position:absolute;left:304px;bottom:14px;width:672px;height:80px;display:flex;gap:8px">
+    <div aria-label="Hotbar" style="width:584px;box-sizing:border-box;padding:8px;border-radius:12px;background:${v.panelBg};display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px">${hot}
+    </div>
+    <button type="button" aria-label="Inventory (Tab)" data-h="${H(v.toggleInv)}" style="position:relative;width:80px;height:80px;border-radius:12px;border:2px solid ${v.open ? v.accent : 'transparent'};background:${v.panelBg};display:flex;align-items:center;justify-content:center;padding:0;color:#EDE8DC">
+      <span style="position:absolute;left:7px;top:2px;font-size:13px;color:rgba(237,232,220,0.65)">TAB</span>
+      <svg aria-hidden="true" width="34" height="34" viewBox="0 0 28 28" fill="none" stroke="#EDE8DC" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 9 V7.5 a4 4 0 0 1 8 0 V9"></path><rect x="5" y="9" width="18" height="15" rx="4.5"></rect><path d="M9 16.5 H19"></path></svg>
+    </button>
+  </div>`;
+}
+
+var root=document.getElementById('root');
+function render(){
+  queued=false;handlers=[];
+  var v=comp.renderVals();
+  v.toggleInv=function(){comp.setState({open:!comp.state.open});};
+  morphdom(root,'<div id="root">'+T(v)+'</div>');
+}
+root.addEventListener('click',function(e){var el=e.target.closest('[data-h]');if(el&&!el.disabled){var fn=handlers[+el.dataset.h];if(fn)fn();}});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Tab'){e.preventDefault();comp.setState({open:!comp.state.open});return;}
+  var n=parseInt(e.key,10);if(n>=1&&n<=8)comp.setState({hotSel:n-1});
+});
+function fit(){var s=Math.min(innerWidth/1280,innerHeight/720);root.style.transform='scale('+s+')';}
+addEventListener('resize',fit);fit();
+comp=new Component({});
+comp.componentDidMount();
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Horizon — Inventory and Crafting</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#EDE8DC}a:hover{color:#FFFFFF}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed}
+.hz-row::-webkit-scrollbar{height:6px}
+.hz-row::-webkit-scrollbar-thumb{background:rgba(237,232,220,0.25);border-radius:3px}
+@keyframes hzOpen{from{opacity:0;transform:scale(0.98)}to{opacity:1;transform:scale(1)}}
+@keyframes hzFade{from{opacity:0}to{opacity:1}}
+@keyframes hzIn{0%{transform:scale(0.5);opacity:0}70%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
+@keyframes hzFlash{0%{box-shadow:0 0 0 0 currentColor}100%{box-shadow:0 0 0 10px transparent}}
+@keyframes hzPIn{from{transform:translateX(21px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes hzPOut{from{transform:translateX(0);opacity:1}to{transform:translateX(21px);opacity:0}}
+@keyframes hzTick{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}
+.hz-in{animation:hzIn 0.28s ease-out}
+.hz-flash-a,.hz-flash-b{animation:hzFlash 0.7s ease-out 2}
+.hz-pin{animation:hzPIn 0.28s cubic-bezier(0.25,1,0.5,1)}
+.hz-pout{animation:hzPOut 0.28s cubic-bezier(0.5,0,0.75,0) forwards}
+.hz-tick-a,.hz-tick-b{animation:hzTick 0.3s ease-out}
+@media (prefers-reduced-motion: reduce){.hz-in,.hz-flash-a,.hz-flash-b,.hz-pin,.hz-pout,.hz-tick-a,.hz-tick-b{animation:none}}
+</style>
+</helmet>
+<div style="width: 1280px; height: 720px; position: relative; overflow: hidden; font-family: 'Patrick Hand', 'Comic Sans MS', sans-serif; color: #EDE8DC; background: #2E3F3A">
+
+  <svg aria-hidden="true" width="1280" height="720" viewBox="0 0 1280 720" style="position: absolute; left: 0; top: 0">
+    <rect x="0" y="430" width="1280" height="290" fill="#1F2E2D"></rect>
+    <path d="M0 432 C90 392 170 372 260 398 C320 414 360 430 420 432 Z" fill="#1A2522"></path>
+    <path d="M520 432 C600 360 700 330 790 372 C840 396 880 420 960 432 Z" fill="#18221F"></path>
+    <path d="M1040 432 C1100 404 1170 396 1280 412 L1280 432 Z" fill="#1A2522"></path>
+    <path d="M660 340 L690 300 L712 330 L730 312 L760 352" fill="none" stroke="#18221F" stroke-width="6"></path>
+  </svg>
+
+  <sc-if value="{{closed}}" hint-placeholder-val="{{ false }}">
+    <div aria-hidden="true" style="position: absolute; left: 631px; top: 351px; width: 18px; height: 18px">
+      <div style="position: absolute; left: 8px; top: 0; width: 2px; height: 18px; background: rgba(255, 255, 255, 0.7)"></div>
+      <div style="position: absolute; left: 0; top: 8px; width: 18px; height: 2px; background: rgba(255, 255, 255, 0.7)"></div>
+    </div>
+    <button type="button" onClick="{{openInv}}" style="position: absolute; left: 24px; bottom: 30px; height: 48px; padding: 0 16px 0 8px; border-radius: 12px; border: none; background: {{panelBg}}; display: flex; align-items: center; gap: 10px; color: #EDE8DC; font-size: 20px; animation: hzFade 0.2s ease-out">
+      <span style="height: 32px; padding: 0 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.12); display: flex; align-items: center; font-size: 16px; letter-spacing: 1px">TAB</span>
+      Inventory
+    </button>
+    <div style="position: absolute; left: 0; bottom: 100px; width: 1280px; text-align: center; font-size: 20px; color: #EDE8DC">{{hotName}}</div>
+  </sc-if>
+
+  <sc-if value="{{open}}" hint-placeholder-val="{{ true }}">
+  <div style="position: absolute; left: 0; top: 0; width: 1280px; height: 720px; background: rgba(6, 9, 8, 0.42); animation: hzFade 0.18s ease-out"></div>
+
+  <div style="position: absolute; left: 0; top: 62px; width: 1280px; display: flex; justify-content: center; gap: 20px; animation: hzOpen 0.18s ease-out">
+
+    <section aria-label="Inventory" style="width: 464px; height: 560px; box-sizing: border-box; padding: 20px; border-radius: 14px; background: {{panelBg}}; display: flex; flex-direction: column">
+      <div style="height: 32px; display: flex; align-items: center; justify-content: space-between">
+        <h2 style="margin: 0; font-size: 30px; font-weight: 400; letter-spacing: 1px">Inventory</h2>
+        <span style="font-size: 19px; color: rgba(237, 232, 220, 0.7)">{{usedSlots}} / 30</span>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 17px; color: rgba(237, 232, 220, 0.7)">Equipment</div>
+      <div style="margin-top: 6px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; width: 352px">
+        <button type="button" aria-label="Helmet slot, empty" title="Helmet" style="width: 64px; height: 64px; border-radius: 8px; border: 2px dashed rgba(237, 232, 220, 0.18); background: rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: center; padding: 0"><img src="/_blob/e9bfdba43e1bb35e9aad22ff659cbab5" alt="" style="width: 36px; height: 36px; opacity: 0.3"></button>
+        <button type="button" aria-label="Chestplate slot, empty" title="Chestplate" style="width: 64px; height: 64px; border-radius: 8px; border: 2px dashed rgba(237, 232, 220, 0.18); background: rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: center; padding: 0"><img src="/_blob/6f5f3f7340f7293e925beadb83271e59" alt="" style="width: 36px; height: 36px; opacity: 0.3"></button>
+        <button type="button" aria-label="Gloves slot, empty" title="Gloves" style="width: 64px; height: 64px; border-radius: 8px; border: 2px dashed rgba(237, 232, 220, 0.18); background: rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: center; padding: 0"><img src="/_blob/cb9890b46439cb622fd27937bcba09cd" alt="" style="width: 36px; height: 36px; opacity: 0.3"></button>
+        <button type="button" aria-label="Leggings slot, empty" title="Leggings" style="width: 64px; height: 64px; border-radius: 8px; border: 2px dashed rgba(237, 232, 220, 0.18); background: rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: center; padding: 0"><img src="/_blob/a584d1fa80e3b27e3314f636a60a2acf" alt="" style="width: 36px; height: 36px; opacity: 0.3"></button>
+        <button type="button" aria-label="Boots slot, empty" title="Boots" style="width: 64px; height: 64px; border-radius: 8px; border: 2px dashed rgba(237, 232, 220, 0.18); background: rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: center; padding: 0"><img src="/_blob/ec78bbf6a148753d146b876291db9e29" alt="" style="width: 36px; height: 36px; opacity: 0.3"></button>
+      </div>
+
+      <div style="margin-top: 14px; display: flex; justify-content: space-between; font-size: 17px">
+        <span style="color: rgba(237, 232, 220, 0.7)">Backpack</span>
+        <span style="color: #EDE8DC">{{invInfo}}</span>
+      </div>
+      <div style="margin-top: 6px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{slots}}" as="sl" hint-placeholder-count="30">
+          <button type="button" class="{{sl.cls}}" aria-label="{{sl.label}}" onClick="{{sl.pick}}" style="position: relative; width: 64px; height: 64px; border-radius: 8px; border: 2px solid {{sl.border}}; background: rgba(255, 255, 255, 0.07); display: flex; align-items: center; justify-content: center; padding: 0; color: {{accent2}}">
+            <sc-if value="{{sl.has}}" hint-placeholder-val="{{ true }}">
+              <img src="{{sl.icon}}" alt="" style="width: 52px; height: 52px">
+              <span style="position: absolute; right: 6px; bottom: 2px; font-size: 17px; color: #EDE8DC">{{sl.count}}</span>
+            </sc-if>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <section aria-label="Crafting" style="width: 640px; height: 560px; box-sizing: border-box; padding: 20px; border-radius: 14px; background: {{panelBg}}; display: flex; flex-direction: column">
+      <div style="height: 36px; display: flex; align-items: center; gap: 8px">
+        <h2 style="margin: 0; font-size: 30px; font-weight: 400; letter-spacing: 1px; flex-grow: 1">Crafting</h2>
+        <sc-for list="{{cats}}" as="c" hint-placeholder-count="3">
+          <button type="button" aria-pressed="{{c.pressed}}" onClick="{{c.pick}}" style="height: 36px; padding: 0 16px; border-radius: 18px; border: none; font-size: 19px; background: {{c.bg}}; color: {{c.fg}}">{{c.label}}</button>
+        </sc-for>
+        <button type="button" aria-label="Close inventory" onClick="{{closeInv}}" style="width: 36px; height: 36px; margin-left: 6px; border-radius: 18px; border: none; background: rgba(255, 255, 255, 0.07); display: flex; align-items: center; justify-content: center; padding: 0">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"><path d="M3 3 L13 13 M13 3 L3 13" stroke="#EDE8DC" stroke-width="2" stroke-linecap="round"></path></svg>
+        </button>
+      </div>
+
+      <div class="hz-row" style="margin-top: 16px; height: 112px; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; box-sizing: border-box">
+        <sc-for list="{{recipes}}" as="r" hint-placeholder-count="6">
+          <button type="button" aria-label="{{r.name}}" onClick="{{r.pick}}" style="position: relative; flex: none; width: 90px; height: 100px; border-radius: 10px; border: 2px solid {{r.border}}; background: {{r.bg}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 4px; color: #EDE8DC">
+            <img src="{{r.icon}}" alt="" style="width: 56px; height: 56px; opacity: {{r.iconOpacity}}">
+            <span style="font-size: 16px; line-height: 1.05; text-align: center">{{r.name}}</span>
+            <sc-if value="{{r.queued}}" hint-placeholder-val="{{ false }}">
+              <span style="position: absolute; right: 5px; top: 4px; min-width: 22px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; background: {{accent2}}; color: #1B1A14; font-size: 14px; line-height: 20px">{{r.queuedText}}</span>
+            </sc-if>
+          </button>
+        </sc-for>
+      </div>
+
+      <div style="margin-top: 14px; flex-grow: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+        <div style="border-radius: 12px; background: rgba(255, 255, 255, 0.05); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 16px; text-align: center">
+          <img src="{{curIcon}}" alt="" style="width: 156px; height: 156px">
+          <div style="margin-top: 8px; font-size: 32px; line-height: 1">{{curName}}</div>
+          <div style="font-size: 16px; color: rgba(237, 232, 220, 0.7)">{{curCat}}</div>
+          <div style="margin-top: 6px; font-size: 18px; color: rgba(237, 232, 220, 0.85); max-width: 240px">{{curDesc}}</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="font-size: 17px; color: rgba(237, 232, 220, 0.7)">Required materials</div>
+          <sc-if value="{{hasRecipe}}" hint-placeholder-val="{{ true }}">
+            <sc-for list="{{mats}}" as="m" hint-placeholder-count="3">
+              <div style="height: 48px; border-radius: 10px; background: rgba(255, 255, 255, 0.06); display: flex; align-items: center; gap: 10px; padding: 0 12px">
+                <img src="{{m.icon}}" alt="" style="width: 40px; height: 40px">
+                <div style="flex-grow: 1; display: flex; flex-direction: column; line-height: 1.05">
+                  <span style="font-size: 19px">{{m.name}}</span>
+                  <span style="font-size: 15px; color: {{m.statusColor}}">{{m.status}}</span>
+                </div>
+                <span style="font-size: 21px; color: {{m.color}}">{{m.have}} / {{m.need}}</span>
+              </div>
+            </sc-for>
+          </sc-if>
+          <sc-if value="{{noRecipe}}" hint-placeholder-val="{{ false }}">
+            <div style="border-radius: 10px; border: 2px dashed rgba(237, 232, 220, 0.2); padding: 16px; font-size: 18px; color: rgba(237, 232, 220, 0.75)">Recipe not set yet</div>
+          </sc-if>
+          <div style="flex-grow: 1"></div>
+          <div style="height: 26px; display: flex; align-items: center; justify-content: space-between; gap: 8px">
+            <span style="font-size: 17px; color: rgba(237, 232, 220, 0.7)">{{queuedLine}}</span>
+            <sc-if value="{{canClear}}" hint-placeholder-val="{{ false }}">
+              <button type="button" onClick="{{clearQueue}}" style="height: 26px; padding: 0 10px; border-radius: 13px; border: none; background: rgba(255, 255, 255, 0.08); color: #EDE8DC; font-size: 15px">Clear queue</button>
+            </sc-if>
+          </div>
+          <div style="display: flex; gap: 8px">
+            <button type="button" onClick="{{craft}}" disabled="{{craftDisabled}}" style="flex-grow: 1; height: 52px; border-radius: 12px; border: none; font-size: 26px; letter-spacing: 1px; background: {{craftBg}}; color: {{craftFg}}">{{craftLabel}}</button>
+            <button type="button" onClick="{{craftAll}}" disabled="{{craftDisabled}}" style="flex: none; width: 104px; height: 52px; box-sizing: border-box; border-radius: 12px; border: 2px solid {{allBorder}}; background: transparent; font-size: 20px; color: {{allFg}}">{{allLabel}}</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{showProg}}" hint-placeholder-val="{{ true }}">
+    <div class="{{pCls}}" role="status" style="position: absolute; right: 8px; top: 12px; width: 190px; color: #FFFFFF; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7)">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px">
+        <span style="font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{pTitle}}</span>
+        <span style="flex: none; font-size: 17px">{{pAmount}}</span>
+      </div>
+      <div style="margin-top: 3px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); overflow: hidden">
+        <div style="height: 4px; width: {{pPct}}%; border-radius: 2px; background: {{accent}}; transition: {{pTrans}}"></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <div aria-label="Hotbar" style="position: absolute; left: 348px; bottom: 14px; width: 584px; box-sizing: border-box; padding: 8px; border-radius: 12px; background: {{panelBg}}; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px">
+    <sc-for list="{{hot}}" as="h" hint-placeholder-count="8">
+      <button type="button" aria-label="{{h.label}}" aria-pressed="{{h.pressed}}" onClick="{{h.pick}}" style="position: relative; width: 64px; height: 64px; border-radius: 8px; border: 2px solid {{h.border}}; background: {{h.bg}}; display: flex; align-items: center; justify-content: center; padding: 0; color: #EDE8DC">
+        <span style="position: absolute; left: 6px; top: 1px; font-size: 15px; color: rgba(237, 232, 220, 0.75)">{{h.num}}</span>
+        <sc-if value="{{h.has}}" hint-placeholder-val="{{ true }}">
+          <img src="{{h.icon}}" alt="" style="width: 40px; height: 40px">
+        </sc-if>
+      </button>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#E9B949","options":["#E9B949","#F2A07B","#E8D27A"]},"panelAlpha":{"editor":"range","default":0.68,"min":0.4,"max":0.92,"step":0.02},"$preview":{"width":1280,"height":720}}'>
+var HZ_B = '/_blob/';
+var HZ_ITEMS = {
+  planks: { name: 'Planks', icon: HZ_B + 'f52ac9b24bc6be61503685ad643c594b' },
+  stone: { name: 'Stone', icon: HZ_B + 'a93eb27605502043c8e5c1e64c77a709' },
+  leaves: { name: 'Leaves', icon: HZ_B + '2ef448c726ae1f3ac88bad19cb74aa06' },
+  rope: { name: 'Rope', icon: HZ_B + '1329d1af324fb5be130ae46a474dab7c', desc: 'Used in most tool recipes.' },
+  fiber: { name: 'Fiber', icon: HZ_B + '12042d8b1497aed4359b0410565007bc' },
+  scrap: { name: 'Scrap', icon: HZ_B + 'd39708b8c1d3caece902582188668a80' },
+  plastic: { name: 'Plastic', icon: HZ_B + '98edfef97c2f6945512f46ae2ae1b8a7' },
+  nails: { name: 'Nails', icon: HZ_B + '51658cc8726e115ac7c9e2adf81ff75d', desc: 'Used for building.' },
+  hide: { name: 'Hide', icon: HZ_B + '583338bb8aee2292f45b2e10d1faeacb' },
+  cup_clean: { name: 'Clean Water Cup', icon: HZ_B + 'febc04dcda9e9592ad60e2423be347cb', desc: 'Safe drinking water.' },
+  cup_sea: { name: 'Seawater Cup', icon: HZ_B + 'aa4361e2079b6512edbff512621c6f5b' },
+  stone_axe: { name: 'Stone Axe', icon: HZ_B + '78eb26864d39a94ccc2b3ba211aaaafe', desc: 'Chops trees for wood.' },
+  stone_pickaxe: { name: 'Stone Pickaxe', icon: HZ_B + 'd6b4b4dc26ec510879b5a14fc2ae3ab0', desc: 'Mines stone from rocks.' },
+  stone_spear: { name: 'Stone Spear', icon: HZ_B + 'f3e257eb7e3c2bc3b4f71b3b36cd9c67', desc: 'A long-reach thrusting weapon.' },
+  wooden_club: { name: 'Wooden Club', icon: HZ_B + 'ebdb706c0f4d103b01d5c1a1495b0f9b', desc: 'A heavy, simple striking weapon.' },
+  stone_sword: { name: 'Stone Sword', icon: HZ_B + '909b623be8aee1ba3f128fdf676161ba', desc: 'A basic slashing weapon.' },
+  torch: { name: 'Torch', icon: HZ_B + '0a3ba9d88760d8bfe89190b3b6324c28', desc: 'Lights up the dark.' },
+  wooden_shield: { name: 'Wooden Shield', icon: HZ_B + 'c7d02530bab6863a1695371164a175e9', desc: 'Blocks incoming attacks.' },
+  map: { name: 'Map', icon: HZ_B + 'a0273c4daea663cbbb0c0d02401ff9fe', desc: 'Shows the islands and where you are.' },
+  compass: { name: 'Compass', icon: HZ_B + '65705cd66623ca0103ca6e10766e31bf', desc: 'Points the way while you explore.' }
+};
+// Recipes from the design doc, plus Wooden Shield, Map and Compass from your old crafting script.
+var HZ_RECIPES = {
+  tools: [
+    { id: 'stone_pickaxe', mats: [['planks', 4], ['stone', 4], ['rope', 2]] },
+    { id: 'stone_axe', mats: [['planks', 3], ['stone', 4], ['rope', 2]] },
+    { id: 'stone_spear', mats: [['planks', 3], ['stone', 1], ['rope', 1]] },
+    { id: 'wooden_club', mats: [['planks', 3], ['rope', 1]] },
+    { id: 'stone_sword', mats: [['planks', 3], ['stone', 5], ['rope', 2]] },
+    { id: 'torch', mats: [['planks', 1], ['leaves', 4], ['rope', 1]] },
+    { id: 'wooden_shield', mats: [['planks', 6], ['rope', 2], ['hide', 1]] },
+    { id: 'map', mats: [['hide', 2], ['fiber', 2]] },
+    { id: 'compass', mats: [['scrap', 3], ['plastic', 1]] }
+  ],
+  resources: [
+    { id: 'rope', mats: [['leaves', 3]] },
+    { id: 'nails', mats: [['scrap', 1]] }
+  ],
+  consumables: [
+    { id: 'cup_clean', mats: null }
+  ]
+};
+// Placeholder craft times in seconds — change these to whatever the real game uses.
+var HZ_TIMES = { stone_pickaxe: 4, stone_axe: 4, stone_spear: 3, wooden_club: 2.5, stone_sword: 5, torch: 2, wooden_shield: 4, map: 3, compass: 3, rope: 1.5, nails: 1 };
+var HZ_QMAX = 8;
+var HZ_CAT_NAMES = { tools: 'Tools', resources: 'Resources', consumables: 'Consumables' };
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      open: true,
+      cat: 'tools',
+      sel: 'stone_pickaxe',
+      inv: { planks: 12, stone: 9, leaves: 14, rope: 3, fiber: 6, scrap: 2, hide: 3, cup_clean: 1 },
+      invSel: null,
+      hot: ['stone_axe', 'torch', 'cup_sea', null, null, null, null, null],
+      hotSel: 0,
+      queue: [],
+      elapsed: 0,
+      started: false,
+      finish: null,
+      leaving: false,
+      flashId: null,
+      flashTick: 0
+    };
+    this.uid = 0;
+    this.timers = [];
+    this.finishTimers = [];
+    this.ticker = null;
+  }
+  componentDidMount() {
+    var self = this;
+    this.ticker = setInterval(function () { self.onTick(); }, 100);
+  }
+  componentWillUnmount() {
+    if (this.ticker) clearInterval(this.ticker);
+    this.timers.concat(this.finishTimers).forEach(function (t) { clearTimeout(t); });
+  }
+  later(fn, ms) {
+    this.timers.push(setTimeout(fn, ms));
+  }
+  reserved() {
+    // materials still needed for queued items that have not started yet
+    var s = this.state;
+    var need = {};
+    s.queue.forEach(function (j, i) {
+      var units = j.count - (i === 0 && s.started ? 1 : 0);
+      j.mats.forEach(function (m) { need[m[0]] = (need[m[0]] || 0) + m[1] * units; });
+    });
+    return need;
+  }
+  available(id) {
+    return (this.state.inv[id] || 0) - (this.reserved()[id] || 0);
+  }
+  maxCraftable(r) {
+    var self = this;
+    if (!r.mats) return 0;
+    var n = Infinity;
+    r.mats.forEach(function (m) { n = Math.min(n, Math.floor(self.available(m[0]) / m[1])); });
+    return Math.max(0, n === Infinity ? 0 : n);
+  }
+  canCraft(r) {
+    return this.maxCraftable(r) > 0;
+  }
+  canQueue(r) {
+    var q = this.state.queue;
+    var last = q[q.length - 1];
+    return !!(last && last.id === r.id) || q.length < HZ_QMAX;
+  }
+  current() {
+    var s = this.state;
+    var list = HZ_RECIPES[s.cat];
+    return list.find(function (r) { return r.id === s.sel; }) || list[0];
+  }
+  addToQueue(n) {
+    var s = this.state;
+    var r = this.current();
+    if (n < 1 || !this.canQueue(r)) return;
+    var queue = s.queue.slice();
+    var last = queue[queue.length - 1];
+    if (last && last.id === r.id) {
+      queue[queue.length - 1] = Object.assign({}, last, { count: last.count + n, total: last.total + n });
+    } else {
+      queue.push({ uid: ++this.uid, id: r.id, dur: HZ_TIMES[r.id] || 3, mats: r.mats, count: n, total: n });
+    }
+    this.finishTimers.forEach(function (t) { clearTimeout(t); });
+    this.finishTimers = [];
+    this.setState({ queue: queue, invSel: null, finish: null, leaving: false });
+  }
+  craft() {
+    if (this.canCraft(this.current())) this.addToQueue(1);
+  }
+  craftAll() {
+    this.addToQueue(this.maxCraftable(this.current()));
+  }
+  clearQueue() {
+    // clears everything except the item currently being made
+    var s = this.state;
+    if (!s.queue.length) return;
+    if (s.started) this.setState({ queue: [Object.assign({}, s.queue[0], { count: 1, total: s.queue[0].total - s.queue[0].count + 1 })] });
+    else this.setState({ queue: [], elapsed: 0 });
+  }
+  onTick() {
+    var s = this.state;
+    if (!s.queue.length) return;
+    var job = s.queue[0];
+    var inv = Object.assign({}, s.inv);
+    if (!s.started) {
+      // materials are taken when each item starts
+      var ok = job.mats.every(function (m) { return (inv[m[0]] || 0) >= m[1]; });
+      if (!ok) {
+        this.setState({ queue: s.queue.slice(1), elapsed: 0, started: false });
+        return;
+      }
+      job.mats.forEach(function (m) { inv[m[0]] = inv[m[0]] - m[1]; });
+      this.setState({ inv: inv, started: true, elapsed: 0 });
+      return;
+    }
+    var e = s.elapsed + 0.1;
+    if (e < job.dur - 0.0001) {
+      this.setState({ elapsed: e });
+      return;
+    }
+    var self = this;
+    inv[job.id] = (inv[job.id] || 0) + 1;
+    var queue = s.queue.slice();
+    if (job.count > 1) queue[0] = Object.assign({}, job, { count: job.count - 1 }); else queue.shift();
+    var finish = null;
+    if (!queue.length) {
+      // hold for 0.65s, then slide out (same timing as the old CraftingProgress)
+      finish = { id: job.id, total: job.total };
+      this.finishTimers = [
+        setTimeout(function () { self.setState({ leaving: true }); }, 650),
+        setTimeout(function () { self.setState({ finish: null, leaving: false }); }, 930)
+      ];
+    }
+    var tick = s.flashTick + 1;
+    this.setState({ inv: inv, queue: queue, elapsed: 0, started: false, flashId: job.id, flashTick: tick, finish: finish || s.finish });
+    this.later(function () {
+      if (self.state.flashTick === tick) self.setState({ flashId: null });
+    }, 1500);
+  }
+  renderVals() {
+    var s = this.state;
+    var self = this;
+    var accent = this.props.accent || '#E9B949';
+    var accent2 = accent;
+    var alpha = this.props.panelAlpha != null ? this.props.panelAlpha : 0.68;
+    var panelBg = 'rgba(16, 21, 19, ' + alpha + ')';
+    var hx = String(accent2).replace('#', '');
+    var hn = parseInt(hx.length === 3 ? hx[0] + hx[0] + hx[1] + hx[1] + hx[2] + hx[2] : hx.slice(0, 6), 16);
+    if (isNaN(hn)) hn = 0xE9B949;
+    var accent2Soft = 'rgba(' + ((hn >> 16) & 255) + ', ' + ((hn >> 8) & 255) + ', ' + (hn & 255) + ', 0.35)';
+
+    var queuedById = {};
+    s.queue.forEach(function (j) { queuedById[j.id] = (queuedById[j.id] || 0) + j.count; });
+
+    var cats = ['tools', 'resources', 'consumables'].map(function (id) {
+      var on = s.cat === id;
+      return {
+        label: HZ_CAT_NAMES[id],
+        bg: on ? accent : 'rgba(255, 255, 255, 0.07)',
+        fg: on ? '#1B1A14' : '#EDE8DC',
+        pressed: on ? 'true' : 'false',
+        pick: function () { self.setState({ cat: id, sel: HZ_RECIPES[id][0].id }); }
+      };
+    });
+
+    var cur = this.current();
+    var recipes = HZ_RECIPES[s.cat].map(function (r) {
+      var on = r.id === cur.id;
+      var n = queuedById[r.id] || 0;
+      return {
+        name: HZ_ITEMS[r.id].name,
+        icon: HZ_ITEMS[r.id].icon,
+        border: on ? accent : 'transparent',
+        bg: on ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+        iconOpacity: self.canCraft(r) || n ? '1' : '0.45',
+        queued: n > 0,
+        queuedText: 'x' + n,
+        pick: function () { self.setState({ sel: r.id }); }
+      };
+    });
+
+    var mats = (cur.mats || []).map(function (m) {
+      var have = Math.max(0, self.available(m[0]));
+      var ok = have >= m[1];
+      return {
+        name: HZ_ITEMS[m[0]].name,
+        icon: HZ_ITEMS[m[0]].icon,
+        have: String(have),
+        need: String(m[1]),
+        color: ok ? '#EDE8DC' : '#F4A47C',
+        statusColor: ok ? accent2 : '#F4A47C',
+        status: ok ? 'Ready' : 'Need ' + (m[1] - have) + ' more'
+      };
+    });
+    var can = this.canCraft(cur);
+    var full = !this.canQueue(cur);
+    var maxN = this.maxCraftable(cur);
+
+    var keys = Object.keys(s.inv).filter(function (k) { return s.inv[k] > 0; });
+    var flashCls = s.flashTick % 2 ? 'hz-flash-a' : 'hz-flash-b';
+    var slots = [];
+    for (var i = 0; i < 30; i++) {
+      (function (idx) {
+        var k = keys[idx];
+        var on = s.invSel === idx && !!k;
+        slots.push({
+          has: !!k,
+          icon: k ? HZ_ITEMS[k].icon : '',
+          count: k && s.inv[k] > 1 ? String(s.inv[k]) : '',
+          label: k ? HZ_ITEMS[k].name + ', ' + s.inv[k] : 'Empty slot',
+          border: on ? accent : 'transparent',
+          cls: k && k === s.flashId ? flashCls : '',
+          pick: function () { self.setState({ invSel: idx }); }
+        });
+      })(i);
+    }
+    var selKey = s.invSel != null ? keys[s.invSel] : null;
+
+    var hot = s.hot.map(function (id, idx) {
+      var on = s.hotSel === idx;
+      return {
+        num: String(idx + 1),
+        has: !!id,
+        icon: id ? HZ_ITEMS[id].icon : '',
+        label: 'Hotbar slot ' + (idx + 1) + (id ? ', ' + HZ_ITEMS[id].name : ', empty'),
+        pressed: on ? 'true' : 'false',
+        border: on ? accent : 'rgba(255, 255, 255, 0.10)',
+        bg: on ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.06)',
+        pick: function () { self.setState({ hotSel: idx }); }
+      };
+    });
+    var hotId = s.hot[s.hotSel];
+
+    var job = s.queue[0];
+    var qCount = queuedById[cur.id] || 0;
+    var unit = job ? (s.started ? Math.min(1, s.elapsed / job.dur) : 0) : 1;
+
+    return {
+      accent: accent,
+      accent2: accent2,
+      accent2Soft: accent2Soft,
+      panelBg: panelBg,
+      open: s.open,
+      closed: !s.open,
+      openInv: function () { self.setState({ open: true }); },
+      closeInv: function () { self.setState({ open: false }); },
+      usedSlots: String(keys.length),
+      invInfo: selKey ? HZ_ITEMS[selKey].name + '  x' + s.inv[selKey] : 'Click an item',
+      slots: slots,
+      cats: cats,
+      recipes: recipes,
+      curIcon: HZ_ITEMS[cur.id].icon,
+      curName: HZ_ITEMS[cur.id].name,
+      curCat: HZ_CAT_NAMES[s.cat] + (HZ_TIMES[cur.id] ? '  ·  ' + HZ_TIMES[cur.id] + 's to craft' : ''),
+      curDesc: HZ_ITEMS[cur.id].desc || '',
+      hasRecipe: !!cur.mats,
+      noRecipe: !cur.mats,
+      mats: mats,
+      queuedLine: qCount ? qCount + ' in queue' : '',
+      canClear: s.queue.length > 1 || (s.queue.length === 1 && (s.queue[0].count > 1 || !s.started)),
+      clearQueue: function () { self.clearQueue(); },
+      craft: function () { self.craft(); },
+      craftAll: function () { self.craftAll(); },
+      craftDisabled: !can || full,
+      craftLabel: full ? 'Queue full' : (can ? 'Craft' : (cur.mats ? 'Missing materials' : 'Recipe not set')),
+      craftBg: can && !full ? accent : 'rgba(255, 255, 255, 0.08)',
+      craftFg: can && !full ? '#1B1A14' : 'rgba(237, 232, 220, 0.6)',
+      allLabel: maxN > 1 ? 'All (' + maxN + ')' : 'All',
+      allBorder: can && !full ? accent : 'rgba(255, 255, 255, 0.12)',
+      allFg: can && !full ? accent : 'rgba(237, 232, 220, 0.5)',
+      hot: hot,
+      hotName: hotId ? HZ_ITEMS[hotId].name : 'Empty hand',
+      showProg: s.queue.length > 0 || !!s.finish,
+      pCls: s.leaving ? 'hz-pout' : 'hz-pin',
+      pTitle: job ? 'Crafting ' + HZ_ITEMS[job.id].name : (s.finish ? 'Crafted ' + HZ_ITEMS[s.finish.id].name : ''),
+      pDesc: job ? (Math.max(0, job.dur * job.count - (s.started ? s.elapsed : 0)).toFixed(1) + 's left' + (s.queue.length > 1 ? '  ·  ' + (s.queue.length - 1) + ' more queued' : '')) : 'Done',
+      pSub: job ? (s.queue.length > 1 ? 'Crafting  ·  next: ' + HZ_ITEMS[s.queue[1].id].name + ' x' + s.queue[1].count : 'Crafting...') : 'Added to inventory',
+      pAmount: job ? 'x' + job.count : (s.finish ? 'x' + s.finish.total : ''),
+      pTime: job ? Math.max(0, job.dur * job.count - (s.started ? s.elapsed : 0)).toFixed(1) + 's' : 'Done',
+      pIcon: job ? HZ_ITEMS[job.id].icon : (s.finish ? HZ_ITEMS[s.finish.id].icon : ''),
+      pDone: !job && !!s.finish,
+      pRingOff: String((100.53 * (1 - unit)).toFixed(2)),
+      pTickCls: s.flashId ? (s.flashTick % 2 ? 'hz-tick-a' : 'hz-tick-b') : '',
+      pAria: job ? 'Crafting ' + job.count + ' ' + HZ_ITEMS[job.id].name : (s.finish ? 'Crafted ' + s.finish.total + ' ' + HZ_ITEMS[s.finish.id].name : ''),
+      pPct: String((unit * 100).toFixed(1)),
+      pTrans: unit < 0.08 ? 'none' : 'width 0.1s linear',
+    };
+  }
+}
+</script>
+</body>
+</html>

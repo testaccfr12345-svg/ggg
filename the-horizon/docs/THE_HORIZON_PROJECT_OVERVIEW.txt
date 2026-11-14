@@ -1,0 +1,1136 @@
+THE HORIZON — COMPLETE ROBLOX GAME PROJECT OVERVIEW
+
+1. GENERAL GAME DESCRIPTION
+
+Game Name: The Horizon
+
+Platform: Roblox
+
+Genre: Open-world multiplayer survival, exploration, crafting, and base building.
+
+Inspiration: Rust, ARK: Survival Evolved, and other open-world survival games.
+
+Character Type: Roblox R6
+
+Camera: Primarily first-person gameplay.
+
+Supported Devices: PC and mobile.
+
+Development Status: The main UI systems have largely been designed or developed. Several are nearly finished, while the main survival world, models, gameplay mechanics, and final integrations still need work.
+
+What is The Horizon?
+
+The Horizon is an ambitious Roblox survival game where players create their own worlds, explore enormous islands, gather resources, hunt wildlife, craft tools and weapons, build shelters, and survive dangerous environments.
+
+The focus is on exploration, survival, and freedom.
+
+Players are not forced to follow one linear storyline. Instead, they can decide how they want to survive, where they want to settle, which islands to explore, what resources to gather, and what structures to build.
+
+The game is designed primarily around solo survival and cooperative multiplayer with friends.
+
+It combines realistic survival concepts with Roblox-friendly, stylized graphics and clean, modern interfaces.
+
+The long-term goal is to create a large, immersive, polished survival experience that feels like an actual standalone survival game rather than a typical Roblox simulator.
+
+⸻
+
+2. HOW THE GAME WORKS — FULL GAMEPLAY LOOP
+
+Step 1 — Entering the Game
+
+When players first launch The Horizon, they enter the main lobby rather than immediately spawning into the survival map.
+
+The lobby acts as the central hub for managing survival worlds and accessing different game features.
+
+Players can:
+
+* Play the game.
+* Create a new survival world.
+* Open their existing saved worlds.
+* Join friends who are playing.
+* Join worlds using codes.
+* Manage their available world slots.
+* Access support and donation options.
+* Submit bug reports and suggestions.
+* Access other lobby interfaces.
+
+Step 2 — Creating a World
+
+Players can create their own survival world.
+
+The world creation interface is designed to handle information such as the world’s name and difficulty.
+
+Each world has its own identity and should maintain independent survival progress.
+
+World slots determine how many separate worlds a player can own.
+
+Additional slots can be obtained using optional purchases.
+
+The goal is to allow players to return to their worlds without losing their survival progression, structures, or collected resources.
+
+Important: The existing lobby implementation includes world records and metadata saving. Complete gameplay-world persistence and loading have not yet been verified as finished.
+
+Step 3 — Starting Survival
+
+Once the player enters a survival world, the actual gameplay begins.
+
+The intended survival loop is:
+
+1. Explore the starting environment.
+2. Find basic resources.
+3. Gather stones, leaves, wood, and other materials.
+4. Craft simple tools.
+5. Collect food and water.
+6. Maintain health, hunger, and thirst.
+7. Hunt wildlife and defend against hostile creatures.
+8. Build a shelter or permanent base.
+9. Create improved equipment.
+10. Explore other islands for resources, discoveries, and challenges.
+11. Continue developing the player’s survival world.
+
+The game is intended to support long-term survival progression rather than short, repetitive rounds.
+
+⸻
+
+3. THE OPEN WORLD AND ISLAND SYSTEM
+
+The Horizon takes place across a huge interconnected ocean environment.
+
+The planned map contains approximately 30 islands.
+
+Earlier planning considered overall world dimensions in the tens of thousands of studs, including approximately 50,000–70,000 studs. The exact final dimensions have not been locked.
+
+The islands are intended to be separated by large stretches of water, with approximately 2,000–3,000 studs between some islands.
+
+Planned Biomes
+
+Grasslands
+
+* Open grassy landscapes.
+* Natural areas for exploration and settlements.
+* Forests, stones, and basic resources.
+
+Jungles
+
+* Dense vegetation.
+* Tropical environments.
+* Wildlife and natural resources.
+
+Savannahs
+
+* Dry, warm landscapes.
+* Open terrain with scattered vegetation.
+* Distinct wildlife and environments.
+
+Swamps
+
+* Wet, muddy environments.
+* Shallow water and dense vegetation.
+* More difficult terrain to explore.
+
+Antarctica / Frozen Regions
+
+* Snow and ice.
+* Extremely cold-looking environments.
+* Unique terrain and potential environmental survival challenges.
+
+Not every island should look or feel the same. Islands should have their own natural geography, vegetation, resources, and points of interest.
+
+Monuments and Exploration Locations
+
+The game also has planned monuments and special locations.
+
+Previously discussed monument scope:
+
+* 5 large, rare monuments.
+* 3 medium monuments.
+* 2 small monuments.
+
+Examples of suitable locations include ruined castles and abandoned camps.
+
+The world should maintain a survival-oriented, natural atmosphere rather than depending on modern cities or futuristic buildings.
+
+These monuments are planned exploration content, not confirmed completed map features.
+
+⸻
+
+4. PLAYER CHARACTERS AND MOVEMENT
+
+The game uses R6 Roblox characters.
+
+Custom survival-themed characters have been planned, including male and female caveman-style characters.
+
+The game is primarily played in first person.
+
+Movement Mechanics
+
+The planned movement system includes:
+
+* Walking.
+* Running.
+* Sprinting.
+* Crouching.
+* Crouch walking.
+* Jumping.
+* Swimming.
+* Faster swimming.
+* First-person item animations.
+* Third-person animations visible to other players.
+
+Previously specified settings:
+
+* Sprint speed: 24.
+* Crouch walking speed: 12.
+* PC crouch: C to toggle.
+* PC sprint: Shift.
+* Swimming sprint input includes a 0.5-second cooldown.
+
+Mobile players require touch-friendly controls.
+
+Animations
+
+Custom R6 animations have been selected for:
+
+* Idle.
+* Walk.
+* Run.
+* Jump.
+* Crouch idle.
+* Crouch walk.
+* Swimming idle.
+* Slow swimming.
+* Fast swimming.
+* First-person punches.
+* Weapon holding and attacks.
+* Eating and drinking.
+* Using different tools.
+
+The aim is to avoid relying entirely on generic Roblox movement animations.
+
+The game should feel responsive and natural on both PC and mobile.
+
+⸻
+
+5. SURVIVAL SYSTEM
+
+The main survival mechanics revolve around maintaining the player’s basic needs.
+
+Health
+
+Health represents the player’s physical condition.
+
+Damage from enemies and survival hazards can reduce health.
+
+When health reaches zero, the player dies and enters the death interface.
+
+Hunger
+
+Hunger is a survival stat that requires the player to obtain and consume food.
+
+Food sources are intended to include gathered and hunted resources.
+
+Thirst
+
+Thirst requires the player to obtain drinkable water.
+
+Water-related items include:
+
+* Seawater Cup.
+* Clean Water Cup.
+* Plastic Cup.
+
+The resource and drinking systems are part of the intended survival gameplay.
+
+Temperature
+
+Temperature and environmental conditions were also considered as survival mechanics.
+
+However, the temperature icons were removed from the latest HUD design.
+
+Temperature should not be assumed to be a fully implemented mechanic.
+
+HUD
+
+The main HUD has already been designed.
+
+It displays health, hunger, and thirst.
+
+The style is relatively minimal, with readable values and visual status bars.
+
+Design characteristics include:
+
+* Semi-transparent backgrounds.
+* Subtle visual texture.
+* Clean icons.
+* Simple text.
+* Minimal unnecessary outlines.
+* An uncluttered first-person experience.
+
+The health, hunger, and thirst HUD designs were reported finished.
+
+The server-side survival logic still needs to be confirmed separately from the interface.
+
+⸻
+
+6. INVENTORY AND HOTBAR
+
+The Horizon has a custom inventory and hotbar system.
+
+The inventory is designed to support survival resources, tools, weapons, consumables, and other items.
+
+Main Functions
+
+The intended inventory should allow players to:
+
+* Hold collected resources.
+* Store crafted items.
+* Organize inventory contents.
+* Equip tools and weapons.
+* Use their hotbar.
+* Select currently held items.
+* Interact with the world using equipped items.
+
+The inventory and hotbar were previously reported approximately 80% finished.
+
+A visual inventory interface and supporting client scripts have been developed, but secure server integration must be verified.
+
+The system must work on both PC and mobile.
+
+Equipment Slots
+
+The planned armor system includes:
+
+* Helmet.
+* Chestplate.
+* Gloves.
+* Boots.
+* Leggings.
+
+Armor and clothing are intended to be part of the player’s equipment progression.
+
+⸻
+
+7. RESOURCE GATHERING
+
+Resource gathering is fundamental to The Horizon.
+
+Players should collect materials from the environment and use them for crafting, building, and survival.
+
+Known Materials
+
+* Planks.
+* Stone.
+* Leaves.
+* Fiber.
+* Hide.
+* Plastic.
+* Scrap.
+* Rope.
+* Nails.
+
+Other materials may be added as development progresses.
+
+Resource Models
+
+The game uses physical 3D item models, including models for objects players can hold.
+
+Some planned model references include:
+
+* One stone.
+* One leaf.
+* One nail.
+* Four-piece scrap metal collection.
+* Four-piece plastic collection.
+* Clean, slightly elongated wooden planks.
+* Fiber resembling natural ARK-style fibers.
+
+These resources should look recognizable when equipped or displayed in the hotbar.
+
+Resource Interactions
+
+The intended gathering system includes chopping wood, mining stone, picking up materials, and collecting resources obtained from wildlife.
+
+Harvesting should connect directly to the player’s inventory.
+
+Important: Full harvesting logic and secure item rewards have not been confirmed as finished.
+
+⸻
+
+8. CRAFTING SYSTEM
+
+The Horizon features a large custom crafting interface.
+
+This interface is one of the systems that has received substantial design and development work.
+
+The crafting UI was reported almost finished.
+
+Crafting Categories
+
+The main crafting categories are:
+
+1. Tools.
+2. Resources.
+3. Consumables.
+
+The separate Furniture category was removed.
+
+Buildable structures and placeable objects are meant to be handled through the Building Hammer instead.
+
+Crafting Interface Layout
+
+The current preferred crafting UI uses:
+
+Left: Item selection, icons, and names.
+
+Center: A large preview of the selected item.
+
+Right: Required crafting materials and a Craft button.
+
+Items appear in a single horizontal row rather than a large multi-row catalog.
+
+Crafting materials are arranged in compact grids.
+
+The quantity selector was removed.
+
+The crafting interface also uses custom scaling and layout configuration.
+
+Known Craftable Tools and Weapons
+
+* Stone Pickaxe.
+* Metal Pickaxe.
+* Stone Axe.
+* Metal Axe.
+* Building Hammer.
+* Stone Spear.
+* Metal Spear.
+* Wooden Club.
+* Stone Sword.
+* Metal Sword.
+* Bow.
+* Stone Arrows.
+* Wooden Shield.
+* Metal Shield.
+* Knife.
+* Cutlass.
+* Captain’s Cutlass.
+
+Not all of these are necessarily intended to be ordinary crafting recipes. Some may come from loot or other gameplay sources.
+
+Other Craftable Items
+
+Previously planned crafting content includes:
+
+* Rope.
+* Nails.
+* Torch.
+* Compass.
+* Map.
+* Cups.
+* Hide clothing and armor.
+
+The Captain’s Cutlass is intended to be a special, stronger pirate captain weapon with a rare drop, rather than an ordinary basic sword.
+
+Crafting Recipes
+
+Recipes require players to possess specific resources.
+
+Earlier recipe examples included:
+
+* Stone Pickaxe: 4 Planks, 4 Stone, 2 Rope.
+* Stone Axe: 3 Planks, 4 Stone, 2 Rope.
+* Torch: 1 Plank, 4 Leaves, 1 Rope.
+* Stone Spear: 3 Planks, 1 Stone, 1 Rope.
+* Wooden Club: 3 Planks, 1 Rope.
+* Stone Sword: 3 Planks, 5 Stone, 2 Rope.
+* Nails: 1 Scrap.
+* Rope: 3 Leaves.
+
+These are previously discussed example recipes, not a guarantee that every recipe remains final.
+
+More recently, the Map, Compass, and Wooden Shield were specifically selected for recipe work, while several other item recipes were left unset.
+
+Crafting Architecture
+
+The planned scripting architecture includes:
+
+* CraftingClient — LocalScript.
+* CraftingServer — Script.
+* Supporting ModuleScripts for crafting configuration, inventory data, and inventory rules.
+
+All important crafting validation should happen on the server.
+
+The client must not be trusted to create items or grant resources.
+
+⸻
+
+9. BUILDING SYSTEM
+
+The Horizon has a separate building system that uses an equippable Building Hammer.
+
+This system is different from ordinary inventory crafting.
+
+Building Hammer
+
+When a player equips the Building Hammer, the building controls become available.
+
+Players should be able to:
+
+* Open the building menu.
+* Choose a structure or placeable.
+* Preview where it will be placed.
+* Rotate the object.
+* Confirm placement.
+* Construct survival buildings.
+
+Building Materials
+
+The building interface is intended to support structural categories and different material variants, including wood and stone.
+
+The UI was designed with a central preview and simple item navigation.
+
+Planned Building Pieces
+
+The system is intended to support house construction, including structural pieces such as walls and other building components.
+
+The exact finalized collection of building pieces has not been fully confirmed.
+
+Separate Placeable Objects
+
+The following objects were moved out of the ordinary crafting interface and into the Building Hammer system:
+
+* Campfire.
+* Fire starter.
+* Sleeping mat.
+* Fish trap.
+* Small raft.
+
+The goal is to make placement feel like a construction activity rather than simply receiving a finished Tool from crafting.
+
+PC and Mobile Controls
+
+PC players use keyboard and mouse controls.
+
+Mobile players receive dedicated touch buttons for opening the building menu and rotating structures.
+
+The controls should be compact and should not obstruct the middle of the screen unnecessarily.
+
+A placement prompt can display actions such as Place Wall.
+
+The building UI design has been extensively discussed, but complete server-authoritative building placement and structure saving have not been verified as finished.
+
+⸻
+
+10. WEAPONS AND COMBAT
+
+The game includes primitive survival weapons.
+
+There is no plan to introduce firearms as part of the current weapon lineup.
+
+Weapon Progression
+
+Players start with basic primitive equipment and can eventually obtain better tools and weapons.
+
+Planned weapons include:
+
+* Wooden Club.
+* Stone Spear.
+* Metal Spear.
+* Stone Sword.
+* Metal Sword.
+* Bow.
+* Stone Arrows.
+* Wooden Shield.
+* Metal Shield.
+* Knife.
+* Cutlass.
+* Captain’s Cutlass.
+
+Tool Progression
+
+Important tools include:
+
+* Stone Pickaxe.
+* Metal Pickaxe.
+* Stone Axe.
+* Metal Axe.
+* Building Hammer.
+
+Animations and Usage
+
+Different types of equipment require different animations.
+
+For example:
+
+* Axes chop.
+* Pickaxes mine.
+* Spears thrust.
+* Swords slash.
+* Clubs strike.
+* Bows draw, aim, and release.
+* Shields block.
+* Cups have drinking animations.
+* Food uses eating animations.
+
+Animations must work properly for R6 characters and be visible appropriately in first person and third person.
+
+Combat Security
+
+Actual weapon damage, attack cooldowns, and item ownership must be validated by the server.
+
+A player should never be able to grant themselves stronger weapons, unlimited damage, or impossible attacks by modifying client-side data.
+
+⸻
+
+11. ANIMALS, NPCS, AND ENEMIES
+
+The Horizon is intended to include wildlife and hostile NPCs.
+
+Animals
+
+Animals are an important part of the survival ecosystem.
+
+Players should be able to hunt animals for survival resources.
+
+Animal taming was also discussed as a planned gameplay feature.
+
+Dinosaurs were discussed as possible wildlife content, inspired partly by ARK.
+
+These are intended game features and should not be described as fully implemented.
+
+Pirates
+
+Pirates are planned hostile NPCs.
+
+Previously discussed pirate types:
+
+* Pirate Captain.
+* Pirate Swordsman.
+* Pirate Archer.
+
+The captain has a special rare weapon called the Captain’s Cutlass.
+
+Zombies
+
+Zombies are another planned threat.
+
+Three zombie character models were discussed for commissioned assets.
+
+Cavemen
+
+The game also includes caveman-themed characters.
+
+Previously discussed models include:
+
+* Male cavemen.
+* Female cavemen.
+* Different caveman variations.
+
+Separate male and female main character models have also been planned.
+
+NPC Development
+
+The previously discussed model commission scope included:
+
+* 3 pirates.
+* 3 zombies.
+* 3 cavemen.
+* 2 main player characters.
+
+NPC models, AI behavior, animations, combat, and spawning should be treated as separate development tasks.
+
+The models and the complete NPC gameplay systems have not all been verified as finished.
+
+⸻
+
+12. BOATS AND WATER EXPLORATION
+
+Since The Horizon is made up of numerous islands, water exploration is a major part of the experience.
+
+Players should eventually be able to travel between islands.
+
+Boats and small rafts have been discussed as the intended way to travel across water.
+
+A small raft is one of the planned placeable items associated with the Building Hammer.
+
+Conventional land vehicles are not part of the current concept.
+
+Swimming animations and fast swimming have already been planned.
+
+Water exploration should make the distance between islands meaningful while allowing players to explore new environments.
+
+⸻
+
+13. MAP AND COMPASS
+
+The game includes an equipable map item.
+
+This map is inspired by the map system in ARK.
+
+When the player equips or uses the map, the intended interface shows the world, its islands, and the player’s current position.
+
+The map is not intended to be locked behind a paid purchase.
+
+A Compass is also one of the planned items.
+
+Both the Map and Compass are part of the survival item system.
+
+They should support exploration rather than remove the need to discover and navigate the world.
+
+⸻
+
+14. OBJECTIVES AND QUESTS
+
+The Horizon includes a custom objectives interface.
+
+The objective system was reported finished from a UI perspective.
+
+Objective Interface
+
+The objective panel sits toward the right side of the screen.
+
+An example objective is:
+
+FIRST STEPS
+
+Gather 3 Stone.
+
+The interface can display:
+
+* Current objective.
+* Progress.
+* Progress bar.
+* Objective icon.
+* Quest notifications.
+* Completion announcements.
+
+The style is designed to be readable without distracting the player from survival gameplay.
+
+The previously supplied objective implementation included example progress animations and notifications.
+
+However, the inspected version used demonstration progress rather than real server-driven gathering events.
+
+Therefore, the visual objective system is developed, but complete gameplay-linked objective tracking still needs verification.
+
+⸻
+
+15. DEATH AND RESPAWN SYSTEM
+
+The Horizon has a custom death and respawn interface.
+
+The interface was previously reported almost finished.
+
+Death Experience
+
+When the player dies, the design includes:
+
+* A death transition.
+* A YOU DIED presentation.
+* Death sound effects.
+* An infection-like visual fade.
+* A custom The Horizon respawn menu.
+* A cinematic eye-opening respawn effect.
+
+Death Menu
+
+The menu includes:
+
+* Respawn.
+* Spectate.
+* Return to Lobby.
+
+The intended Spectate feature allows dead players to observe other players.
+
+Return to Lobby should send the player back to the game’s main hub.
+
+Current Integration Status
+
+Multiple death and respawn script versions have been worked on.
+
+The visual presentation is advanced, but older inspected scripts had incomplete or mismatched server functionality.
+
+Actual respawning, real spectating, and returning to the lobby must be verified against the current Roblox Studio project.
+
+⸻
+
+16. INTERACTION SYSTEM
+
+The game uses a custom interaction prompt rather than relying exclusively on the default Roblox interaction appearance.
+
+PC
+
+The player sees an E interaction hint.
+
+Mobile
+
+The player sees a TAP interaction hint.
+
+The prompt uses:
+
+* A small rounded rectangular design.
+* PatrickHand font.
+* Approximately 50% transparency.
+* Quick fade-in and fade-out.
+* Compact action text.
+* A clean, consistent survival-game appearance.
+
+This prompt is intended for interacting with objects in the world.
+
+The interface should be visually consistent with the rest of the game.
+
+⸻
+
+17. VISUAL STYLE AND UI DESIGN
+
+The Horizon is intended to feel like a polished survival game, not a typical bright and noisy Roblox simulator.
+
+Design Direction
+
+* Clean interfaces.
+* Practical UI layouts.
+* Readable text.
+* Carefully chosen item icons.
+* Minimal unnecessary decoration.
+* Subtle transparency.
+* Consistent spacing.
+* Natural survival-themed environments.
+* Good scaling on different screen sizes.
+
+Current UI Systems
+
+UI work has been done on:
+
+* Lobby.
+* World creation.
+* Saved world management.
+* Health, hunger, and thirst HUD.
+* Inventory.
+* Hotbar.
+* Crafting.
+* Building menu.
+* Death and respawn.
+* Objectives.
+* Interaction prompts.
+* Mobile controls.
+* Player status effects.
+
+Many of these interfaces have adjustable layout settings and custom item images.
+
+Crosshair
+
+A simple Minecraft-style transparent crosshair was selected.
+
+Branding
+
+The game’s official name is The Horizon.
+
+Earlier branding concepts used a mountain silhouette logo with a black background.
+
+The game is intended to have a recognizable identity across its interfaces and promotional materials.
+
+⸻
+
+18. MONETIZATION
+
+The Horizon is not intended to depend heavily on pay-to-win monetization.
+
+The approved monetization direction focuses on world management, creative gameplay, support purchases, and convenience features that do not unfairly affect survival progression.
+
+Approved Purchases
+
++1 World Slot
+
+Allows the player to own one additional survival world.
+
++3 World Slots
+
+Adds three available world slots.
+
+Unlimited World Slots
+
+Removes the regular world-slot ownership limit.
+
+Creative World Pass
+
+Unlocks the creative-world functionality and its associated creative tools through one pass.
+
+Creative tools should not require separate purchases.
+
+Animal Tracker
+
+A previously approved convenience feature priced at 79 Robux.
+
+Support Donations
+
+Optional purchases for players who want to support development.
+
+Gifting
+
+Purchases such as world passes are intended to be giftable.
+
+Rejected Monetization
+
+The game should avoid:
+
+* Paid inventory expansions.
+* Paid access to the normal map.
+* Monetized world expansions.
+* Blueprint-slot purchases.
+* Archived-world slot purchases.
+* Shared-world-ownership purchases.
+* Advanced map marker purchases.
+* Unnecessary decoration-pack monetization.
+* Combat advantages sold through Robux.
+
+The goal is to monetize in ways that do not undermine the survival experience.
+
+⸻
+
+19. DEVELOPMENT PROGRESS — WHAT HAS BEEN DONE
+
+The following represents the latest progress that was explicitly reported during development discussions.
+
+It is a development status summary, not a claim that every system has passed live multiplayer testing.
+
+Lobby — FINISHED REPORTED
+
+The main lobby interface was reported complete.
+
+Features developed or represented in the supplied lobby scripts include:
+
+* Main Play interface.
+* New World.
+* My Worlds.
+* Friends Playing.
+* Join With Code.
+* Saved world dialogs.
+* Support Us.
+* Donations.
+* Bug reports.
+* Suggestions.
+* World-slot management.
+* World metadata records.
+
+The lobby has a modular client architecture with supporting server scripts.
+
+Full transfer into persistent survival-world sessions still requires verification.
+
+Health, Hunger, and Thirst HUD — FINISHED REPORTED
+
+The visual HUD has been completed.
+
+The bars, icons, backgrounds, and text layouts have been designed.
+
+The full survival stat simulation needs to be verified separately.
+
+Inventory and Hotbar — APPROXIMATELY 80%
+
+The inventory and hotbar have substantial UI and scripting work completed.
+
+Some server integration and functionality may still need work.
+
+The system should eventually be fully connected with harvesting, crafting, equipment, and persistent inventories.
+
+Crafting UI — ALMOST FINISHED
+
+The crafting interface has been through numerous design revisions.
+
+The main category layout, preview section, materials section, and Craft button layout have been established.
+
+Many item names and icon references are already selected.
+
+Recipe completion and final server integration still need verification.
+
+Death and Respawn — ALMOST FINISHED
+
+The custom death and respawn visual experience is mostly designed.
+
+It includes death transitions, respawn animations, and menu options.
+
+Actual game-state integration, spectating, and return-to-lobby behavior need final confirmation.
+
+Objectives and Quests — FINISHED UI REPORTED
+
+The objective panel and announcement effects have been designed.
+
+The remaining distinction is between completed UI and fully implemented objective tracking using real player actions.
+
+Building UI — DESIGN DEVELOPED
+
+The Building Hammer interface, mobile controls, placement prompts, rotation controls, and building categories have been planned and visually designed.
+
+The fully integrated placement and persistence system has not been confirmed finished.
+
+Animation Assets — SELECTED
+
+Movement and various item animation IDs have been selected.
+
+Selecting an animation asset does not necessarily mean every animation is already integrated into gameplay.
+
+Models — PLANNED / COMMISSIONED
+
+Tools, weapons, character models, resource items, NPCs, and monuments have been planned for commissioned modeling work.
+
+The developer has previously been waiting for contracted developers and asset creators to finish work.
+
+Not all planned assets have been confirmed delivered or integrated.
+
+⸻
+
+20. WHAT STILL NEEDS TO BE FINISHED OR VERIFIED
+
+The major outstanding work is not necessarily designing more UI. Much of the remaining challenge is ensuring that the full gameplay actually operates as one connected experience.
+
+World Development
+
+* Complete the large multi-island map.
+* Create the planned biomes.
+* Place environmental resources.
+* Add monuments and exploration locations.
+* Populate the world with wildlife and enemies.
+* Optimize the world for PC and mobile.
+
+Survival Gameplay
+
+* Confirm server-controlled health, hunger, and thirst.
+* Implement or finalize gathering.
+* Connect food and water systems.
+* Implement usable consumables.
+* Complete hunting and resource rewards.
+* Ensure reliable movement and survival mechanics.
+
+Crafting and Inventory
+
+* Complete missing crafting recipes.
+* Connect crafting to the real inventory.
+* Validate every craft on the server.
+* Confirm hotbar equipping and organization.
+* Finalize armor and equipment behavior.
+* Test saving and loading inventories.
+
+Building
+
+* Finalize structural pieces.
+* Complete building placement.
+* Implement placement validation.
+* Complete rotation.
+* Ensure placed structures persist correctly.
+* Prevent clients from creating unauthorized structures.
+
+Combat and NPCs
+
+* Finish weapon models.
+* Integrate combat animations.
+* Implement weapon damage and blocking.
+* Develop enemy AI.
+* Add wildlife behavior.
+* Complete NPC combat and loot.
+* Integrate pirates, zombies, and cavemen.
+
+Multiplayer and Persistence
+
+* Verify world joining and transfers.
+* Ensure each world has separate persistent data.
+* Save buildings, inventory, and progression correctly.
+* Support cooperative gameplay.
+* Handle disconnected players and save failures safely.
+* Prevent item duplication and world-save corruption.
+
+Final Production Work
+
+* Connect UI systems to actual gameplay.
+* Resolve conflicting or obsolete scripts.
+* Test on real Roblox multiplayer servers.
+* Optimize performance for mobile devices.
+* Fix bugs and edge cases.
+* Test death, saving, crafting, building, and rejoining.
+* Finish environmental art and visual polish.
+
+⸻
+
+21. TECHNICAL ARCHITECTURE AND SECURITY
+
+The Horizon uses Roblox Luau.
+
+The project includes LocalScripts, server Scripts, and ModuleScripts.
+
+Some systems have separate client and server components.
+
+Important Technical Requirements
+
+* Support both PC and mobile.
+* Preserve R6 compatibility.
+* Use server-authoritative inventory and item grants.
+* Validate crafting recipes and material ownership on the server.
+* Validate combat and damage on the server.
+* Validate building placement on the server.
+* Keep world ownership and progress isolated.
+* Handle DataStore operations safely.
+* Avoid duplication bugs.
+* Avoid unnecessary performance-heavy loops.
+* Preserve existing Roblox object names and hierarchy when updating scripts.
+
+Previous Script Recovery Findings
+
+An October 2026 recovery of archived scripts identified several possible integration problems:
+
+1. Some death/respawn scripts used mismatched RemoteEvent names.
+2. The recovered inventory client lacked matching authoritative server handlers.
+3. Crafting depended on a server-side world identifier that was not being initialized by the recovered world server.
+4. Some survival and sprint scripts handled only part of their intended mechanics.
+5. Some objective scripts contained demonstration behavior.
+6. Multiple scripts could conflict if installed simultaneously.
+7. Developer-product receipt handling needed to avoid competing callbacks.
+
+These findings are from older saved script packages, not a fresh verification of the current Roblox Studio project.
+
+Any developer or AI working on the project should inspect the actual current scripts before deciding which issues remain.
+
+⸻
+
+22. OVERALL GAME VISION
+
+The Horizon should ultimately feel like a complete multiplayer survival adventure.
+
+Players should have the freedom to create a world, explore its islands, develop a home, gather resources, craft equipment, survive the environment, encounter wildlife and enemies, and progressively become better equipped.
+
+Exploration should feel rewarding.
+
+Islands should be meaningfully different from each other.
+
+Resource gathering should feed into crafting and building.
+
+Building should let players create their own survival settlements.
+
+Combat should be responsive and varied.
+
+Playing with friends should feel like surviving together in a persistent world.
+
+The game should maintain its own recognizable identity while taking inspiration from established survival games.
+
+The objective is quality, immersion, replayability, and long-term progression.
+
+23. IMPORTANT INSTRUCTIONS FOR ANY AI OR DEVELOPER WORKING ON THIS PROJECT
+
+This is an existing game project, not a new project being started from scratch.
+
+Do not unnecessarily recreate systems that have already been made.
+
+Do not assume every discussed feature is implemented.
+
+Always distinguish:
+
+* Features already completed.
+* Features visually designed.
+* Features partially scripted.
+* Features planned but not implemented.
+* Features requiring testing or integration.
+
+Preserve existing functionality unless explicitly asked to change it.
+
+Do not rename objects, change the project’s architecture, or replace working code without a reason.
+
+Do not introduce new gameplay systems, monetization features, recipes, or major design changes without approval.
+
+For scripting work, inspect the current source before making modifications.
+
+The final goal is to combine all existing development work into a complete, functioning, optimized, and immersive Roblox survival game called THE HORIZON.
