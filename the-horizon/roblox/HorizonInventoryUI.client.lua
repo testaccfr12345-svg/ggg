@@ -11,11 +11,11 @@
 	  • Crafting progress at the top-right that slides in, fills once per item,
 	    counts the amount down (100x → 99x …) and slides out when done
 
-	SERVER
-	  Needs ReplicatedStorage.HorizonItems (ModuleScript) and the
-	  HorizonInventoryServer Script + HorizonInventoryService ModuleScript in
-	  ServerScriptService. This script only draws what the server sends and
-	  ASKS the server to craft / clear / equip. It never gives itself items.
+	IMPORTANT
+	  This is the UI with a LOCAL DEMO inventory so you can test it in Studio.
+	  The client must never give itself items. When you hook it up, replace the
+	  body of `requestCraft` with a call to your server, and feed `inventory`
+	  from server data. Search for "SERVER HOOK".
 
 	  Don't run this together with the old SurvivalCraftingUI / SurvivalInventoryUI
 	  scripts — they would both draw on screen.
@@ -28,7 +28,6 @@ local RunService = game:GetService("RunService")
 local TextService = game:GetService("TextService")
 local StarterGui = game:GetService("StarterGui")
 local GuiService = game:GetService("GuiService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
 
 local player = Players.LocalPlayer
@@ -62,6 +61,7 @@ local CONFIG = {
 	-- Patrick Hand's line height is 1.354 em, so this makes text match the HTML.
 	FontScale = 1.354,
 	CraftCompleteSound = "rbxassetid://100545760361878",
+	QueueMax = 8, -- different items in the queue at once
 	BackpackSlots = 30,
 	BarResetSpeed = 35, -- how fast the bar slides back to empty between items (higher = faster)
 	BlurSize = 12, -- background blur while the menu is open
@@ -86,27 +86,72 @@ local function ts(size)
 end
 
 --------------------------------------------------------------------------------
--- ITEMS / RECIPES / CRAFT TIMES live in ReplicatedStorage.HorizonItems
--- (shared with the server, which is the one that enforces them)
+-- ITEMS (images from your old crafting script)
 --------------------------------------------------------------------------------
-local Items = require(ReplicatedStorage:WaitForChild("HorizonItems"))
-local ITEMS = Items.ITEMS
-local RECIPES = Items.RECIPES
-local CATEGORY_ORDER = Items.CATEGORY_ORDER
-local CRAFT_TIME = Items.CRAFT_TIME
+local ITEMS = {
+	planks = { Name = "Planks", Image = "rbxassetid://78387750873126" },
+	stone = { Name = "Stone", Image = "rbxassetid://127351259030040" },
+	leaves = { Name = "Leaves", Image = "rbxassetid://94252892154991" },
+	rope = { Name = "Rope", Image = "rbxassetid://94728420315409", Desc = "A simple binding material made from leaves." },
+	fiber = { Name = "Fiber", Image = "rbxassetid://85899584797851" },
+	scrap = { Name = "Scrap", Image = "rbxassetid://123247338574784" },
+	plastic = { Name = "Plastic", Image = "rbxassetid://126538877519520" },
+	nails = { Name = "Nails", Image = "rbxassetid://100720163739756", Desc = "Basic metal fasteners used in construction." },
+	hide = { Name = "Hide", Image = "rbxassetid://137106848150031" },
+	cup_clean = { Name = "Clean Water Cup", Image = "rbxassetid://75855735142648", Desc = "Safe drinking water." },
+	cup_sea = { Name = "Seawater Cup", Image = "rbxassetid://94755334875949" },
+	stone_axe = { Name = "Stone Axe", Image = "rbxassetid://73396827796121", Desc = "A basic chopping tool for cutting trees and gathering planks." },
+	stone_pickaxe = { Name = "Stone Pickaxe", Image = "rbxassetid://103209016597189", Desc = "A basic mining tool for breaking stone and gathering ore." },
+	stone_spear = { Name = "Stone Spear", Image = "rbxassetid://131953404883594", Desc = "A simple spear for hunting and defending yourself." },
+	wooden_club = { Name = "Wooden Club", Image = "rbxassetid://77142435102160", Desc = "A rough wooden club for close combat." },
+	stone_sword = { Name = "Stone Sword", Image = "rbxassetid://99964958308218", Desc = "A sharper stone weapon for stronger melee attacks." },
+	torch = { Name = "Torch", Image = "rbxassetid://128672619441958", Desc = "A handheld light for exploring dark areas." },
+	bow = { Name = "Bow", Image = "rbxassetid://103839860687597", Desc = "A wooden bow for firing arrows." },
+	stone_arrows = { Name = "Stone Arrows", Image = "rbxassetid://87510233891000", Desc = "Stone-tipped arrows for a bow." },
+	wooden_shield = { Name = "Wooden Shield", Image = "rbxassetid://104624286311499", Desc = "A wooden shield for blocking attacks." },
+	building_hammer = { Name = "Building Hammer", Image = "rbxassetid://85234448517206", Desc = "A tool for planning and placing structures." },
+	map = { Name = "Map", Image = "", Desc = "A hide map for finding your way." },
+	compass = { Name = "Compass", Image = "", Desc = "A compass for finding your direction." },
+}
 
--- server remotes (created by HorizonInventoryServer)
-local remotes = ReplicatedStorage:WaitForChild("HorizonRemotes")
-local actionRemote = remotes:WaitForChild("InventoryAction")
-local stateRemote = remotes:WaitForChild("InventoryState")
+-- mats = nil means "Recipe not set yet"
+local RECIPES = {
+	Tools = {
+		{ id = "stone_pickaxe", mats = { { "planks", 4 }, { "stone", 4 }, { "rope", 2 } } },
+		{ id = "stone_axe", mats = { { "planks", 3 }, { "stone", 4 }, { "rope", 2 } } },
+		{ id = "stone_spear", mats = { { "planks", 3 }, { "stone", 1 }, { "rope", 1 } } },
+		{ id = "wooden_club", mats = { { "planks", 3 }, { "rope", 1 } } },
+		{ id = "stone_sword", mats = { { "planks", 3 }, { "stone", 5 }, { "rope", 2 } } },
+		{ id = "torch", mats = { { "planks", 1 }, { "leaves", 4 }, { "rope", 1 } } },
+		{ id = "bow", mats = nil },
+		{ id = "stone_arrows", mats = nil },
+		{ id = "wooden_shield", mats = { { "planks", 6 }, { "rope", 2 }, { "hide", 1 } } },
+		{ id = "building_hammer", mats = nil },
+		{ id = "map", mats = { { "hide", 2 }, { "fiber", 2 } } },
+		{ id = "compass", mats = { { "scrap", 3 }, { "plastic", 1 } } },
+	},
+	Resources = {
+		{ id = "rope", mats = { { "leaves", 3 } } },
+		{ id = "nails", mats = { { "scrap", 1 } } },
+	},
+	Consumables = {
+		{ id = "cup_clean", mats = nil },
+	},
+}
+local CATEGORY_ORDER = { "Tools", "Resources", "Consumables" }
+
+-- Seconds per item. Placeholders — set your real times here.
+local CRAFT_TIME = {
+	stone_pickaxe = 4, stone_axe = 4, stone_spear = 3, wooden_club = 2.5, stone_sword = 5,
+	torch = 2, wooden_shield = 4, map = 3, compass = 3, rope = 1.5, nails = 1,
+}
 
 --------------------------------------------------------------------------------
--- STATE (a copy of what the server sends; never changed locally)
+-- DEMO STATE (SERVER HOOK: replace with real player data)
 --------------------------------------------------------------------------------
-local inventory = {}
-local inventoryOrder = {}
-local hotbarItems = { false, false, false, false, false, false, false, false }
-local gotFirstState = false
+local inventory = { planks = 12, stone = 9, leaves = 14, rope = 3, fiber = 6, scrap = 2, hide = 3, cup_clean = 1 }
+local inventoryOrder = { "planks", "stone", "leaves", "rope", "fiber", "scrap", "hide", "cup_clean" }
+local hotbarItems = { "stone_axe", "torch", "cup_sea", false, false, false, false, false }
 
 local selectedCategory = "Tools"
 local selectedRecipe = "stone_pickaxe"
@@ -114,10 +159,10 @@ local selectedSlot = nil
 local selectedHotbar = 1
 local isOpen = false
 
--- crafting queue from the server: { id, mats, count, total }
+-- crafting queue: { id, dur, mats, count, total }
 local queue = {}
 local unitStarted = false
-local unit = nil -- { startedAt, dur } of the item crafting right now (server clock)
+local unitElapsed = 0
 local finishing = nil -- { id, total } while the "Crafted" state is shown
 
 --------------------------------------------------------------------------------
@@ -245,7 +290,16 @@ end
 --------------------------------------------------------------------------------
 -- INVENTORY / CRAFT LOGIC
 --------------------------------------------------------------------------------
-local findRecipe = Items.findRecipe
+local function findRecipe(id)
+	for _, list in pairs(RECIPES) do
+		for _, recipe in ipairs(list) do
+			if recipe.id == id then
+				return recipe
+			end
+		end
+	end
+	return nil
+end
 
 local function currentRecipe()
 	return findRecipe(selectedRecipe) or RECIPES[selectedCategory][1]
@@ -283,7 +337,17 @@ end
 
 local function canQueue(recipe)
 	local last = queue[#queue]
-	return (last ~= nil and last.id == recipe.id) or #queue < Items.QUEUE_MAX
+	return (last ~= nil and last.id == recipe.id) or #queue < CONFIG.QueueMax
+end
+
+local function addItem(id, amount)
+	if not inventory[id] then
+		inventory[id] = 0
+	end
+	if not table.find(inventoryOrder, id) then
+		table.insert(inventoryOrder, id)
+	end
+	inventory[id] += amount
 end
 
 --------------------------------------------------------------------------------
@@ -1146,79 +1210,51 @@ end
 --------------------------------------------------------------------------------
 -- ACTIONS
 --------------------------------------------------------------------------------
--- Only ASKS. The server checks the materials, queues it and sends the new state.
--- amount: 1 (Craft) or "all" (the server works out how many itself)
+-- SERVER HOOK: send the craft request to the server here and only add to the
+-- queue when the server says yes. Right now it runs locally for testing.
 local function requestCraft(recipe, amount)
-	if not recipe.mats or maxCraftable(recipe) < 1 or not canQueue(recipe) then
+	if amount < 1 or not canQueue(recipe) then
 		return
 	end
-	actionRemote:FireServer("craft", recipe.id, amount)
+	local last = queue[#queue]
+	if last and last.id == recipe.id then
+		last.count += amount
+		last.total += amount
+	else
+		table.insert(queue, {
+			id = recipe.id,
+			dur = CRAFT_TIME[recipe.id] or 3,
+			mats = recipe.mats,
+			count = amount,
+			total = amount,
+		})
+	end
+	if finishing then
+		draining = true -- bar was full from the last batch: slide it back smoothly
+	end
+	finishing = nil
+	selectedSlot = nil
+	showProgress()
+	refreshInventory()
+	refreshCrafting()
 end
 
 local function clearQueue()
-	if #queue > 0 then
-		actionRemote:FireServer("clear")
-	end
-end
-
--- Everything the player owns + the craft queue comes from here
-local function applyState(state)
-	if type(state) ~= "table" then
+	if #queue == 0 then
 		return
 	end
-	local hadQueue = #queue > 0
-	inventory = state.inv or {}
-	inventoryOrder = state.order or {}
-	for index = 1, #hotbarItems do
-		local id = state.hotbar and state.hotbar[index]
-		hotbarItems[index] = (id and ITEMS[id]) and id or false
+	if unitStarted then
+		local first = queue[1]
+		first.total = first.total - first.count + 1
+		first.count = 1
+		queue = { first }
+	else
+		queue = {}
+		unitElapsed = 0
+		hideProgress()
 	end
-	if not gotFirstState then
-		gotFirstState = true
-		selectedHotbar = state.selected or selectedHotbar
-	end
-	queue = {}
-	for index, job in ipairs(state.queue or {}) do
-		local recipe = findRecipe(job.id)
-		if recipe and recipe.mats then
-			queue[index] = { id = job.id, mats = recipe.mats, count = job.count, total = job.total }
-		end
-	end
-	unit = state.unit
-	unitStarted = unit ~= nil
-
-	local crafted = state.crafted
-	if crafted and ITEMS[crafted.id] then
-		if crafted.done then
-			draining = false
-			displayedFill = 1
-			finishProgress({ id = crafted.id, total = crafted.total })
-		else
-			draining = true -- next item: slide the bar back quickly
-			popAmount()
-			updateProgressText()
-		end
-	end
-
-	if #queue > 0 then
-		if not hadQueue then
-			selectedSlot = nil
-		end
-		if finishing then
-			draining = true -- bar was full from the last batch: slide it back smoothly
-		end
-		finishing = nil
-		showProgress()
-	elseif not crafted and not finishing and progressState == "showing" then
-		hideProgress() -- queue cleared / cancelled
-	end
-
-	refreshInventory()
+	updateProgressText()
 	refreshCrafting()
-	refreshHotbar()
-	if crafted then
-		flashItem(crafted.id)
-	end
 end
 
 local touchControlsBefore = nil
@@ -1298,7 +1334,7 @@ local function selectHotbar(index)
 	local pop = hotbarSlots[index].Pop
 	pop.Scale = 0.86
 	tween(pop, 0.16, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-	actionRemote:FireServer("hotbar", index) -- the server equips the real Tool
+	-- SERVER HOOK: equip hotbarItems[index] here
 end
 
 --------------------------------------------------------------------------------
@@ -1360,7 +1396,7 @@ end
 
 connect(craftButton.Activated, function()
 	local recipe = currentRecipe()
-	if maxCraftable(recipe) < 1 or not canQueue(recipe) then
+	if maxCraftable(recipe) < 1 then
 		return
 	end
 	craftButtonScale.Scale = 0.92
@@ -1369,7 +1405,8 @@ connect(craftButton.Activated, function()
 end)
 
 connect(allButton.Activated, function()
-	requestCraft(currentRecipe(), "all")
+	local recipe = currentRecipe()
+	requestCraft(recipe, maxCraftable(recipe))
 end)
 
 connect(clearButton.Activated, clearQueue)
@@ -1401,14 +1438,65 @@ connect(UserInputService.InputBegan, function(input, processed)
 	end
 end)
 
--- crafting bar (the server owns the clock; this only draws it)
+-- crafting clock + bar
 connect(RunService.Heartbeat, function(dt)
+	local job = queue[1]
+	if job then
+		if not unitStarted then
+			-- materials are taken when each item starts
+			local ok = true
+			for _, mat in ipairs(job.mats) do
+				if (inventory[mat[1]] or 0) < mat[2] then
+					ok = false
+					break
+				end
+			end
+			if ok then
+				for _, mat in ipairs(job.mats) do
+					inventory[mat[1]] -= mat[2]
+				end
+				unitStarted = true
+				unitElapsed = 0
+			else
+				table.remove(queue, 1)
+			end
+			refreshInventory()
+			refreshCrafting()
+			if #queue == 0 and progressState == "showing" then
+				hideProgress()
+			end
+		else
+			unitElapsed += dt
+			if unitElapsed >= job.dur then
+				unitStarted = false
+				unitElapsed = 0
+				addItem(job.id, 1)
+				job.count -= 1
+				if job.count <= 0 then
+					table.remove(queue, 1)
+				end
+				if #queue > 0 then
+					draining = true -- next item: slide the bar back quickly
+					popAmount()
+					updateProgressText()
+				else
+					draining = false
+					displayedFill = 1
+					finishProgress(job)
+				end
+				refreshInventory()
+				refreshCrafting()
+				flashItem(job.id)
+			end
+		end
+	end
+
 	-- bar: fills once per item, then does a very fast smooth slide back to empty
 	if progress.Visible then
 		local target
 		local current = queue[1]
 		if current then
-			target = unit and math.clamp((workspace:GetServerTimeNow() - unit.startedAt) / unit.dur, 0, 1) or 0
+			target = unitStarted and math.clamp(unitElapsed / current.dur, 0, 1) or 0
 		else
 			target = 1
 		end
@@ -1443,9 +1531,6 @@ end)
 --------------------------------------------------------------------------------
 -- START
 --------------------------------------------------------------------------------
-connect(stateRemote.OnClientEvent, applyState)
-actionRemote:FireServer("sync")
-
 refreshInventory()
 refreshCrafting()
 refreshHotbar()

@@ -13,10 +13,7 @@ designed vs. actually working and the rules for working on this project.
 ## Files
 | Path | What it is |
 | --- | --- |
-| `roblox/HorizonInventoryUI.client.lua` | LocalScript (StarterPlayerScripts). The full inventory/crafting/hotbar UI. Draws server state only; asks the server to craft/clear/equip via `HorizonRemotes.InventoryAction`. |
-| `roblox/HorizonItems.module.lua` | ModuleScript `HorizonItems` in ReplicatedStorage. Items, recipes, craft times, queue max. Shared by client + server. |
-| `roblox/HorizonInventoryService.module.lua` | ModuleScript `HorizonInventoryService` in ServerScriptService. Server-owned inventory, craft queue/timing, hotbar equip, rate limit. API: `AddItem`, `RemoveItem`, `GetCount`. No saving yet. Studio-only test items. |
-| `roblox/HorizonInventoryServer.server.lua` | Script `HorizonInventoryServer` in ServerScriptService. Just starts the service. |
+| `roblox/HorizonInventoryUI.client.lua` | LocalScript (StarterPlayerScripts). The full inventory/crafting/hotbar UI with a LOCAL demo inventory. **The only script for now — the user wants UI only, no server scripts yet.** |
 | `design/InventoryCrafting_preview.html` | **Open this in a browser** to see the approved design working (Tab = open/close, 1–8 = hotbar, Craft/All test the queue). Standalone, matches the latest decisions. |
 | `design/InventoryCrafting.dc.html` | Source of the approved HTML preview (Claude Design canvas format; needs the canvas runtime to render). Live canvas: https://claude.ai/artifact/THsdwNwjTZUf2NXa1FVNbJ |
 | `design/icons/*.svg` | Placeholder item icons used in the preview only. The Roblox script uses the user's real `rbxassetid` images. |
@@ -81,11 +78,9 @@ designed vs. actually working and the rules for working on this project.
 - **Item images** for Map and Compass don't exist yet, so those items show their name instead.
 
 ## Next steps
-1. **Server side for the inventory — DONE (first version, untested in Studio).**
-   Remotes in `ReplicatedStorage.HorizonRemotes`: `InventoryAction` (client→server: `"craft", id, 1|"all"` / `"clear"` / `"hotbar", i` / `"sync"`)
-   and `InventoryState` (server→client: full state + `crafted` event). Crafting progress bar uses `workspace:GetServerTimeNow()`.
-   Tools: templates in `ServerStorage.HorizonTools`, named by item id or display name. Crafted Tools-category items auto-fill the first free hotbar slot.
-   The backpack grid shows all owned items (hotbar slots only point at owned items) until drag-and-drop is designed.
+1. **Server side for the inventory — LATER.** The user said UI only for now (one client script). A first server version
+   (shared items module, server-owned queue, RemoteEvents) exists in git history (commit 9ddf0dc) if wanted later.
+   Look for `SERVER HOOK` in the script. The client must never grant items.
 2. **Real equipment slots** (Helmet, Chest, Gloves, Legs, Boots) and drag-and-drop between the backpack and hotbar.
 3. **Check this against the user's existing scripts in Roblox Studio** (`SurvivalInventoryUI`, `SurvivalCraftingUI`,
    RemoteEvent names) before wiring anything. The overview's "October 2026 recovery findings" list known mismatches.
