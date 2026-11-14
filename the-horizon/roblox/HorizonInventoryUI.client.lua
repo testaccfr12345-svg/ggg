@@ -55,7 +55,9 @@ local CONFIG = {
 	DarkText = Color3.fromRGB(27, 26, 20),
 	Missing = Color3.fromRGB(244, 164, 124),
 	PanelColor = Color3.fromRGB(16, 21, 19),
-	PanelTransparency = 0.32,
+	-- The HTML uses 0.32 over a dark scene. The real game world is bright, so the
+	-- panels need to be more solid to look as dark as the preview.
+	PanelTransparency = 0.15,
 	FontEnum = Enum.Font.PatrickHand,
 	-- Roblox TextSize = the font's full line height; HTML font-size = its em size.
 	-- Patrick Hand's line height is 1.354 em, so this makes text match the HTML.
@@ -65,7 +67,7 @@ local CONFIG = {
 	BackpackSlots = 30,
 	BarResetSpeed = 35, -- how fast the bar slides back to empty between items (higher = faster)
 	BlurSize = 12, -- background blur while the menu is open
-	DimTransparency = 0.58, -- dark layer behind the menu (HTML: 42% black)
+	DimTransparency = 0.45, -- dark layer behind the menu (darker than the HTML because the game world is bright)
 	-- Equipment slot icons. Upload the PNGs in design/equipment_icons/ as Decals
 	-- and paste the rbxassetid:// ids here. Empty = shows the slot name instead.
 	EquipmentIcons = {
