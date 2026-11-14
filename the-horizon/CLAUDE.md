@@ -16,6 +16,7 @@ designed vs. actually working and the rules for working on this project.
 | `roblox/HorizonInventoryUI.client.lua` | LocalScript (StarterPlayerScripts). The full inventory/crafting/hotbar UI with a LOCAL demo inventory. **The only script for now — the user wants UI only, no server scripts yet.** |
 | `design/InventoryCrafting_preview.html` | **Open this in a browser** to see the approved design working (Tab = open/close, 1–8 = hotbar, Craft/All test the queue). Standalone, matches the latest decisions. |
 | `design/InventoryCrafting.dc.html` | Source of the approved HTML preview (Claude Design canvas format; needs the canvas runtime to render). Live canvas: https://claude.ai/artifact/THsdwNwjTZUf2NXa1FVNbJ |
+| `design/item_icons/*.png` (+ `item_icons.zip`) | PNG versions of the live canvas icons (items + `equip_*` slots) for uploading to Roblox as Decals. |
 | `design/icons/*.svg` | Placeholder item icons used in the preview only. The Roblox script uses the user's real `rbxassetid` images. |
 | `docs/old_SurvivalCraftingUI_reference.lua` | The user's OLD crafting UI script. Reference for style, the original `CraftingProgress` element, asset IDs and recipes. Don't run it alongside the new script. |
 | `docs/THE_HORIZON_PROJECT_OVERVIEW.txt` | Whole-game design doc + status + rules. |
@@ -54,7 +55,7 @@ designed vs. actually working and the rules for working on this project.
 - **Rejected versions:** a box widget, a top-centre pill, ARK-style slot tiles, and a ring/card version.
 
 **Crafting rules** (ARK-like)
-- **Craft and All:** Craft adds 1. Clicking it again stacks the same item. All (N) queues as many as the materials allow.
+- **Craft only:** Craft adds 1; clicking it again stacks the same item. The All button was removed (user decision).
 - **Materials** are taken when each item **starts**, not when it's queued.
 - **Clear queue** clears everything except the item currently being crafted.
 - **Queue limit:** up to 8 different entries.

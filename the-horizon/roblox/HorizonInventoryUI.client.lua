@@ -757,7 +757,7 @@ corner(clearButton, 13)
 
 local craftButton = textButton(right, {
 	Position = UDim2.fromOffset(0, 290),
-	Size = UDim2.fromOffset(180, 52),
+	Size = UDim2.fromOffset(292, 52),
 	BackgroundColor3 = CONFIG.Accent,
 	TextSize = 26,
 	Text = "Craft",
@@ -765,15 +765,6 @@ local craftButton = textButton(right, {
 corner(craftButton, 12)
 local craftButtonScale = new("UIScale", {}, craftButton)
 
-local allButton = textButton(right, {
-	Position = UDim2.fromOffset(188, 290),
-	Size = UDim2.fromOffset(104, 52),
-	BackgroundTransparency = 1,
-	TextSize = 20,
-	Text = "All",
-})
-corner(allButton, 12)
-local allStroke = stroke(allButton, CONFIG.Accent, 2, 0)
 
 --------------------------------------------------------------------------------
 -- HUD: hotbar, item name, crosshair, inventory button
@@ -1086,12 +1077,6 @@ local function refreshCrafting()
 	craftButton.TextColor3 = can and CONFIG.DarkText or CONFIG.Text
 	craftButton.TextTransparency = can and 0 or 0.4
 	craftButton.Active = can
-	allButton.Text = maxN > 1 and ("All (" .. maxN .. ")") or "All"
-	allButton.TextColor3 = can and CONFIG.Accent or CONFIG.Text
-	allButton.TextTransparency = can and 0 or 0.5
-	allStroke.Color = can and CONFIG.Accent or CONFIG.Text
-	allStroke.Transparency = can and 0 or 0.88
-	allButton.Active = can
 
 	local n = queuedCount(recipe.id)
 	queuedLabel.Text = n > 0 and (n .. " in queue") or ""
@@ -1404,11 +1389,6 @@ connect(craftButton.Activated, function()
 	craftButtonScale.Scale = 0.92
 	tween(craftButtonScale, 0.16, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	requestCraft(recipe, 1)
-end)
-
-connect(allButton.Activated, function()
-	local recipe = currentRecipe()
-	requestCraft(recipe, maxCraftable(recipe))
 end)
 
 connect(clearButton.Activated, clearQueue)
