@@ -58,15 +58,32 @@ local CONFIG = {
 	PanelColor = Color3.fromRGB(16, 21, 19),
 	PanelTransparency = 0.32,
 	FontEnum = Enum.Font.PatrickHand,
+	-- Roblox TextSize = the font's full line height; HTML font-size = its em size.
+	-- Patrick Hand's line height is 1.354 em, so this makes text match the HTML.
+	FontScale = 1.354,
 	CraftCompleteSound = "rbxassetid://100545760361878",
 	BackpackSlots = 30,
 	BarResetSpeed = 35, -- how fast the bar slides back to empty between items (higher = faster)
 	BlurSize = 12, -- background blur while the menu is open
+	DimTransparency = 0.58, -- dark layer behind the menu (HTML: 42% black)
+	-- Equipment slot icons. Upload the PNGs in design/equipment_icons/ as Decals
+	-- and paste the rbxassetid:// ids here. Empty = shows the slot name instead.
+	EquipmentIcons = {
+		Helmet = "",
+		Chest = "",
+		Gloves = "",
+		Legs = "",
+		Boots = "",
+	},
 	-- everything is laid out on a 1280 x 720 design screen (same as the HTML preview)
 	DesignWidth = 1280,
 	DesignHeight = 720,
 }
 local FONT = Font.fromEnum(CONFIG.FontEnum)
+-- HTML font-size (px) → Roblox TextSize
+local function ts(size)
+	return math.floor(size * CONFIG.FontScale + 0.5)
+end
 
 --------------------------------------------------------------------------------
 -- ITEMS / RECIPES / CRAFT TIMES live in ReplicatedStorage.HorizonItems
@@ -144,6 +161,7 @@ local function text(parent, props)
 	for key, value in pairs(props) do
 		label[key] = value
 	end
+	label.TextSize = ts(props.TextSize or 18)
 	return label
 end
 
@@ -159,6 +177,7 @@ local function textButton(parent, props)
 	for key, value in pairs(props) do
 		button[key] = value
 	end
+	button.TextSize = ts(props.TextSize or 18)
 	return button
 end
 
@@ -173,7 +192,7 @@ local function tween(object, duration, props, style, direction)
 end
 
 local function textWidth(str, size)
-	return TextService:GetTextSize(str, size, CONFIG.FontEnum, Vector2.new(2000, 200)).X
+	return TextService:GetTextSize(str, ts(size), CONFIG.FontEnum, Vector2.new(2000, 200)).X
 end
 
 local function panel(parent, name, x, y, w, h)
@@ -343,6 +362,31 @@ local usedLabel = text(invPanel, {
 })
 text(invPanel, { Position = UDim2.fromOffset(20, 64), Size = UDim2.fromOffset(200, 20), Text = "Equipment", TextSize = 17, TextTransparency = 0.3 })
 
+-- dashed outline (Roblox has no dashed strokes, so it's built from small bars)
+local function dashedBorder(parent, size, color, transparency)
+	local dash, gap, thick, inset = 6, 6, 2, 8
+	local run = size - inset * 2
+	local count = math.floor((run + gap) / (dash + gap))
+	local start = inset + (run - (count * dash + (count - 1) * gap)) / 2
+	for i = 0, count - 1 do
+		local at = start + i * (dash + gap)
+		for _, spec in ipairs({
+			{ at, 0, dash, thick },
+			{ at, size - thick, dash, thick },
+			{ 0, at, thick, dash },
+			{ size - thick, at, thick, dash },
+		}) do
+			new("Frame", {
+				Position = UDim2.fromOffset(spec[1], spec[2]),
+				Size = UDim2.fromOffset(spec[3], spec[4]),
+				BackgroundColor3 = color,
+				BackgroundTransparency = transparency,
+				BorderSizePixel = 0,
+			}, parent)
+		end
+	end
+end
+
 for index, slotName in ipairs({ "Helmet", "Chest", "Gloves", "Legs", "Boots" }) do
 	local slot = textButton(invPanel, {
 		Name = slotName .. "Slot",
@@ -352,14 +396,26 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Gloves", "Legs", "Boots" }) 
 		BackgroundTransparency = 0.96,
 	})
 	corner(slot, 8)
-	stroke(slot, CONFIG.Text, 1.5, 0.82)
-	text(slot, {
-		Size = UDim2.fromScale(1, 1),
-		Text = slotName,
-		TextSize = 16,
-		TextTransparency = 0.6,
-		TextXAlignment = Enum.TextXAlignment.Center,
-	})
+	dashedBorder(slot, 64, CONFIG.Text, 0.82)
+	local image = CONFIG.EquipmentIcons[slotName]
+	if image and image ~= "" then
+		new("ImageLabel", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromOffset(36, 36),
+			BackgroundTransparency = 1,
+			Image = image,
+			ImageTransparency = 0.7,
+		}, slot)
+	else
+		text(slot, {
+			Size = UDim2.fromScale(1, 1),
+			Text = slotName,
+			TextSize = 14,
+			TextTransparency = 0.7,
+			TextXAlignment = Enum.TextXAlignment.Center,
+		})
+	end
 end
 
 text(invPanel, { Position = UDim2.fromOffset(20, 168), Size = UDim2.fromOffset(150, 20), Text = "Backpack", TextSize = 17, TextTransparency = 0.3 })
@@ -416,7 +472,7 @@ for _, rotation in ipairs({ 45, -45 }) do
 	local line = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(2, 16),
+		Size = UDim2.fromOffset(2, 14),
 		Rotation = rotation,
 		BackgroundColor3 = CONFIG.Text,
 		BorderSizePixel = 0,
@@ -482,13 +538,26 @@ for _, category in ipairs(CATEGORY_ORDER) do
 		})
 		corner(tile, 10)
 		local outline = stroke(tile, CONFIG.Accent, 2, 1)
-		local icon = itemIcon(tile, 56, UDim2.new(0.5, 0, 0, 38))
+		local content = new("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+		}, tile)
+		new("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			Padding = UDim.new(0, 6),
+		}, content)
+		local iconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1 }, content)
+		local icon = itemIcon(iconHolder, 56, UDim2.fromScale(0.5, 0.5))
 		icon.Set(recipe.id)
-		text(tile, {
-			Position = UDim2.fromOffset(4, 70),
-			Size = UDim2.fromOffset(82, 26),
+		text(content, {
+			LayoutOrder = 2,
+			Size = UDim2.fromOffset(82, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
 			Text = ITEMS[recipe.id].Name,
 			TextSize = 16,
+			LineHeight = 0.78, -- HTML line-height 1.05
 			TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Center,
 		})
@@ -524,7 +593,14 @@ local preview = new("Frame", {
 	BorderSizePixel = 0,
 }, craftPanel)
 corner(preview, 12)
-local previewIcon = itemIcon(preview, 156, UDim2.new(0.5, 0, 0, 92))
+new("UIListLayout", {
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	Padding = UDim.new(0, 4),
+}, preview)
+local previewIconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(156, 164), BackgroundTransparency = 1 }, preview)
+local previewIcon = itemIcon(previewIconHolder, 156, UDim2.fromOffset(78, 78))
 local previewPop = new("UIScale", {}, previewIcon.Image)
 local function popPreview()
 	previewPop.Scale = 0.82
@@ -533,27 +609,29 @@ local function popPreview()
 	tween(previewIcon.Image, 0.2, { Rotation = 0 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 end
 local previewName = text(preview, {
-	Position = UDim2.fromOffset(12, 176),
+	LayoutOrder = 2,
 	Size = UDim2.fromOffset(268, 32),
 	TextSize = 32,
 	TextXAlignment = Enum.TextXAlignment.Center,
 })
 local previewCategory = text(preview, {
-	Position = UDim2.fromOffset(12, 210),
-	Size = UDim2.fromOffset(268, 18),
+	LayoutOrder = 3,
+	Size = UDim2.fromOffset(268, 22),
 	TextSize = 16,
 	TextTransparency = 0.3,
 	TextXAlignment = Enum.TextXAlignment.Center,
 })
 local previewDesc = text(preview, {
-	Position = UDim2.fromOffset(26, 234),
-	Size = UDim2.fromOffset(240, 92),
+	LayoutOrder = 4,
+	Size = UDim2.fromOffset(240, 0),
+	AutomaticSize = Enum.AutomaticSize.Y,
 	TextSize = 18,
 	TextTransparency = 0.15,
 	TextWrapped = true,
 	TextXAlignment = Enum.TextXAlignment.Center,
 	TextYAlignment = Enum.TextYAlignment.Top,
 })
+new("UIPadding", { PaddingTop = UDim.new(0, 6) }, previewDesc)
 
 -- materials + buttons (right column)
 local right = new("Frame", {
@@ -576,8 +654,8 @@ for index = 1, 3 do
 	}, right)
 	corner(row, 10)
 	local icon = itemIcon(row, 40, UDim2.fromOffset(32, 24))
-	local name = text(row, { Position = UDim2.fromOffset(62, 4), Size = UDim2.fromOffset(150, 22), TextSize = 19 })
-	local status = text(row, { Position = UDim2.fromOffset(62, 25), Size = UDim2.fromOffset(150, 18), TextSize = 15 })
+	local name = text(row, { Position = UDim2.fromOffset(62, 6), Size = UDim2.fromOffset(150, 20), TextSize = 19 })
+	local status = text(row, { Position = UDim2.fromOffset(62, 26), Size = UDim2.fromOffset(150, 16), TextSize = 15 })
 	local amount = text(row, {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -12, 0, 0),
@@ -685,29 +763,31 @@ local openStroke = stroke(openButton, CONFIG.Accent, 2, 1)
 local openPop = new("UIScale", {}, openButton)
 do
 	-- simple backpack icon built from frames
+	local line = 2.6
 	local bag = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromOffset(40, 44),
-		Size = UDim2.fromOffset(30, 26),
+		Position = UDim2.fromOffset(40, 43),
+		Size = UDim2.fromOffset(19, 16),
 		BackgroundTransparency = 1,
 	}, openButton)
-	corner(bag, 7)
-	stroke(bag, CONFIG.Text, 2.4, 0)
+	corner(bag, 4)
+	stroke(bag, CONFIG.Text, line, 0)
 	local handle = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.fromOffset(40, 33),
-		Size = UDim2.fromOffset(14, 10),
+		Position = UDim2.fromOffset(40, 35 - line),
+		Size = UDim2.fromOffset(7, 4),
 		BackgroundTransparency = 1,
 	}, openButton)
-	corner(handle, 5)
-	stroke(handle, CONFIG.Text, 2.4, 0)
-	new("Frame", {
+	corner(handle, 4)
+	stroke(handle, CONFIG.Text, line, 0)
+	local strap = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromOffset(40, 46),
-		Size = UDim2.fromOffset(16, 2.4),
+		Position = UDim2.fromOffset(40, 43),
+		Size = UDim2.fromOffset(14, line),
 		BackgroundColor3 = CONFIG.Text,
 		BorderSizePixel = 0,
 	}, openButton)
+	corner(strap, 1)
 	if keyboard then
 		text(openButton, { Position = UDim2.fromOffset(6, 1), Size = UDim2.fromOffset(40, 18), Text = "TAB", TextSize = 13, TextTransparency = 0.35 })
 	end
@@ -924,7 +1004,7 @@ local function refreshCrafting()
 			row.Icon.Set(mat[1])
 			row.Name.Text = ITEMS[mat[1]].Name
 			row.Status.Text = ok and "Ready" or ("Need " .. (mat[2] - have) .. " more")
-			row.Status.TextColor3 = ok and CONFIG.Text or CONFIG.Missing
+			row.Status.TextColor3 = ok and CONFIG.Accent or CONFIG.Missing
 			row.Amount.Text = have .. " / " .. mat[2]
 			row.Amount.TextColor3 = ok and CONFIG.Text or CONFIG.Missing
 		end
@@ -990,6 +1070,10 @@ local function updateProgressText()
 		progressTitle.Text = "Crafted " .. ITEMS[finishing.id].Name
 		progressAmount.Text = "x" .. finishing.total
 	end
+	-- title uses all the room the amount leaves (like the HTML)
+	local amountWidth = math.ceil(textWidth(progressAmount.Text, 17))
+	progressAmount.Size = UDim2.fromOffset(amountWidth, 20)
+	progressTitle.Size = UDim2.fromOffset(190 - amountWidth - 8, 20)
 end
 
 local function showProgress()
@@ -1191,7 +1275,7 @@ local function setOpen(open)
 		menuTween(panelsScale, 0.16, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 		menuTween(invPanel, 0.16, { Position = INV_HOME }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 		menuTween(craftPanel, 0.16, { Position = CRAFT_HOME }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-		menuTween(dim, 0.12, { BackgroundTransparency = 0.65 })
+		menuTween(dim, 0.12, { BackgroundTransparency = CONFIG.DimTransparency })
 		menuTween(blur, 0.12, { Size = CONFIG.BlurSize })
 	else
 		local out = menuTween(panelsScale, 0.1, { Scale = 0.94 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)

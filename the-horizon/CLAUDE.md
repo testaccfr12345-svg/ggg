@@ -27,6 +27,10 @@ designed vs. actually working and the rules for working on this project.
 **Colours and font**
 - **Accent is yellow** `#E9B949` (RGB 233,185,73). No teal or second accent colour, and no black/white-only theme. The user rejected both.
 - **Font is Patrick Hand** (`Enum.Font.PatrickHand`), used for all text.
+- **Text sizes are written as the HTML px sizes** and multiplied by `CONFIG.FontScale = 1.354` in the `text()`/`textButton()` helpers.
+  Roblox TextSize is the font's line height; Patrick Hand's line height is 1.354 em, so without this all text came out ~26% too small.
+- **Equipment slots** use a dashed outline (built from small Frames) and icons from `design/equipment_icons/*.png`
+  once the user uploads them and fills `CONFIG.EquipmentIcons`.
 
 **Layout**
 - **Panels:** dark semi-transparent, RGB 16,21,19 at 0.32 transparency, warm off-white text RGB 237,232,220.
