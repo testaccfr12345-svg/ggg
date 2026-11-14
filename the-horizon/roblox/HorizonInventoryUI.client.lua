@@ -470,8 +470,7 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Gloves", "Legs", "Boots" }) 
 			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromOffset(36, 36),
 			BackgroundTransparency = 1,
-			Image = image,
-			ImageTransparency = 0.7,
+			Image = image, -- the grey is baked into the PNG, so no transparency here
 		}, slot)
 	else
 		text(slot, {
