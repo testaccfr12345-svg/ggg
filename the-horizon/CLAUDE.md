@@ -105,6 +105,7 @@ The user's target is her reference screenshot (older design iteration), "just li
    survival stats → saving per world → building → combat → NPCs → world.
 
 ## Working with the user
+- **NEVER remove or change a value the user tuned with the UI tuner (HZT lines) without asking first.** Later edits must keep them.
 - **NEVER put comments or prints in the user's scripts.** No `--` comments, no `print`/`warn`. Explain things in chat instead.
 - **Short, direct messages.** They test on mobile (landscape phone) and send screenshots.
 - **Match the approved preview closely.** Don't restyle things they didn't ask about.

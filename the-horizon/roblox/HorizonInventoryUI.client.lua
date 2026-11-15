@@ -455,7 +455,7 @@ for index = 1, CONFIG.BackpackSlots do
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -7, 1, -6),
 		Size = UDim2.fromOffset(40, 18),
-		TextSize = 24 / CONFIG.FontScale,
+		TextSize = 26 / CONFIG.FontScale,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		ZIndex = 2,
 	})
@@ -637,13 +637,13 @@ local previewDesc = text(preview, {
 	LayoutOrder = 4,
 	Size = UDim2.fromOffset(240, 0),
 	AutomaticSize = Enum.AutomaticSize.Y,
-	TextSize = 18,
+	TextSize = 29 / CONFIG.FontScale,
 	TextTransparency = 0.15,
 	TextWrapped = true,
 	TextXAlignment = Enum.TextXAlignment.Center,
 	TextYAlignment = Enum.TextYAlignment.Top,
 })
-new("UIPadding", { PaddingTop = UDim.new(0, 8) }, previewDesc)
+new("UIPadding", { PaddingTop = UDim.new(0, 12) }, previewDesc)
 
 local right = new("Frame", {
 	Name = "Requirements",
@@ -738,7 +738,7 @@ for index = 1, 8 do
 		BackgroundTransparency = CONFIG.HotbarTransparency,
 	})
 	corner(slot, 8)
-	local ring = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, slot)
+	local ring = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -10, 1, -10), BackgroundTransparency = 1 }, slot)
 	corner(ring, 6)
 	local outline = stroke(ring, Color3.new(1, 1, 1), 2, 0.85)
 	local icon = itemIcon(slot, 40, UDim2.fromScale(0.5, 0.5))
@@ -794,9 +794,10 @@ local hotName = text(gui, {
 	AnchorPoint = Vector2.new(0.5, 1),
 	Position = UDim2.new(0.5, 0, 1, -97),
 	Size = UDim2.fromOffset(400, 24),
-	TextSize = 28 / CONFIG.FontScale,
+	TextSize = 32 / CONFIG.FontScale,
+	TextTransparency = 1,
 	TextXAlignment = Enum.TextXAlignment.Center,
-	TextStrokeTransparency = 0.7,
+	TextStrokeTransparency = 1,
 })
 local hotNameScale = new("UIScale", {}, hotName)
 
@@ -1044,7 +1045,7 @@ local function refreshHotbar()
 		slot.Button.BackgroundTransparency = on and 0.05 or CONFIG.HotbarTransparency
 	end
 	local held = hotbarItems[selectedHotbar]
-	hotName.Text = held and ITEMS[held].Name or "Empty hand"
+	hotName.Text = held and ITEMS[held].Name or ""
 end
 
 local progressState = "hidden"
@@ -1254,9 +1255,34 @@ local function setOpen(open)
 	end
 end
 
+local hotNameToken = 0
+local hotNameTweens = {}
+local function flashHotName()
+	hotNameToken += 1
+	local token = hotNameToken
+	for _, t in ipairs(hotNameTweens) do
+		t:Cancel()
+	end
+	table.clear(hotNameTweens)
+	if hotbarItems[selectedHotbar] then
+		hotName.TextTransparency = 0
+		hotName.TextStrokeTransparency = 0.7
+		task.delay(1.2, function()
+			if token ~= hotNameToken then
+				return
+			end
+			table.insert(hotNameTweens, tween(hotName, 0.4, { TextTransparency = 1, TextStrokeTransparency = 1 }))
+		end)
+	else
+		hotName.TextTransparency = 1
+		hotName.TextStrokeTransparency = 1
+	end
+end
+
 local function selectHotbar(index)
 	selectedHotbar = index
 	refreshHotbar()
+	flashHotName()
 	local pop = hotbarSlots[index].Pop
 	pop.Scale = 0.86
 	tween(pop, 0.16, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
