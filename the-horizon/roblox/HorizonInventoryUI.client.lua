@@ -1266,6 +1266,58 @@ local function menuTween(object, duration, props, style, direction)
 	return t
 end
 
+local fadeEntries = {}
+local fadeActive = false
+local fadeValue = new("NumberValue", { Name = "MenuFade", Value = 1 }, gui)
+
+local function applyFade(a)
+	for _, entry in ipairs(fadeEntries) do
+		local object = entry[1]
+		for prop, base in pairs(entry[2]) do
+			object[prop] = 1 - (1 - base) * a
+		end
+	end
+end
+
+local function endFade()
+	if fadeActive then
+		applyFade(1)
+		fadeActive = false
+	end
+end
+
+local function startFade()
+	endFade()
+	table.clear(fadeEntries)
+	for _, d in ipairs(panels:GetDescendants()) do
+		local props = nil
+		if d:IsA("GuiObject") then
+			props = { BackgroundTransparency = d.BackgroundTransparency }
+			if d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then
+				props.TextTransparency = d.TextTransparency
+				props.TextStrokeTransparency = d.TextStrokeTransparency
+			elseif d:IsA("ImageLabel") or d:IsA("ImageButton") then
+				props.ImageTransparency = d.ImageTransparency
+			end
+			if d:IsA("ScrollingFrame") then
+				props.ScrollBarImageTransparency = d.ScrollBarImageTransparency
+			end
+		elseif d:IsA("UIStroke") then
+			props = { Transparency = d.Transparency }
+		end
+		if props then
+			table.insert(fadeEntries, { d, props })
+		end
+	end
+	fadeActive = true
+end
+
+fadeValue.Changed:Connect(function(a)
+	if fadeActive then
+		applyFade(a)
+	end
+end)
+
 local function setOpen(open)
 	if isOpen == open and panels.Visible == open then
 		return
@@ -1296,27 +1348,35 @@ local function setOpen(open)
 		updateScale()
 		refreshInventory()
 		refreshCrafting()
+		invPanel.Position = INV_HOME
+		craftPanel.Position = CRAFT_HOME
+		startFade()
+		fadeValue.Value = 0
+		applyFade(0)
+		panelsScale.Scale = 0.95
 		panels.Visible = true
 		dim.Visible = true
-
-		panelsScale.Scale = 0.94
-		invPanel.Position = INV_HOME + UDim2.fromOffset(-28, 0)
-		craftPanel.Position = CRAFT_HOME + UDim2.fromOffset(28, 0)
-		menuTween(panelsScale, 0.16, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-		menuTween(invPanel, 0.16, { Position = INV_HOME }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-		menuTween(craftPanel, 0.16, { Position = CRAFT_HOME }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-		menuTween(dim, 0.12, { BackgroundTransparency = CONFIG.DimTransparency })
-		menuTween(blur, 0.12, { Size = CONFIG.BlurSize })
+		menuTween(panelsScale, 0.26, { Scale = 1 }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+		local fadeIn = menuTween(fadeValue, 0.2, { Value = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+		menuTween(dim, 0.2, { BackgroundTransparency = CONFIG.DimTransparency }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+		menuTween(blur, 0.2, { Size = CONFIG.BlurSize }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+		fadeIn.Completed:Once(function(state)
+			if state == Enum.PlaybackState.Completed and isOpen then
+				endFade()
+			end
+		end)
 	else
-		local out = menuTween(panelsScale, 0.1, { Scale = 0.94 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-		menuTween(invPanel, 0.1, { Position = INV_HOME + UDim2.fromOffset(-28, 0) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-		menuTween(craftPanel, 0.1, { Position = CRAFT_HOME + UDim2.fromOffset(28, 0) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-		menuTween(dim, 0.1, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-		menuTween(blur, 0.1, { Size = 0 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		startFade()
+		fadeValue.Value = 1
+		menuTween(panelsScale, 0.16, { Scale = 0.96 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+		local out = menuTween(fadeValue, 0.14, { Value = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+		menuTween(dim, 0.16, { BackgroundTransparency = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+		menuTween(blur, 0.16, { Size = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
 		out.Completed:Once(function(state)
 			if state == Enum.PlaybackState.Completed and not isOpen then
 				panels.Visible = false
 				dim.Visible = false
+				endFade()
 			end
 		end)
 	end
