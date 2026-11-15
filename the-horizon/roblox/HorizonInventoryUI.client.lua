@@ -33,7 +33,7 @@ local CONFIG = {
 	FontScale = 1.354,
 	CraftCompleteSound = "rbxassetid://100545760361878",
 	QueueMax = 8,
-	BackpackSlots = 26,
+	BackpackSlots = 24,
 	BarResetSpeed = 35,
 	BlurSize = 12,
 	DimTransparency = 0.16,
@@ -472,13 +472,14 @@ local invInfo = text(invPanel, {
 })
 
 local backpackSlots = {}
+local BACKPACK_SLOT_H = (560 - 208 - 3 * 8) / 4
 for index = 1, CONFIG.BackpackSlots do
 	local column = (index - 1) % 6
 	local row = math.floor((index - 1) / 6)
 	local slot = textButton(invPanel, {
 		Name = "Slot" .. index,
-		Position = UDim2.new(column / 6, 20 - column * 16 / 3, 0, 208 + row * 72),
-		Size = UDim2.new(1 / 6, -40 / 3, 0, 64),
+		Position = UDim2.new(column / 6, 20 - column * 16 / 3, 0, 208 + row * (BACKPACK_SLOT_H + 8)),
+		Size = UDim2.new(1 / 6, -40 / 3, 0, BACKPACK_SLOT_H),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.93,
 	})
@@ -614,17 +615,17 @@ for _, category in ipairs(CATEGORY_ORDER) do
 		})
 		local badge = new("Frame", {
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -5, 0, 4),
-			Size = UDim2.fromOffset(28, 20),
+			Position = UDim2.new(1, -5, 0, 5),
+			Size = UDim2.fromOffset(18, 18),
 			BackgroundColor3 = CONFIG.Accent,
 			BorderSizePixel = 0,
 			Visible = false,
 			ZIndex = 3,
 		}, tile)
-		corner(badge, 10)
+		corner(badge, 9)
 		local badgeText = text(badge, {
 			Size = UDim2.fromScale(1, 1),
-			TextSize = 14,
+			TextSize = 11,
 			TextColor3 = CONFIG.DarkText,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			ZIndex = 3,
@@ -757,8 +758,9 @@ local craftButton = textButton(right, {
 corner(craftButton, 12)
 local craftButtonScale = new("UIScale", {}, craftButton)
 
-local HOTBAR_SLOT, HOTBAR_GAP = 72, 8
-local HOTBAR_W = 9 * HOTBAR_SLOT + 8 * HOTBAR_GAP
+local HOTBAR_SLOT, HOTBAR_GAP = 62, 8
+local BAG_SLOT = HOTBAR_SLOT * 0.5
+local HOTBAR_W = 8 * HOTBAR_SLOT + 8 * HOTBAR_GAP + BAG_SLOT
 local HOTBAR_BORDER = Color3.fromRGB(237, 232, 220)
 
 local hotbarGroup = new("Frame", {
@@ -777,11 +779,13 @@ local hotbar = new("Frame", {
 	BorderSizePixel = 0,
 }, hotbarGroup)
 
-local function hotbarBox(parent, name, index)
+local function hotbarBox(parent, name, index, size)
+	size = size or HOTBAR_SLOT
 	local box = textButton(parent, {
 		Name = name,
-		Position = UDim2.fromOffset((index - 1) * (HOTBAR_SLOT + HOTBAR_GAP), 0),
-		Size = UDim2.fromOffset(HOTBAR_SLOT, HOTBAR_SLOT),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, (index - 1) * (HOTBAR_SLOT + HOTBAR_GAP), 0.5, 0),
+		Size = UDim2.fromOffset(size, size),
 		BackgroundColor3 = CONFIG.PanelColor,
 		BackgroundTransparency = 0.45,
 	})
@@ -806,16 +810,16 @@ end
 local hotbarSlots = {}
 for index = 1, 8 do
 	local slot, setBorder = hotbarBox(hotbar, "Hotbar" .. index, index)
-	local icon = itemIcon(slot, 48, UDim2.fromScale(0.5, 0.5))
+	local icon = itemIcon(slot, 48 * HOTBAR_SLOT / 72, UDim2.fromScale(0.5, 0.5))
 	hotbarSlots[index] = { Button = slot, SetBorder = setBorder, Icon = icon }
 end
 
 local keyboard = UserInputService.KeyboardEnabled
-local openButton, setOpenBorder = hotbarBox(hotbarGroup, "OpenInventory", 9)
+local openButton, setOpenBorder = hotbarBox(hotbarGroup, "OpenInventory", 9, BAG_SLOT)
 do
-	local k = 26 / 28
+	local k = 26 / 28 * (BAG_SLOT / 72)
 	local line = 2.2 * k
-	local origin = HOTBAR_SLOT / 2 - 13
+	local origin = BAG_SLOT / 2 - 14 * k
 	local bag = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromOffset(origin + 14 * k, origin + 16.5 * k),
@@ -841,7 +845,7 @@ do
 	}, openButton)
 	corner(strap, 1)
 	if keyboard then
-		text(openButton, { Position = UDim2.fromOffset(5, 1), Size = UDim2.fromOffset(40, 16), Text = "TAB", TextSize = 11, TextTransparency = 0.35 })
+		text(openButton, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, -2), Size = UDim2.fromOffset(40, 14), Text = "TAB", TextSize = 11, TextTransparency = 0.35, TextXAlignment = Enum.TextXAlignment.Center })
 	end
 end
 
@@ -1055,7 +1059,7 @@ local function refreshCrafting()
 		tile.NameLabel.TextTransparency = faded and 0.55 or 0
 		tile.Badge.Visible = n > 0
 		tile.BadgeText.Text = "x" .. n
-		tile.Badge.Size = UDim2.fromOffset(math.max(28, math.ceil(textWidth("x" .. n, 14)) + 12), 20)
+		tile.Badge.Size = UDim2.fromOffset(math.max(18, math.ceil(textWidth("x" .. n, 11)) + 8), 18)
 	end
 
 	local item = ITEMS[recipe.id]
@@ -1101,7 +1105,7 @@ local function refreshHotbar()
 	for index, slot in ipairs(hotbarSlots) do
 		local id = hotbarItems[index]
 		slot.Icon.Set(id or nil)
-		local on = selectedHotbar == index
+		local on = selectedHotbar == index and not (isOpen and selectedSlot ~= nil)
 		slot.SetBorder(on)
 	end
 	local held = hotbarItems[selectedHotbar]
@@ -1268,6 +1272,11 @@ local function setOpen(open)
 	end
 	isOpen = open
 	modal.Visible = open
+	if not open and selectedSlot ~= nil then
+		selectedSlot = nil
+		refreshInventory()
+	end
+	refreshHotbar()
 	crosshair.Visible = not open
 
 	setOpenBorder(open)
@@ -1329,7 +1338,8 @@ local function flashHotName()
 			if token ~= hotNameToken then
 				return
 			end
-			table.insert(hotNameTweens, tween(hotName, 0.4, { TextTransparency = 1, TextStrokeTransparency = 1 }))
+			table.insert(hotNameTweens, tween(hotName, 0.12, { TextStrokeTransparency = 1 }, Enum.EasingStyle.Linear))
+			table.insert(hotNameTweens, tween(hotName, 0.25, { TextTransparency = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out))
 		end)
 	else
 		hotName.TextTransparency = 1
@@ -1339,6 +1349,10 @@ end
 
 local function selectHotbar(index)
 	selectedHotbar = index
+	if selectedSlot ~= nil then
+		selectedSlot = nil
+		refreshInventory()
+	end
 	refreshHotbar()
 	flashHotName()
 
@@ -1375,6 +1389,7 @@ for index, slot in ipairs(backpackSlots) do
 	connect(slot.Button.Activated, function()
 		selectedSlot = slot.Item and index or nil
 		refreshInventory()
+		refreshHotbar()
 	end)
 end
 
