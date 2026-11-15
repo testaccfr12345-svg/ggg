@@ -620,22 +620,22 @@ local function popPreview()
 	tween(previewPop, 0.2, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	tween(previewIcon.Image, 0.2, { Rotation = 0 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 end
-local previewName = text(preview, {
-	LayoutOrder = 2,
-	Size = UDim2.new(1, -25, 0, 31),
+local previewNameHolder = new("Frame", { Name = "NameHolder", LayoutOrder = 2, Size = UDim2.new(1, -25, 0, 31), BackgroundTransparency = 1 }, preview)
+local previewName = text(previewNameHolder, {
+	Size = UDim2.fromScale(1, 1),
 	TextSize = 39,
 	TextXAlignment = Enum.TextXAlignment.Center,
 })
-local previewCategory = text(preview, {
-	LayoutOrder = 3,
-	Size = UDim2.new(1, -24, 0, 22),
+local previewCategoryHolder = new("Frame", { Name = "CategoryHolder", LayoutOrder = 3, Size = UDim2.new(1, -24, 0, 22), BackgroundTransparency = 1 }, preview)
+local previewCategory = text(previewCategoryHolder, {
+	Size = UDim2.fromScale(1, 1),
 	TextSize = 27 / CONFIG.FontScale,
 	TextTransparency = 0.3,
 	TextXAlignment = Enum.TextXAlignment.Center,
 })
-local previewDesc = text(preview, {
-	LayoutOrder = 4,
-	Size = UDim2.fromOffset(240, 0),
+local previewDescHolder = new("Frame", { Name = "DescHolder", LayoutOrder = 4, Size = UDim2.fromOffset(240, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, preview)
+local previewDesc = text(previewDescHolder, {
+	Size = UDim2.fromScale(1, 0),
 	AutomaticSize = Enum.AutomaticSize.Y,
 	TextSize = 29 / CONFIG.FontScale,
 	TextTransparency = 0.15,
@@ -1042,6 +1042,7 @@ local function refreshHotbar()
 		local on = selectedHotbar == index
 		slot.Stroke.Color = on and CONFIG.Accent or Color3.new(1, 1, 1)
 		slot.Stroke.Transparency = on and 0 or 0.85
+		slot.Stroke.Thickness = on and 2 or 1
 		slot.Button.BackgroundTransparency = on and 0.05 or CONFIG.HotbarTransparency
 	end
 	local held = hotbarItems[selectedHotbar]
@@ -1886,6 +1887,27 @@ local function startTuner()
 	}, exportFrame)
 	round(copyBox, 6)
 	local copyCode = ""
+	local copyParts = {}
+	local copyIndex = 1
+	local partButton = button(exportFrame, "Next part", 0, 0, 90, 22)
+	partButton.AnchorPoint = Vector2.new(1, 1)
+	partButton.Position = UDim2.new(1, -8, 1, -46)
+	partButton.ZIndex = 21
+	partButton.Visible = false
+	local function showPart()
+		copyCode = copyParts[copyIndex] or ""
+		copyBox.Text = copyCode
+		if #copyParts > 1 then
+			copyHint.Text = "Part " .. copyIndex .. " of " .. #copyParts .. ": tap box, hold, Select All, Copy, send. Then Next part."
+		else
+			copyHint.Text = "Tap the box below, hold, Select All, Copy, then send it:"
+		end
+		partButton.Visible = #copyParts > 1
+	end
+	partButton.Activated:Connect(function()
+		copyIndex = copyIndex % math.max(#copyParts, 1) + 1
+		showPart()
+	end)
 	copyBox.Focused:Connect(function()
 		copyBox.Text = copyCode
 		task.defer(function()
@@ -1956,7 +1978,7 @@ local function startTuner()
 			end
 		end
 		table.sort(parts)
-		return "HZT " .. table.concat(parts, " ; ")
+		return "HZT " .. table.concat(parts, " ; ") .. " ; COUNT=" .. #parts
 	end
 
 	local function buildExport()
@@ -2081,8 +2103,21 @@ local function startTuner()
 	end)
 	copyButton.Activated:Connect(function()
 		exportBox.Text = buildExport()
-		copyCode = buildCode()
-		copyBox.Text = copyCode
+		local all = buildCode()
+		table.clear(copyParts)
+		local current = ""
+		for entry in (all:gsub("^HZT ", "") .. " ; "):gmatch("(.-) ; ") do
+			if entry ~= "" then
+				if #current + #entry > 500 and current ~= "" then
+					table.insert(copyParts, "HZT " .. current)
+					current = ""
+				end
+				current = current == "" and entry or (current .. " ; " .. entry)
+			end
+		end
+		table.insert(copyParts, "HZT " .. current)
+		copyIndex = 1
+		showPart()
 		exportFrame.Visible = true
 	end)
 	closeExport.Activated:Connect(function()
