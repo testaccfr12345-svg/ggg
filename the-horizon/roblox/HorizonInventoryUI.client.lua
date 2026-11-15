@@ -378,9 +378,17 @@ local usedLabel = text(invPanel, {
 	TextTransparency = 0.3,
 	TextXAlignment = Enum.TextXAlignment.Right,
 })
-text(invPanel, { Position = UDim2.fromOffset(20, 64), Size = UDim2.fromOffset(200, 24), Text = "Equipment", TextSize = 25 / CONFIG.FontScale, TextTransparency = 0.3 })
+text(invPanel, { Position = UDim2.fromOffset(20, 63), Size = UDim2.fromOffset(200, 24), Text = "Equipment", TextSize = 28 / CONFIG.FontScale, TextTransparency = 0.3 })
 
+local EQUIP_LAYOUT = {
+	Helmet = { 47, 30, 57, 25 },
+	Chest = { 42, 26, 57, 24 },
+	Legs = { 42, 27, 55, 24 },
+	Boots = { 40, 26, 57, 24 },
+	Gloves = { 41, 27, 57, 24 },
+}
 for index, slotName in ipairs({ "Helmet", "Chest", "Legs", "Boots", "Gloves" }) do
+	local layout = EQUIP_LAYOUT[slotName]
 	local slot = textButton(invPanel, {
 		Name = slotName .. "Slot",
 		Position = UDim2.new((index - 1) / 5, 20 - (index - 1) * 6.4, 0, 92),
@@ -396,8 +404,8 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Legs", "Boots", "Gloves" }) 
 	if image and image ~= "" then
 		new("ImageLabel", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0, 29),
-			Size = UDim2.fromOffset(30, 30),
+			Position = UDim2.new(0.5, 0, 0, layout[2]),
+			Size = UDim2.fromOffset(layout[1], layout[1]),
 			BackgroundTransparency = 1,
 			Image = image,
 			ImageTransparency = 0.45,
@@ -405,23 +413,23 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Legs", "Boots", "Gloves" }) 
 	end
 	text(slot, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0, 56),
+		Position = UDim2.new(0.5, 0, 0, layout[3]),
 		Size = UDim2.new(1, -8, 0, 18),
 		Text = slotName,
-		TextSize = 14,
+		TextSize = layout[4] / CONFIG.FontScale,
 		TextTransparency = 0.45,
 		TextXAlignment = Enum.TextXAlignment.Center,
 	})
 end
 
-text(invPanel, { Position = UDim2.fromOffset(20, 178), Size = UDim2.fromOffset(150, 24), Text = "Backpack", TextSize = 17, TextTransparency = 0.3 })
+text(invPanel, { Position = UDim2.fromOffset(20, 177), Size = UDim2.fromOffset(150, 24), Text = "Backpack", TextSize = 30 / CONFIG.FontScale, TextTransparency = 0.3 })
 local invInfo = text(invPanel, {
 	AnchorPoint = Vector2.new(1, 0),
 	Position = UDim2.new(1, -20, 0, 178),
 	Size = UDim2.fromOffset(274, 24),
 	TextSize = 27 / CONFIG.FontScale,
 	TextXAlignment = Enum.TextXAlignment.Right,
-	Text = "Click an item",
+	Text = "",
 })
 
 local backpackSlots = {}
@@ -544,7 +552,7 @@ for _, category in ipairs(CATEGORY_ORDER) do
 			Padding = UDim.new(0, 6),
 		}, content)
 		local iconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1 }, content)
-		local icon = itemIcon(iconHolder, 56, UDim2.new(0.5, 0, 0.5, 12))
+		local icon = itemIcon(iconHolder, 66, UDim2.new(0.5, -2, 0.5, 2))
 		icon.Set(recipe.id)
 		local nameLines = TextService:GetTextSize(ITEMS[recipe.id].Name, ts(19), CONFIG.FontEnum, Vector2.new(92, 1000)).Y > ts(19) * 1.5 and 2 or 1
 		local nameHolder = new("Frame", { LayoutOrder = 2, Size = UDim2.fromOffset(92, 20 * nameLines), BackgroundTransparency = 1 }, content)
@@ -707,8 +715,7 @@ hudScale(hotbarGroup)
 local hotbar = new("Frame", {
 	Name = "Hotbar",
 	Size = UDim2.fromOffset(584, 80),
-	BackgroundColor3 = CONFIG.PanelColor,
-	BackgroundTransparency = CONFIG.HotbarTransparency,
+	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 }, hotbarGroup)
 corner(hotbar, 12)
@@ -720,14 +727,13 @@ for index = 1, 8 do
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromOffset(40 + (index - 1) * 72, 40),
 		Size = UDim2.fromOffset(64, 64),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.94,
+		BackgroundColor3 = CONFIG.PanelColor,
+		BackgroundTransparency = CONFIG.HotbarTransparency,
 	})
 	corner(slot, 8)
 	local ring = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, slot)
 	corner(ring, 6)
 	local outline = stroke(ring, Color3.new(1, 1, 1), 2, 0.85)
-	text(slot, { Position = UDim2.fromOffset(6, 1), Size = UDim2.fromOffset(20, 18), Text = tostring(index), TextSize = 15, TextTransparency = 0.25 })
 	local icon = itemIcon(slot, 40, UDim2.fromScale(0.5, 0.5))
 	local pop = new("UIScale", {}, slot)
 	hotbarSlots[index] = { Button = slot, Stroke = outline, Icon = icon, Pop = pop }
@@ -736,12 +742,12 @@ end
 local keyboard = UserInputService.KeyboardEnabled
 local openButton = textButton(hotbarGroup, {
 	Name = "OpenInventory",
-	Position = UDim2.fromOffset(592, 0),
-	Size = UDim2.fromOffset(80, 80),
+	Position = UDim2.fromOffset(584, 8),
+	Size = UDim2.fromOffset(64, 64),
 	BackgroundColor3 = CONFIG.PanelColor,
 	BackgroundTransparency = CONFIG.HotbarTransparency,
 })
-corner(openButton, 12)
+corner(openButton, 8)
 local openStroke = stroke(openButton, CONFIG.Accent, 2, 1)
 local openPop = new("UIScale", {}, openButton)
 do
@@ -749,7 +755,7 @@ do
 	local line = 2.6
 	local bag = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromOffset(40, 43),
+		Position = UDim2.fromOffset(32, 35),
 		Size = UDim2.fromOffset(19, 16),
 		BackgroundTransparency = 1,
 	}, openButton)
@@ -757,7 +763,7 @@ do
 	stroke(bag, CONFIG.Text, line, 0)
 	local handle = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.fromOffset(40, 35 - line),
+		Position = UDim2.fromOffset(32, 27 - line),
 		Size = UDim2.fromOffset(7, 4),
 		BackgroundTransparency = 1,
 	}, openButton)
@@ -765,14 +771,14 @@ do
 	stroke(handle, CONFIG.Text, line, 0)
 	local strap = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromOffset(40, 43),
+		Position = UDim2.fromOffset(32, 35),
 		Size = UDim2.fromOffset(14, line),
 		BackgroundColor3 = CONFIG.Text,
 		BorderSizePixel = 0,
 	}, openButton)
 	corner(strap, 1)
 	if keyboard then
-		text(openButton, { Position = UDim2.fromOffset(6, 1), Size = UDim2.fromOffset(40, 18), Text = "TAB", TextSize = 13, TextTransparency = 0.35 })
+		text(openButton, { Position = UDim2.fromOffset(5, 1), Size = UDim2.fromOffset(40, 16), Text = "TAB", TextSize = 11, TextTransparency = 0.35 })
 	end
 end
 
@@ -945,7 +951,7 @@ local function refreshInventory()
 		slot.Stroke.Transparency = selected and 0 or 1
 	end
 	local selectedId = selectedSlot and keys[selectedSlot]
-	invInfo.Text = selectedId and (ITEMS[selectedId].Name .. " x" .. inventory[selectedId]) or "Click an item"
+	invInfo.Text = selectedId and (ITEMS[selectedId].Name .. " x" .. inventory[selectedId]) or ""
 end
 
 local function queuedCount(id)
@@ -1024,7 +1030,7 @@ local function refreshHotbar()
 		local on = selectedHotbar == index
 		slot.Stroke.Color = on and CONFIG.Accent or Color3.new(1, 1, 1)
 		slot.Stroke.Transparency = on and 0 or 0.85
-		slot.Button.BackgroundTransparency = on and 0.84 or 0.94
+		slot.Button.BackgroundTransparency = on and 0.05 or CONFIG.HotbarTransparency
 	end
 	local held = hotbarItems[selectedHotbar]
 	hotName.Text = held and ITEMS[held].Name or "Empty hand"
