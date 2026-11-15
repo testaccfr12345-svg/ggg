@@ -34,7 +34,7 @@ local CONFIG = {
 	FontScale = 1.354,
 	CraftCompleteSound = "rbxassetid://100545760361878",
 	QueueMax = 8,
-	BackpackSlots = 30,
+	BackpackSlots = 18,
 	BarResetSpeed = 35,
 	BlurSize = 12,
 	DimTransparency = 0.16,
@@ -525,24 +525,25 @@ end
 
 local categoryButtons = {}
 do
-	local TAB_LAYOUT = {
-		Tools = { -375, 67, 28 },
-		Resources = { -300, 100, 29 },
-		Consumables = { -192, 122, 28 },
-	}
-	for _, name in ipairs(CATEGORY_ORDER) do
-		local layout = TAB_LAYOUT[name]
+	local tabTextSize = 30 / CONFIG.FontScale
+	local tabHeight = 40
+	local right = -59 - 8
+	for index = #CATEGORY_ORDER, 1, -1 do
+		local name = CATEGORY_ORDER[index]
+		local width = math.ceil(textWidth(name, tabTextSize)) + 30
+		right -= width
 		local tab = textButton(craftPanel, {
 			Name = name .. "Tab",
-			Position = UDim2.new(1, layout[1], 0, 20),
-			Size = UDim2.fromOffset(layout[2], 36),
+			Position = UDim2.new(1, right, 0, 17 + (41 - tabHeight) / 2),
+			Size = UDim2.fromOffset(width, tabHeight),
 			BackgroundColor3 = Color3.new(1, 1, 1),
 			BackgroundTransparency = 0.93,
 			Text = name,
-			TextSize = layout[3] / CONFIG.FontScale,
+			TextSize = tabTextSize,
 		})
-		corner(tab, 18)
+		corner(tab, tabHeight / 2)
 		categoryButtons[name] = tab
+		right -= 8
 	end
 end
 
@@ -1251,8 +1252,6 @@ local function setOpen(open)
 	crosshair.Visible = not open
 
 	openStroke.Transparency = open and 0 or 1
-	openPop.Scale = 0.88
-	tween(openPop, 0.16, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
 	if UserInputService.TouchEnabled then
 		if open then
@@ -1323,9 +1322,6 @@ local function selectHotbar(index)
 	selectedHotbar = index
 	refreshHotbar()
 	flashHotName()
-	local pop = hotbarSlots[index].Pop
-	pop.Scale = 0.86
-	tween(pop, 0.16, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
 end
 
@@ -1341,28 +1337,18 @@ for name, tab in pairs(categoryButtons) do
 		if selectedCategory == name then
 			return
 		end
-		local oldIndex, newIndex = table.find(CATEGORY_ORDER, selectedCategory), table.find(CATEGORY_ORDER, name)
 		selectedCategory = name
 		selectedRecipe = RECIPES[name][1].id
 		strip.CanvasPosition = Vector2.zero
 		refreshCrafting()
 
-		local dir = (newIndex or 0) > (oldIndex or 0) and 1 or -1
-		strip.Position = UDim2.fromOffset(20 + dir * 30, 72)
-		tween(strip, 0.16, { Position = UDim2.fromOffset(20, 72) }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-		popPreview()
 	end)
 end
 
 for id, tile in pairs(recipeTiles) do
 	connect(tile.Button.Activated, function()
-		if selectedRecipe ~= id then
-			popPreview()
-		end
 		selectedRecipe = id
 		refreshCrafting()
-		tile.Pop.Scale = 0.9
-		tween(tile.Pop, 0.16, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	end)
 end
 
@@ -1370,10 +1356,6 @@ for index, slot in ipairs(backpackSlots) do
 	connect(slot.Button.Activated, function()
 		selectedSlot = slot.Item and index or nil
 		refreshInventory()
-		if slot.Item then
-			slot.Pop.Scale = 0.88
-			tween(slot.Pop, 0.16, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-		end
 	end)
 end
 
@@ -1388,8 +1370,6 @@ connect(craftButton.Activated, function()
 	if maxCraftable(recipe) < 1 then
 		return
 	end
-	craftButtonScale.Scale = 0.92
-	tween(craftButtonScale, 0.16, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	requestCraft(recipe, 1)
 end)
 
