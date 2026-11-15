@@ -554,7 +554,11 @@ for _, category in ipairs(CATEGORY_ORDER) do
 		local iconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1 }, content)
 		local icon = itemIcon(iconHolder, 66, UDim2.new(0.5, -2, 0.5, 2))
 		icon.Set(recipe.id)
-		local nameLines = TextService:GetTextSize(ITEMS[recipe.id].Name, ts(19), CONFIG.FontEnum, Vector2.new(92, 1000)).Y > ts(19) * 1.5 and 2 or 1
+		local nameSize = 19
+		while nameSize > 12 and textWidth(ITEMS[recipe.id].Name, nameSize) > 88 do
+			nameSize -= 0.5
+		end
+		local nameLines = 1
 		local nameHolder = new("Frame", { LayoutOrder = 2, Size = UDim2.fromOffset(92, 20 * nameLines), BackgroundTransparency = 1 }, content)
 		text(nameHolder, {
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -562,7 +566,7 @@ for _, category in ipairs(CATEGORY_ORDER) do
 			Size = UDim2.fromOffset(92, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			Text = ITEMS[recipe.id].Name,
-			TextSize = 19,
+			TextSize = nameSize,
 			LineHeight = 0.82,
 			TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Center,
@@ -1001,7 +1005,7 @@ local function refreshCrafting()
 			row.Icon.Set(mat[1])
 			row.Name.Text = ITEMS[mat[1]].Name
 			row.Status.Text = ok and "Ready" or ("Need " .. (mat[2] - have) .. " more")
-			row.Status.TextColor3 = ok and CONFIG.Text or CONFIG.Missing
+			row.Status.TextColor3 = ok and CONFIG.Accent or CONFIG.Missing
 			row.Amount.Text = have .. " / " .. mat[2]
 			row.Amount.TextColor3 = ok and CONFIG.Text or CONFIG.Missing
 		end
