@@ -378,11 +378,11 @@ local function hudScale(parent)
 end
 
 local invPanel = panel(panels, "InventoryPanel", 0, 0, 464, 560)
-text(invPanel, { Position = UDim2.fromOffset(20, 20), Size = UDim2.fromOffset(300, 32), Text = "Inventory", TextSize = 30 })
+text(invPanel, { Position = UDim2.fromOffset(20, 11), Size = UDim2.fromOffset(300, 32), Text = "Inventory", TextSize = 44 / CONFIG.FontScale })
 local usedLabel = text(invPanel, {
-	Position = UDim2.fromOffset(20, 20),
+	Position = UDim2.fromOffset(20, 10),
 	Size = UDim2.new(1, -40, 0, 32),
-	TextSize = 19,
+	TextSize = 32 / CONFIG.FontScale,
 	TextTransparency = 0.3,
 	TextXAlignment = Enum.TextXAlignment.Right,
 })
@@ -470,7 +470,7 @@ local invInfo = text(invPanel, {
 	AnchorPoint = Vector2.new(1, 0),
 	Position = UDim2.new(1, -20, 0, 172),
 	Size = UDim2.fromOffset(274, 24),
-	TextSize = 17,
+	TextSize = 27 / CONFIG.FontScale,
 	TextXAlignment = Enum.TextXAlignment.Right,
 	Text = "Click an item",
 })
@@ -504,12 +504,12 @@ for index = 1, CONFIG.BackpackSlots do
 end
 
 local craftPanel = panel(panels, "CraftingPanel", INV_W + PANEL_GAP, 0, CRAFT_W, 560)
-text(craftPanel, { Position = UDim2.fromOffset(20, 13), Size = UDim2.fromOffset(200, 36), Text = "Crafting", TextSize = 30 })
+text(craftPanel, { Position = UDim2.fromOffset(19, 7), Size = UDim2.fromOffset(200, 36), Text = "Crafting", TextSize = 30 })
 
 local closeButton = textButton(craftPanel, {
 	Name = "Close",
-	Position = UDim2.new(1, -56, 0, 20),
-	Size = UDim2.fromOffset(36, 36),
+	Position = UDim2.new(1, -59, 0, 17),
+	Size = UDim2.fromOffset(41, 41),
 	BackgroundColor3 = Color3.new(1, 1, 1),
 	BackgroundTransparency = 0.93,
 })
@@ -528,23 +528,24 @@ end
 
 local categoryButtons = {}
 do
-	local right = 584 - 14
-	for index = #CATEGORY_ORDER, 1, -1 do
-		local name = CATEGORY_ORDER[index]
-		local width = math.ceil(textWidth(name, 19)) + 29
-		right -= width
+	local TAB_LAYOUT = {
+		Tools = { -375, 67, 28 },
+		Resources = { -300, 100, 29 },
+		Consumables = { -192, 122, 28 },
+	}
+	for _, name in ipairs(CATEGORY_ORDER) do
+		local layout = TAB_LAYOUT[name]
 		local tab = textButton(craftPanel, {
 			Name = name .. "Tab",
-			Position = UDim2.new(1, right - CRAFT_W, 0, 20),
-			Size = UDim2.fromOffset(width, 36),
+			Position = UDim2.new(1, layout[1], 0, 20),
+			Size = UDim2.fromOffset(layout[2], 36),
 			BackgroundColor3 = Color3.new(1, 1, 1),
 			BackgroundTransparency = 0.93,
 			Text = name,
-			TextSize = 19,
+			TextSize = layout[3] / CONFIG.FontScale,
 		})
 		corner(tab, 18)
 		categoryButtons[name] = tab
-		right -= 8
 	end
 end
 
@@ -664,7 +665,7 @@ local previewName = text(preview, {
 local previewCategory = text(preview, {
 	LayoutOrder = 3,
 	Size = UDim2.new(1, -24, 0, 22),
-	TextSize = 16,
+	TextSize = 27 / CONFIG.FontScale,
 	TextTransparency = 0.3,
 	TextXAlignment = Enum.TextXAlignment.Center,
 })
@@ -917,7 +918,7 @@ local function applyStretch(k)
 	MENU_W = invW + PANEL_GAP + craftW
 	CRAFT_HOME = UDim2.fromOffset(invW + PANEL_GAP, 0)
 	canvas.Size = UDim2.fromOffset(MENU_W, MENU_H)
-	invPanel.Size = UDim2.fromOffset(invW, MENU_H)
+	invPanel.Size = UDim2.fromOffset(invW, MENU_H + 7)
 	craftPanel.Size = UDim2.fromOffset(craftW, MENU_H)
 	invPanel.Position = INV_HOME
 	craftPanel.Position = CRAFT_HOME
