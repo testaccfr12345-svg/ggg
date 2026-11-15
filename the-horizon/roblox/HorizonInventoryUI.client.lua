@@ -71,11 +71,11 @@ local CONFIG = {
 	-- Equipment slot icons. Upload the PNGs in design/equipment_icons/ as Decals
 	-- and paste the rbxassetid:// ids here. Empty = shows the slot name instead.
 	EquipmentIcons = {
-		Helmet = "",
-		Chest = "",
-		Gloves = "",
-		Legs = "",
-		Boots = "",
+		Helmet = "rbxassetid://122411372685446",
+		Chest = "rbxassetid://82728361755910",
+		Gloves = "rbxassetid://140397145487659",
+		Legs = "rbxassetid://109587618198386",
+		Boots = "rbxassetid://104349095380038",
 	},
 	-- everything is laid out on a 1280 x 720 design screen (same as the HTML preview)
 	DesignWidth = 1280,
