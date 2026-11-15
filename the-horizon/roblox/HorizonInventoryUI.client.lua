@@ -567,6 +567,7 @@ new("UIListLayout", {
 }, strip)
 
 local recipeTiles = {}
+for _, category in ipairs(CATEGORY_ORDER) do
 	for order, recipe in ipairs(RECIPES[category]) do
 		local tile = textButton(strip, {
 			Name = recipe.id,
