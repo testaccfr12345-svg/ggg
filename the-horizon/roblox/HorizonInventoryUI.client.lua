@@ -1866,13 +1866,53 @@ local function startTuner()
 	closeExport.ZIndex = 21
 	local exportScroll = make("ScrollingFrame", {
 		Position = UDim2.fromOffset(8, 30),
-		Size = UDim2.new(1, -16, 1, -38),
+		Size = UDim2.new(1, -16, 1, -84),
 		BackgroundTransparency = 1,
 		CanvasSize = UDim2.new(),
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		ScrollBarThickness = 6,
 		ZIndex = 21,
 	}, exportFrame)
+	local copyHint = label(exportFrame, "Tap the box below, hold, Select All, Copy, then send it:", 10, 0, 600, 18, 12)
+	copyHint.AnchorPoint = Vector2.new(0, 1)
+	copyHint.Position = UDim2.new(0, 10, 1, -46)
+	copyHint.TextColor3 = T_ACCENT
+	copyHint.ZIndex = 21
+	local copyBox = make("TextBox", {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 8, 1, -8),
+		Size = UDim2.new(1, -16, 0, 34),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.9,
+		ClearTextOnFocus = false,
+		TextEditable = true,
+		MultiLine = false,
+		TextWrapped = false,
+		ClipsDescendants = true,
+		Font = Enum.Font.Code,
+		TextSize = 13,
+		TextColor3 = T_TEXT,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Text = "",
+		ZIndex = 21,
+	}, exportFrame)
+	round(copyBox, 6)
+	local copyCode = ""
+	copyBox.Focused:Connect(function()
+		copyBox.Text = copyCode
+		task.defer(function()
+			copyBox.SelectionStart = 1
+			copyBox.CursorPosition = #copyCode + 1
+		end)
+	end)
+	copyBox.FocusLost:Connect(function()
+		copyBox.Text = copyCode
+	end)
+	copyBox:GetPropertyChangedSignal("Text"):Connect(function()
+		if copyBox.Text ~= copyCode and not copyBox:IsFocused() then
+			copyBox.Text = copyCode
+		end
+	end)
 	local exportBox = make("TextLabel", {
 		Size = UDim2.new(1, -8, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
@@ -1914,6 +1954,21 @@ local function startTuner()
 	end
 	local function udim2(u)
 		return string.format("%g,%g,%g,%g", u.X.Scale, u.X.Offset, u.Y.Scale, u.Y.Offset)
+	end
+
+	local function buildCode()
+		local parts = {}
+		for o, orig in pairs(originals) do
+			if o.Parent and #changes(o) > 0 then
+				local entry = pathOf(o) .. "=P" .. udim2(o.Position) .. "/S" .. udim2(o.Size)
+				if orig.TextSize then
+					entry ..= "/T" .. o.TextSize
+				end
+				table.insert(parts, entry)
+			end
+		end
+		table.sort(parts)
+		return "HZT " .. table.concat(parts, " ; ")
 	end
 
 	local function buildExport()
@@ -2038,6 +2093,8 @@ local function startTuner()
 	end)
 	copyButton.Activated:Connect(function()
 		exportBox.Text = buildExport()
+		copyCode = buildCode()
+		copyBox.Text = copyCode
 		exportFrame.Visible = true
 	end)
 	closeExport.Activated:Connect(function()
