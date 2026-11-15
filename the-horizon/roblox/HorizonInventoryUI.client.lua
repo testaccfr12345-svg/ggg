@@ -1905,11 +1905,16 @@ local function startTuner()
 		partButton.Visible = #copyParts > 1
 	end
 	partButton.Activated:Connect(function()
+		copyBox:ReleaseFocus()
 		copyIndex = copyIndex % math.max(#copyParts, 1) + 1
 		showPart()
 	end)
 	copyBox.Focused:Connect(function()
-		copyBox.Text = copyCode
+		if copyBox.Text ~= copyCode then
+			copyBox:ReleaseFocus()
+			copyBox.Text = copyCode
+			return
+		end
 		task.defer(function()
 			copyBox.SelectionStart = 1
 			copyBox.CursorPosition = #copyCode + 1
@@ -2101,26 +2106,30 @@ local function startTuner()
 		table.clear(originals)
 		refreshInfo()
 	end)
+	local exportNumber = 0
 	copyButton.Activated:Connect(function()
-		exportBox.Text = buildExport()
+		copyBox:ReleaseFocus()
+		exportNumber += 1
+		exportBox.Text = "Export #" .. exportNumber .. "\n" .. buildExport()
 		local all = buildCode()
 		table.clear(copyParts)
 		local current = ""
 		for entry in (all:gsub("^HZT ", "") .. " ; "):gmatch("(.-) ; ") do
 			if entry ~= "" then
 				if #current + #entry > 500 and current ~= "" then
-					table.insert(copyParts, "HZT " .. current)
+					table.insert(copyParts, "HZT#" .. exportNumber .. " " .. current)
 					current = ""
 				end
 				current = current == "" and entry or (current .. " ; " .. entry)
 			end
 		end
-		table.insert(copyParts, "HZT " .. current)
+		table.insert(copyParts, "HZT#" .. exportNumber .. " " .. current)
 		copyIndex = 1
 		showPart()
 		exportFrame.Visible = true
 	end)
 	closeExport.Activated:Connect(function()
+		copyBox:ReleaseFocus()
 		exportFrame.Visible = false
 	end)
 
