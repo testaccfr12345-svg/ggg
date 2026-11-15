@@ -40,6 +40,8 @@ local CONFIG = {
 	DimTransparency = 0.16,
 	DimColor = Color3.fromRGB(12, 11, 6),
 	MaxWidthStretch = 1.2,
+	HotbarBoost = 1,
+	HotbarTouchBoost = 1.3,
 	MenuWidthFraction = 0.878,
 
 	EquipmentIcons = {
@@ -342,6 +344,7 @@ local INV_W, CRAFT_W, PANEL_GAP = 464, 640, 20
 local MENU_W, MENU_H = INV_W + PANEL_GAP + CRAFT_W, 560
 local INV_HOME, CRAFT_HOME = UDim2.fromOffset(0, 0), UDim2.fromOffset(INV_W + PANEL_GAP, 0)
 local stretch = 1
+local INV_EXTRA_H = 12
 local dashesBuilt = false
 local canvas = new("Frame", {
 	Name = "Menu",
@@ -714,7 +717,7 @@ local hotbarGroup = new("Frame", {
 	Size = UDim2.fromOffset(584, 80),
 	BackgroundTransparency = 1,
 }, gui)
-hudScale(hotbarGroup)
+local hotbarScale = new("UIScale", {}, hotbarGroup)
 
 local hotbar = new("Frame", {
 	Name = "Hotbar",
@@ -795,7 +798,7 @@ local hotName = text(gui, {
 	TextXAlignment = Enum.TextXAlignment.Center,
 	TextStrokeTransparency = 0.7,
 })
-hudScale(hotName)
+local hotNameScale = new("UIScale", {}, hotName)
 
 local crosshair = new("Frame", {
 	Name = "Crosshair",
@@ -877,7 +880,7 @@ local function applyStretch(k)
 	MENU_W = invW + PANEL_GAP + craftW
 	CRAFT_HOME = UDim2.fromOffset(invW + PANEL_GAP, 0)
 	canvas.Size = UDim2.fromOffset(MENU_W, MENU_H)
-	invPanel.Size = UDim2.fromOffset(invW - 1, MENU_H + 6)
+	invPanel.Size = UDim2.fromOffset(invW - 1, MENU_H + INV_EXTRA_H)
 	craftPanel.Size = UDim2.fromOffset(craftW, MENU_H)
 	invPanel.Position = INV_HOME
 	craftPanel.Position = CRAFT_HOME
@@ -899,8 +902,12 @@ local function updateScale()
 		uiScale.Scale = sc
 	end
 
-	hotbarGroup.Position = UDim2.new(0.5, 0, 1, -14 * sc)
-	hotName.Position = UDim2.new(0.5, 0, 1, -(14 + 80 + 3) * sc)
+	local touchOnly = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local hb = sc * (touchOnly and CONFIG.HotbarTouchBoost or CONFIG.HotbarBoost)
+	hotbarScale.Scale = hb
+	hotNameScale.Scale = sc
+	hotbarGroup.Position = UDim2.new(0.5, -32 * hb, 1, -10 * hb)
+	hotName.Position = UDim2.new(0.5, 0, 1, -(10 + 80) * hb - 3 * sc)
 
 	progressHome = UDim2.new(1, -12 * sc, 0, 12 * sc)
 	progressAway = UDim2.new(1, 12 * sc, 0, 12 * sc)
@@ -908,7 +915,7 @@ local function updateScale()
 
 	local gap = 8 * sc
 	local top = math.max(topInset, 48 * sc) + 2 * sc
-	local bottom = viewport.Y - (14 + 80 + 28) * sc
+	local bottom = viewport.Y - (10 + 80) * hb - (28 + INV_EXTRA_H) * sc
 	local availH = math.max(100, bottom - top)
 	local availW = viewport.X - gap * 2
 	local fitH = math.min(sc, availH / MENU_H)
