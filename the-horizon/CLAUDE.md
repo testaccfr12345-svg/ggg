@@ -82,6 +82,18 @@ designed vs. actually working and the rules for working on this project.
 - **Craft times** (`CRAFT_TIME` in the script) were made up and need real values.
 - **Item images** for Map and Compass don't exist yet, so those items show their name instead.
 
+## Reference image pass (latest)
+The user's target is her reference screenshot (older design iteration), "just like the reference":
+- "Ready" is cream (not yellow), category line is just "Tools" (no craft time), short HTML descriptions,
+  held item name stays visible above the hotbar while the menu is open (28 design px gap menu to hotbar).
+- Dim behind menu: `DimColor` rgb(12,11,6) at `DimTransparency` 0.16; panels 0.32; hotbar and bag button `HotbarTransparency` 0.15.
+- Selected outlines are drawn INSIDE slots/tiles (inset ring frame), rows/labels use the reference's taller line boxes
+  (equipment y 94, backpack grid y 202, material rows 52 tall, pitch 60).
+- Hotbar itself is screen-centred; the bag button hangs to its right.
+- **Menu is wider on wide screens:** `applyStretch(k)` widens both panels (k up to `MaxWidthStretch` 1.2) so the menu
+  approaches `MenuWidthFraction` of the screen width. Vertical placement is unchanged apart from the gap for the item name.
+  Panel children are laid out with scale-relative UDim2s so they follow the panel width.
+
 ## Next steps
 1. **Server side for the inventory — LATER.** The user said UI only for now (one client script). A first server version
    (shared items module, server-owned queue, RemoteEvents) exists in git history (commit 9ddf0dc) if wanted later.

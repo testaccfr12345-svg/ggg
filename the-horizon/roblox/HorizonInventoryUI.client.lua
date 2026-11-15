@@ -27,7 +27,8 @@ local CONFIG = {
 	Missing = Color3.fromRGB(244, 164, 124),
 	PanelColor = Color3.fromRGB(16, 21, 19),
 
-	PanelTransparency = 0.15,
+	PanelTransparency = 0.32,
+	HotbarTransparency = 0.15,
 	FontEnum = Enum.Font.PatrickHand,
 
 	FontScale = 1.354,
@@ -37,7 +38,10 @@ local CONFIG = {
 	BarResetSpeed = 35,
 	BlurSize = 12,
 	SlotDashColor = Color3.fromRGB(70, 75, 73),
-	DimTransparency = 0.45,
+	DimTransparency = 0.16,
+	DimColor = Color3.fromRGB(12, 11, 6),
+	MaxWidthStretch = 1.2,
+	MenuWidthFraction = 0.878,
 
 	EquipmentIcons = {
 		Helmet = "rbxassetid://122411372685446",
@@ -60,26 +64,26 @@ local ITEMS = {
 	planks = { Name = "Planks", Image = "rbxassetid://78387750873126" },
 	stone = { Name = "Stone", Image = "rbxassetid://127351259030040" },
 	leaves = { Name = "Leaves", Image = "rbxassetid://94252892154991" },
-	rope = { Name = "Rope", Image = "rbxassetid://94728420315409", Desc = "A simple binding material made from leaves." },
+	rope = { Name = "Rope", Image = "rbxassetid://94728420315409", Desc = "Used in most tool recipes." },
 	fiber = { Name = "Fiber", Image = "rbxassetid://85899584797851" },
 	scrap = { Name = "Scrap", Image = "rbxassetid://123247338574784" },
 	plastic = { Name = "Plastic", Image = "rbxassetid://126538877519520" },
-	nails = { Name = "Nails", Image = "rbxassetid://100720163739756", Desc = "Basic metal fasteners used in construction." },
+	nails = { Name = "Nails", Image = "rbxassetid://100720163739756", Desc = "Used for building." },
 	hide = { Name = "Hide", Image = "rbxassetid://137106848150031" },
 	cup_clean = { Name = "Clean Water Cup", Image = "rbxassetid://75855735142648", Desc = "Safe drinking water." },
 	cup_sea = { Name = "Seawater Cup", Image = "rbxassetid://94755334875949" },
-	stone_axe = { Name = "Stone Axe", Image = "rbxassetid://73396827796121", Desc = "A basic chopping tool for cutting trees and gathering planks." },
-	stone_pickaxe = { Name = "Stone Pickaxe", Image = "rbxassetid://103209016597189", Desc = "A basic mining tool for breaking stone and gathering ore." },
-	stone_spear = { Name = "Stone Spear", Image = "rbxassetid://131953404883594", Desc = "A simple spear for hunting and defending yourself." },
-	wooden_club = { Name = "Wooden Club", Image = "rbxassetid://77142435102160", Desc = "A rough wooden club for close combat." },
-	stone_sword = { Name = "Stone Sword", Image = "rbxassetid://99964958308218", Desc = "A sharper stone weapon for stronger melee attacks." },
-	torch = { Name = "Torch", Image = "rbxassetid://128672619441958", Desc = "A handheld light for exploring dark areas." },
+	stone_axe = { Name = "Stone Axe", Image = "rbxassetid://73396827796121", Desc = "Chops trees for wood." },
+	stone_pickaxe = { Name = "Stone Pickaxe", Image = "rbxassetid://103209016597189", Desc = "Mines stone from rocks." },
+	stone_spear = { Name = "Stone Spear", Image = "rbxassetid://131953404883594", Desc = "A long-reach thrusting weapon." },
+	wooden_club = { Name = "Wooden Club", Image = "rbxassetid://77142435102160", Desc = "A heavy, simple striking weapon." },
+	stone_sword = { Name = "Stone Sword", Image = "rbxassetid://99964958308218", Desc = "A basic slashing weapon." },
+	torch = { Name = "Torch", Image = "rbxassetid://128672619441958", Desc = "Lights up the dark." },
 	bow = { Name = "Bow", Image = "rbxassetid://103839860687597", Desc = "A wooden bow for firing arrows." },
 	stone_arrows = { Name = "Stone Arrows", Image = "rbxassetid://87510233891000", Desc = "Stone-tipped arrows for a bow." },
-	wooden_shield = { Name = "Wooden Shield", Image = "rbxassetid://104624286311499", Desc = "A wooden shield for blocking attacks." },
+	wooden_shield = { Name = "Wooden Shield", Image = "rbxassetid://104624286311499", Desc = "Blocks incoming attacks." },
 	building_hammer = { Name = "Building Hammer", Image = "rbxassetid://85234448517206", Desc = "A tool for planning and placing structures." },
-	map = { Name = "Map", Image = "", Desc = "A hide map for finding your way." },
-	compass = { Name = "Compass", Image = "", Desc = "A compass for finding your direction." },
+	map = { Name = "Map", Image = "", Desc = "Shows the islands and where you are." },
+	compass = { Name = "Compass", Image = "", Desc = "Points the way while you explore." },
 }
 
 local RECIPES = {
@@ -317,7 +321,7 @@ local craftSound = new("Sound", { Name = "CraftComplete", SoundId = CONFIG.Craft
 local dim = new("Frame", {
 	Name = "Dim",
 	Size = UDim2.fromScale(1, 1),
-	BackgroundColor3 = Color3.fromRGB(6, 9, 8),
+	BackgroundColor3 = CONFIG.DimColor,
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 	Visible = false,
@@ -334,7 +338,11 @@ local modal = textButton(gui, {
 local blur = Lighting:FindFirstChild("HorizonInventoryBlur") or new("BlurEffect", { Name = "HorizonInventoryBlur" }, Lighting)
 blur.Size = 0
 
-local MENU_W, MENU_H = 1124, 560
+local INV_W, CRAFT_W, PANEL_GAP = 464, 640, 20
+local MENU_W, MENU_H = INV_W + PANEL_GAP + CRAFT_W, 560
+local INV_HOME, CRAFT_HOME = UDim2.fromOffset(0, 0), UDim2.fromOffset(INV_W + PANEL_GAP, 0)
+local stretch = 1
+local dashesBuilt = false
 local canvas = new("Frame", {
 	Name = "Menu",
 	AnchorPoint = Vector2.new(0.5, 0.5),
@@ -365,20 +373,20 @@ local invPanel = panel(panels, "InventoryPanel", 0, 0, 464, 560)
 text(invPanel, { Position = UDim2.fromOffset(20, 20), Size = UDim2.fromOffset(300, 32), Text = "Inventory", TextSize = 30 })
 local usedLabel = text(invPanel, {
 	Position = UDim2.fromOffset(20, 20),
-	Size = UDim2.fromOffset(424, 32),
+	Size = UDim2.new(1, -40, 0, 32),
 	TextSize = 19,
 	TextTransparency = 0.3,
 	TextXAlignment = Enum.TextXAlignment.Right,
 })
-text(invPanel, { Position = UDim2.fromOffset(20, 64), Size = UDim2.fromOffset(200, 20), Text = "Equipment", TextSize = 17, TextTransparency = 0.3 })
+text(invPanel, { Position = UDim2.fromOffset(20, 64), Size = UDim2.fromOffset(200, 24), Text = "Equipment", TextSize = 17, TextTransparency = 0.3 })
 
 local function dashedBorder(parent, w, h, color)
-	local thick, radius, dash, gapTarget = 2, 8, 4, 3
-	local function bar(x, y, length, rotation)
+	local thick, radius, dash, gapTarget = 2, 8, 6, 4
+	local function bar(x, y, length, rotation, thickness)
 		new("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromOffset(x, y),
-			Size = UDim2.fromOffset(length, thick),
+			Size = UDim2.fromOffset(length, thickness or thick),
 			Rotation = rotation,
 			BackgroundColor3 = color,
 			BorderSizePixel = 0,
@@ -400,8 +408,8 @@ local function dashedBorder(parent, w, h, color)
 		bar(w - thick / 2, at, dash, 90)
 	end)
 	local arcRadius = radius - thick / 2
-	local steps = 6
-	local segment = 2 * arcRadius * math.sin(math.rad(90 / steps / 2)) + 0.6
+	local steps = 3
+	local segment = 2 * arcRadius * math.sin(math.rad(8.2)) + 0.3
 	for _, c in ipairs({
 		{ radius, radius, 180 },
 		{ w - radius, radius, 270 },
@@ -409,24 +417,24 @@ local function dashedBorder(parent, w, h, color)
 		{ radius, h - radius, 90 },
 	}) do
 		for i = 0, steps - 1 do
-			local angle = c[3] + (i + 0.5) * 90 / steps
+			local angle = c[3] + 20.4 + (i + 0.5) * 16.4
 			local rad = math.rad(angle)
-			bar(c[1] + math.cos(rad) * arcRadius, c[2] + math.sin(rad) * arcRadius, segment, angle + 90)
+			bar(c[1] + math.cos(rad) * arcRadius, c[2] + math.sin(rad) * arcRadius, segment, angle + 90, 1.2)
 		end
 	end
 end
 
-local EQUIP_W = (424 - 4 * 8) / 5
+local equipDashes = {}
 for index, slotName in ipairs({ "Helmet", "Chest", "Gloves", "Legs", "Boots" }) do
 	local slot = textButton(invPanel, {
 		Name = slotName .. "Slot",
-		Position = UDim2.fromOffset(20 + (index - 1) * (EQUIP_W + 8), 90),
-		Size = UDim2.fromOffset(EQUIP_W, 64),
+		Position = UDim2.new((index - 1) / 6, 20 - (index - 1) * 16 / 3, 0, 94),
+		Size = UDim2.new(1 / 6, -40 / 3, 0, 64),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.96,
 	})
 	corner(slot, 8)
-	dashedBorder(slot, EQUIP_W, 64, CONFIG.SlotDashColor)
+	equipDashes[index] = new("Frame", { Name = "Dashes", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, slot)
 	local image = CONFIG.EquipmentIcons[slotName]
 	if image and image ~= "" then
 		new("ImageLabel", {
@@ -435,7 +443,7 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Gloves", "Legs", "Boots" }) 
 			Size = UDim2.fromOffset(36, 36),
 			BackgroundTransparency = 1,
 			Image = image,
-			ImageTransparency = 0.7,
+			ImageTransparency = 0.6,
 		}, slot)
 	else
 		text(slot, {
@@ -448,10 +456,11 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Gloves", "Legs", "Boots" }) 
 	end
 end
 
-text(invPanel, { Position = UDim2.fromOffset(20, 168), Size = UDim2.fromOffset(150, 20), Text = "Backpack", TextSize = 17, TextTransparency = 0.3 })
+text(invPanel, { Position = UDim2.fromOffset(20, 172), Size = UDim2.fromOffset(150, 24), Text = "Backpack", TextSize = 17, TextTransparency = 0.3 })
 local invInfo = text(invPanel, {
-	Position = UDim2.fromOffset(170, 168),
-	Size = UDim2.fromOffset(274, 20),
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -20, 0, 172),
+	Size = UDim2.fromOffset(274, 24),
 	TextSize = 17,
 	TextXAlignment = Enum.TextXAlignment.Right,
 	Text = "Click an item",
@@ -463,17 +472,19 @@ for index = 1, CONFIG.BackpackSlots do
 	local row = math.floor((index - 1) / 6)
 	local slot = textButton(invPanel, {
 		Name = "Slot" .. index,
-		Position = UDim2.fromOffset(20 + column * 72, 194 + row * 72),
-		Size = UDim2.fromOffset(64, 64),
+		Position = UDim2.new(column / 6, 20 - column * 16 / 3, 0, 202 + row * 72),
+		Size = UDim2.new(1 / 6, -40 / 3, 0, 64),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.93,
 	})
 	corner(slot, 8)
-	local outline = stroke(slot, CONFIG.Accent, 2, 1)
+	local ring = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, slot)
+	corner(ring, 6)
+	local outline = stroke(ring, CONFIG.Accent, 2, 1)
 	local icon = itemIcon(slot, 52, UDim2.fromScale(0.5, 0.5))
 	local count = text(slot, {
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -6, 1, -2),
+		Position = UDim2.new(1, -8, 1, -7),
 		Size = UDim2.fromOffset(40, 18),
 		TextSize = 17,
 		TextXAlignment = Enum.TextXAlignment.Right,
@@ -483,12 +494,12 @@ for index = 1, CONFIG.BackpackSlots do
 	backpackSlots[index] = { Button = slot, Stroke = outline, Icon = icon, Count = count, Item = nil, Pop = pop }
 end
 
-local craftPanel = panel(panels, "CraftingPanel", 484, 0, 640, 560)
+local craftPanel = panel(panels, "CraftingPanel", INV_W + PANEL_GAP, 0, CRAFT_W, 560)
 text(craftPanel, { Position = UDim2.fromOffset(20, 20), Size = UDim2.fromOffset(200, 36), Text = "Crafting", TextSize = 30 })
 
 local closeButton = textButton(craftPanel, {
 	Name = "Close",
-	Position = UDim2.fromOffset(584, 20),
+	Position = UDim2.new(1, -56, 0, 20),
 	Size = UDim2.fromOffset(36, 36),
 	BackgroundColor3 = Color3.new(1, 1, 1),
 	BackgroundTransparency = 0.93,
@@ -498,24 +509,24 @@ for _, rotation in ipairs({ 45, -45 }) do
 	local line = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(2, 14),
+		Size = UDim2.fromOffset(3, 16),
 		Rotation = rotation,
 		BackgroundColor3 = CONFIG.Text,
 		BorderSizePixel = 0,
 	}, closeButton)
-	corner(line, 1)
+	corner(line, 2)
 end
 
 local categoryButtons = {}
 do
-	local right = 584 - 6
+	local right = 584 - 14
 	for index = #CATEGORY_ORDER, 1, -1 do
 		local name = CATEGORY_ORDER[index]
-		local width = math.ceil(textWidth(name, 19)) + 32
+		local width = math.ceil(textWidth(name, 19)) + 29
 		right -= width
 		local tab = textButton(craftPanel, {
 			Name = name .. "Tab",
-			Position = UDim2.fromOffset(right, 20),
+			Position = UDim2.new(1, right - CRAFT_W, 0, 20),
 			Size = UDim2.fromOffset(width, 36),
 			BackgroundColor3 = Color3.new(1, 1, 1),
 			BackgroundTransparency = 0.93,
@@ -531,7 +542,7 @@ end
 local strip = new("ScrollingFrame", {
 	Name = "ItemStrip",
 	Position = UDim2.fromOffset(20, 72),
-	Size = UDim2.fromOffset(600, 112),
+	Size = UDim2.new(1, -40, 0, 112),
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 	ScrollingDirection = Enum.ScrollingDirection.X,
@@ -547,7 +558,6 @@ new("UIListLayout", {
 	SortOrder = Enum.SortOrder.LayoutOrder,
 	Padding = UDim.new(0, 8),
 }, strip)
-new("UIPadding", { PaddingTop = UDim.new(0, 2), PaddingLeft = UDim.new(0, 2) }, strip)
 
 local recipeTiles = {}
 for _, category in ipairs(CATEGORY_ORDER) do
@@ -561,7 +571,9 @@ for _, category in ipairs(CATEGORY_ORDER) do
 			Visible = false,
 		})
 		corner(tile, 10)
-		local outline = stroke(tile, CONFIG.Accent, 2, 1)
+		local outlineHolder = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, tile)
+		corner(outlineHolder, 8)
+		local outline = stroke(outlineHolder, CONFIG.Accent, 2, 1)
 		local content = new("Frame", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
@@ -575,13 +587,16 @@ for _, category in ipairs(CATEGORY_ORDER) do
 		local iconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1 }, content)
 		local icon = itemIcon(iconHolder, 56, UDim2.fromScale(0.5, 0.5))
 		icon.Set(recipe.id)
-		text(content, {
-			LayoutOrder = 2,
+		local nameLines = TextService:GetTextSize(ITEMS[recipe.id].Name, ts(16), CONFIG.FontEnum, Vector2.new(82, 1000)).Y > ts(16) * 1.5 and 2 or 1
+		local nameHolder = new("Frame", { LayoutOrder = 2, Size = UDim2.fromOffset(82, 17 * nameLines), BackgroundTransparency = 1 }, content)
+		text(nameHolder, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromOffset(82, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			Text = ITEMS[recipe.id].Name,
 			TextSize = 16,
-			LineHeight = 0.78,
+			LineHeight = 0.82,
 			TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Center,
 		})
@@ -610,7 +625,7 @@ end
 local preview = new("Frame", {
 	Name = "Preview",
 	Position = UDim2.fromOffset(20, 198),
-	Size = UDim2.fromOffset(292, 342),
+	Size = UDim2.new(0.5, -28, 0, 342),
 	BackgroundColor3 = Color3.new(1, 1, 1),
 	BackgroundTransparency = 0.95,
 	BorderSizePixel = 0,
@@ -633,13 +648,13 @@ local function popPreview()
 end
 local previewName = text(preview, {
 	LayoutOrder = 2,
-	Size = UDim2.fromOffset(268, 32),
+	Size = UDim2.new(1, -24, 0, 32),
 	TextSize = 32,
 	TextXAlignment = Enum.TextXAlignment.Center,
 })
 local previewCategory = text(preview, {
 	LayoutOrder = 3,
-	Size = UDim2.fromOffset(268, 22),
+	Size = UDim2.new(1, -24, 0, 22),
 	TextSize = 16,
 	TextTransparency = 0.3,
 	TextXAlignment = Enum.TextXAlignment.Center,
@@ -654,34 +669,34 @@ local previewDesc = text(preview, {
 	TextXAlignment = Enum.TextXAlignment.Center,
 	TextYAlignment = Enum.TextYAlignment.Top,
 })
-new("UIPadding", { PaddingTop = UDim.new(0, 6) }, previewDesc)
+new("UIPadding", { PaddingTop = UDim.new(0, 8) }, previewDesc)
 
 local right = new("Frame", {
 	Name = "Requirements",
-	Position = UDim2.fromOffset(328, 198),
-	Size = UDim2.fromOffset(292, 342),
+	Position = UDim2.new(0.5, 8, 0, 198),
+	Size = UDim2.new(0.5, -28, 0, 342),
 	BackgroundTransparency = 1,
 }, craftPanel)
-text(right, { Size = UDim2.fromOffset(292, 20), Text = "Required materials", TextSize = 17, TextTransparency = 0.3 })
+text(right, { Size = UDim2.new(1, 0, 0, 20), Text = "Required materials", TextSize = 17, TextTransparency = 0.3 })
 
 local materialRows = {}
 for index = 1, 3 do
 	local row = new("Frame", {
-		Position = UDim2.fromOffset(0, 28 + (index - 1) * 56),
-		Size = UDim2.fromOffset(292, 48),
+		Position = UDim2.fromOffset(0, 31 + (index - 1) * 60),
+		Size = UDim2.new(1, 0, 0, 52),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.94,
 		BorderSizePixel = 0,
 		Visible = false,
 	}, right)
 	corner(row, 10)
-	local icon = itemIcon(row, 40, UDim2.fromOffset(32, 24))
-	local name = text(row, { Position = UDim2.fromOffset(62, 6), Size = UDim2.fromOffset(150, 20), TextSize = 19 })
-	local status = text(row, { Position = UDim2.fromOffset(62, 26), Size = UDim2.fromOffset(150, 16), TextSize = 15 })
+	local icon = itemIcon(row, 40, UDim2.fromOffset(32, 26))
+	local name = text(row, { Position = UDim2.fromOffset(62, 8), Size = UDim2.fromOffset(150, 20), TextSize = 19 })
+	local status = text(row, { Position = UDim2.fromOffset(62, 28), Size = UDim2.fromOffset(150, 16), TextSize = 15 })
 	local amount = text(row, {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -12, 0, 0),
-		Size = UDim2.fromOffset(80, 48),
+		Size = UDim2.fromOffset(80, 52),
 		TextSize = 21,
 		TextXAlignment = Enum.TextXAlignment.Right,
 	})
@@ -689,19 +704,19 @@ for index = 1, 3 do
 end
 
 local noRecipe = new("Frame", {
-	Position = UDim2.fromOffset(0, 28),
-	Size = UDim2.fromOffset(292, 56),
+	Position = UDim2.fromOffset(0, 31),
+	Size = UDim2.new(1, 0, 0, 56),
 	BackgroundTransparency = 1,
 	Visible = false,
 }, right)
 corner(noRecipe, 10)
 stroke(noRecipe, CONFIG.Text, 2, 0.8)
-text(noRecipe, { Position = UDim2.fromOffset(16, 0), Size = UDim2.fromOffset(260, 56), Text = "Recipe not set yet", TextTransparency = 0.25 })
+text(noRecipe, { Position = UDim2.fromOffset(16, 0), Size = UDim2.new(1, -32, 0, 56), Text = "Recipe not set yet", TextTransparency = 0.25 })
 
 local queuedLabel = text(right, { Position = UDim2.fromOffset(0, 256), Size = UDim2.fromOffset(180, 26), TextSize = 17, TextTransparency = 0.3 })
 local clearButton = textButton(right, {
 	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.fromOffset(292, 256),
+	Position = UDim2.new(1, 0, 0, 256),
 	Size = UDim2.fromOffset(104, 26),
 	BackgroundColor3 = Color3.new(1, 1, 1),
 	BackgroundTransparency = 0.92,
@@ -713,7 +728,7 @@ corner(clearButton, 13)
 
 local craftButton = textButton(right, {
 	Position = UDim2.fromOffset(0, 290),
-	Size = UDim2.fromOffset(292, 52),
+	Size = UDim2.new(1, 0, 0, 52),
 	BackgroundColor3 = CONFIG.Accent,
 	TextSize = 26,
 	Text = "Craft",
@@ -725,7 +740,7 @@ local hotbarGroup = new("Frame", {
 	Name = "HotbarGroup",
 	AnchorPoint = Vector2.new(0.5, 1),
 	Position = UDim2.new(0.5, 0, 1, -14),
-	Size = UDim2.fromOffset(672, 80),
+	Size = UDim2.fromOffset(584, 80),
 	BackgroundTransparency = 1,
 }, gui)
 hudScale(hotbarGroup)
@@ -734,7 +749,7 @@ local hotbar = new("Frame", {
 	Name = "Hotbar",
 	Size = UDim2.fromOffset(584, 80),
 	BackgroundColor3 = CONFIG.PanelColor,
-	BackgroundTransparency = CONFIG.PanelTransparency,
+	BackgroundTransparency = CONFIG.HotbarTransparency,
 	BorderSizePixel = 0,
 }, hotbarGroup)
 corner(hotbar, 12)
@@ -750,7 +765,9 @@ for index = 1, 8 do
 		BackgroundTransparency = 0.94,
 	})
 	corner(slot, 8)
-	local outline = stroke(slot, Color3.new(1, 1, 1), 2, 0.9)
+	local ring = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, slot)
+	corner(ring, 6)
+	local outline = stroke(ring, Color3.new(1, 1, 1), 2, 0.85)
 	text(slot, { Position = UDim2.fromOffset(6, 1), Size = UDim2.fromOffset(20, 18), Text = tostring(index), TextSize = 15, TextTransparency = 0.25 })
 	local icon = itemIcon(slot, 40, UDim2.fromScale(0.5, 0.5))
 	local pop = new("UIScale", {}, slot)
@@ -763,7 +780,7 @@ local openButton = textButton(hotbarGroup, {
 	Position = UDim2.fromOffset(592, 0),
 	Size = UDim2.fromOffset(80, 80),
 	BackgroundColor3 = CONFIG.PanelColor,
-	BackgroundTransparency = CONFIG.PanelTransparency,
+	BackgroundTransparency = CONFIG.HotbarTransparency,
 })
 corner(openButton, 12)
 local openStroke = stroke(openButton, CONFIG.Accent, 2, 1)
@@ -803,7 +820,7 @@ end
 local hotName = text(gui, {
 	Name = "HeldItemName",
 	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -100),
+	Position = UDim2.new(0.5, 0, 1, -96),
 	Size = UDim2.fromOffset(400, 24),
 	TextSize = 20,
 	TextXAlignment = Enum.TextXAlignment.Center,
@@ -880,6 +897,31 @@ end
 progressAlpha.Changed:Connect(applyProgressAlpha)
 applyProgressAlpha()
 
+local function applyStretch(k)
+	if dashesBuilt and math.abs(k - stretch) < 0.001 then
+		return
+	end
+	dashesBuilt = true
+	stretch = k
+	local invW = INV_W * k
+	local craftW = CRAFT_W * k
+	MENU_W = invW + PANEL_GAP + craftW
+	CRAFT_HOME = UDim2.fromOffset(invW + PANEL_GAP, 0)
+	canvas.Size = UDim2.fromOffset(MENU_W, MENU_H)
+	invPanel.Size = UDim2.fromOffset(invW, MENU_H)
+	craftPanel.Size = UDim2.fromOffset(craftW, MENU_H)
+	invPanel.Position = INV_HOME
+	craftPanel.Position = CRAFT_HOME
+	for _, tile in pairs(recipeTiles) do
+		tile.Button.Size = UDim2.fromOffset(90 * k, 100)
+	end
+	local slotW = (invW - 80) / 6
+	for _, holder in ipairs(equipDashes) do
+		holder:ClearAllChildren()
+		dashedBorder(holder, slotW, 64, CONFIG.SlotDashColor)
+	end
+end
+
 local function updateScale()
 	local camera = workspace.CurrentCamera
 	if not camera then
@@ -894,18 +936,20 @@ local function updateScale()
 	end
 
 	hotbarGroup.Position = UDim2.new(0.5, 0, 1, -14 * sc)
-	hotName.Position = UDim2.new(0.5, 0, 1, -(14 + 80 + 8) * sc)
+	hotName.Position = UDim2.new(0.5, 0, 1, -(14 + 80 + 2) * sc)
 
 	progressHome = UDim2.new(1, -12 * sc, 0, 12 * sc)
 	progressAway = UDim2.new(1, 12 * sc, 0, 12 * sc)
 	progress.Position = progress.Visible and progressHome or progressAway
 
 	local gap = 8 * sc
-	local top = math.max(topInset, 48 * sc) + gap
-	local bottom = viewport.Y - (14 + 80) * sc - gap
+	local top = math.max(topInset, 48 * sc) + 2 * sc
+	local bottom = viewport.Y - (14 + 80 + 28) * sc
 	local availH = math.max(100, bottom - top)
 	local availW = viewport.X - gap * 2
-	local menuScale = math.min(sc, availH / MENU_H, availW / MENU_W)
+	local fitH = math.min(sc, availH / MENU_H)
+	applyStretch(math.clamp((viewport.X * CONFIG.MenuWidthFraction / fitH - PANEL_GAP) / (INV_W + CRAFT_W), 1, CONFIG.MaxWidthStretch))
+	local menuScale = math.min(fitH, availW / MENU_W)
 	canvasScale.Scale = menuScale
 	canvas.Position = UDim2.fromOffset(viewport.X / 2, top + availH / 2)
 end
@@ -947,7 +991,7 @@ local function refreshInventory()
 		slot.Stroke.Transparency = selected and 0 or 1
 	end
 	local selectedId = selectedSlot and keys[selectedSlot]
-	invInfo.Text = selectedId and (ITEMS[selectedId].Name .. "  x" .. inventory[selectedId]) or "Click an item"
+	invInfo.Text = selectedId and (ITEMS[selectedId].Name .. " x" .. inventory[selectedId]) or "Click an item"
 end
 
 local function queuedCount(id)
@@ -984,7 +1028,7 @@ local function refreshCrafting()
 	local item = ITEMS[recipe.id]
 	previewIcon.Set(recipe.id)
 	previewName.Text = item.Name
-	previewCategory.Text = selectedCategory .. (CRAFT_TIME[recipe.id] and ("  ·  " .. CRAFT_TIME[recipe.id] .. "s to craft") or "")
+	previewCategory.Text = selectedCategory
 	previewDesc.Text = item.Desc or ""
 
 	local mats = recipe.mats or {}
@@ -997,7 +1041,7 @@ local function refreshCrafting()
 			row.Icon.Set(mat[1])
 			row.Name.Text = ITEMS[mat[1]].Name
 			row.Status.Text = ok and "Ready" or ("Need " .. (mat[2] - have) .. " more")
-			row.Status.TextColor3 = ok and CONFIG.Accent or CONFIG.Missing
+			row.Status.TextColor3 = ok and CONFIG.Text or CONFIG.Missing
 			row.Amount.Text = have .. " / " .. mat[2]
 			row.Amount.TextColor3 = ok and CONFIG.Text or CONFIG.Missing
 		end
@@ -1025,7 +1069,7 @@ local function refreshHotbar()
 		slot.Icon.Set(id or nil)
 		local on = selectedHotbar == index
 		slot.Stroke.Color = on and CONFIG.Accent or Color3.new(1, 1, 1)
-		slot.Stroke.Transparency = on and 0 or 0.9
+		slot.Stroke.Transparency = on and 0 or 0.85
 		slot.Button.BackgroundTransparency = on and 0.84 or 0.94
 	end
 	local held = hotbarItems[selectedHotbar]
@@ -1174,7 +1218,6 @@ end
 
 local touchControlsBefore = nil
 local menuTweens = {}
-local INV_HOME, CRAFT_HOME = UDim2.fromOffset(0, 0), UDim2.fromOffset(484, 0)
 local function stopMenuTweens()
 	for _, t in ipairs(menuTweens) do
 		t:Cancel()
@@ -1194,7 +1237,6 @@ local function setOpen(open)
 	isOpen = open
 	modal.Visible = open
 	crosshair.Visible = not open
-	hotName.Visible = not open
 
 	openStroke.Transparency = open and 0 or 1
 	openPop.Scale = 0.88
