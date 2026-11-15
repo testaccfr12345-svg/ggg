@@ -530,6 +530,14 @@ new("UIListLayout", {
 }, strip)
 
 local recipeTiles = {}
+local tileNameSize = 25 / CONFIG.FontScale
+for _, list in pairs(RECIPES) do
+	for _, recipe in ipairs(list) do
+		while tileNameSize > 12 and textWidth(ITEMS[recipe.id].Name, tileNameSize) > 90 do
+			tileNameSize -= 0.25
+		end
+	end
+end
 for _, category in ipairs(CATEGORY_ORDER) do
 	for order, recipe in ipairs(RECIPES[category]) do
 		local tile = textButton(strip, {
@@ -557,10 +565,7 @@ for _, category in ipairs(CATEGORY_ORDER) do
 		local iconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1 }, content)
 		local icon = itemIcon(iconHolder, 66, UDim2.new(0.5, -2, 0.5, 2))
 		icon.Set(recipe.id)
-		local nameSize = 19
-		while nameSize > 12 and textWidth(ITEMS[recipe.id].Name, nameSize) > 88 do
-			nameSize -= 0.5
-		end
+		local nameSize = tileNameSize
 		local nameLines = 1
 		local nameHolder = new("Frame", { LayoutOrder = 2, Size = UDim2.fromOffset(92, 20 * nameLines), BackgroundTransparency = 1 }, content)
 		text(nameHolder, {
@@ -628,16 +633,18 @@ local previewName = text(previewNameHolder, {
 })
 local previewCategoryHolder = new("Frame", { Name = "CategoryHolder", LayoutOrder = 3, Size = UDim2.new(1, -24, 0, 22), BackgroundTransparency = 1 }, preview)
 local previewCategory = text(previewCategoryHolder, {
+	Position = UDim2.fromOffset(0, 2),
 	Size = UDim2.fromScale(1, 1),
-	TextSize = 27 / CONFIG.FontScale,
+	TextSize = 32 / CONFIG.FontScale,
 	TextTransparency = 0.3,
 	TextXAlignment = Enum.TextXAlignment.Center,
 })
 local previewDescHolder = new("Frame", { Name = "DescHolder", LayoutOrder = 4, Size = UDim2.fromOffset(240, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, preview)
 local previewDesc = text(previewDescHolder, {
+	Position = UDim2.fromOffset(0, -25),
 	Size = UDim2.fromScale(1, 0),
 	AutomaticSize = Enum.AutomaticSize.Y,
-	TextSize = 29 / CONFIG.FontScale,
+	TextSize = 32 / CONFIG.FontScale,
 	TextTransparency = 0.15,
 	TextWrapped = true,
 	TextXAlignment = Enum.TextXAlignment.Center,
@@ -651,7 +658,7 @@ local right = new("Frame", {
 	Size = UDim2.new(0.5, -28, 0, 342),
 	BackgroundTransparency = 1,
 }, craftPanel)
-text(right, { Size = UDim2.new(1, 0, 0, 20), Text = "Required materials", TextSize = 17, TextTransparency = 0.3 })
+text(right, { Size = UDim2.new(1, 0, 0, 20), Text = "Required materials", TextSize = 30 / CONFIG.FontScale, TextTransparency = 0.3 })
 
 local materialRows = {}
 for index = 1, 3 do
@@ -665,8 +672,8 @@ for index = 1, 3 do
 	}, right)
 	corner(row, 10)
 	local icon = itemIcon(row, 42, UDim2.fromOffset(32, 26))
-	local name = text(row, { Position = UDim2.fromOffset(64, 6), Size = UDim2.fromOffset(150, 20), TextSize = 21 })
-	local status = text(row, { Position = UDim2.fromOffset(65, 28), Size = UDim2.fromOffset(150, 16), TextSize = 16 })
+	local name = text(row, { Position = UDim2.fromOffset(64, 4), Size = UDim2.fromOffset(149, 20), TextSize = 30 / CONFIG.FontScale })
+	local status = text(row, { Position = UDim2.fromOffset(65, 28), Size = UDim2.fromOffset(150, 16), TextSize = 24 / CONFIG.FontScale })
 	local amount = text(row, {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -13, 0, -1),
@@ -1490,7 +1497,7 @@ local function startTuner()
 	local T_TEXT = Color3.fromRGB(237, 232, 220)
 	local T_BG = Color3.fromRGB(16, 21, 19)
 	local T_FONT = Enum.Font.GothamMedium
-	local T_STEPS = { 1, 2, 5, 10 }
+	local T_STEPS = { 1, 0.1, 2, 5, 10 }
 	local W = 236
 
 	local tunerGui = Instance.new("ScreenGui")
@@ -1690,16 +1697,16 @@ local function startTuner()
 			return {}
 		end
 		local list = {}
-		local dx = math.floor(o.Position.X.Offset - orig.Position.X.Offset - orig.compX + 0.5)
-		local dy = math.floor(o.Position.Y.Offset - orig.Position.Y.Offset - orig.compY + 0.5)
+		local dx = math.floor((o.Position.X.Offset - orig.Position.X.Offset - orig.compX) * 10 + 0.5) / 10
+		local dy = math.floor((o.Position.Y.Offset - orig.Position.Y.Offset - orig.compY) * 10 + 0.5) / 10
 		if dx ~= 0 then
 			table.insert(list, "moved " .. math.abs(dx) .. (dx < 0 and " left" or " right"))
 		end
 		if dy ~= 0 then
 			table.insert(list, "moved " .. math.abs(dy) .. (dy < 0 and " up" or " down"))
 		end
-		local dw = o.Size.X.Offset - orig.Size.X.Offset
-		local dh = o.Size.Y.Offset - orig.Size.Y.Offset
+		local dw = math.floor((o.Size.X.Offset - orig.Size.X.Offset) * 10 + 0.5) / 10
+		local dh = math.floor((o.Size.Y.Offset - orig.Size.Y.Offset) * 10 + 0.5) / 10
 		if dw ~= 0 then
 			table.insert(list, (dw < 0 and "narrower " or "wider ") .. math.abs(dw))
 		end
@@ -1707,7 +1714,7 @@ local function startTuner()
 			table.insert(list, (dh < 0 and "shorter " or "taller ") .. math.abs(dh))
 		end
 		if orig.TextSize and o.TextSize ~= orig.TextSize then
-			local dt = o.TextSize - orig.TextSize
+			local dt = math.floor((o.TextSize - orig.TextSize) * 10 + 0.5) / 10
 			table.insert(list, "text " .. (dt < 0 and "smaller " or "bigger ") .. math.abs(dt))
 		end
 		return list

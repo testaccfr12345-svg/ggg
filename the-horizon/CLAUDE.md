@@ -106,6 +106,7 @@ The user's target is her reference screenshot (older design iteration), "just li
 
 ## Working with the user
 - **NEVER remove or change a value the user tuned with the UI tuner (HZT lines) without asking first.** Later edits must keep them.
+- **Tuner values for one repeated item apply to all of its kind** (one material row -> all rows, one recipe tile -> all tiles, one backpack slot -> all slots). Exception: armour/equipment slots are per-slot; never touch them unless asked.
 - **NEVER put comments or prints in the user's scripts.** No `--` comments, no `print`/`warn`. Explain things in chat instead.
 - **Short, direct messages.** They test on mobile (landscape phone) and send screenshots.
 - **Match the approved preview closely.** Don't restyle things they didn't ask about.
