@@ -191,6 +191,43 @@ local function textButton(parent, props)
 	return button
 end
 
+local function escapeRich(str)
+	return (str:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
+end
+
+local function renderSpacing(label)
+	local px = label:GetAttribute("LetterSpacing") or 0
+	local raw = label:GetAttribute("RawText") or ""
+	local out
+	if px <= 0 then
+		out = escapeRich(raw)
+	else
+		local gap = '<font size="' .. math.max(1, math.floor(px * 5 + 0.5)) .. '"> </font>'
+		local chars = {}
+		for _, code in utf8.codes(raw) do
+			table.insert(chars, escapeRich(utf8.char(code)))
+		end
+		out = table.concat(chars, gap)
+	end
+	label:SetAttribute("RenderedText", out)
+	label.Text = out
+end
+
+local function letterSpacing(label, px)
+	if label:GetAttribute("RawText") == nil then
+		label:SetAttribute("RawText", label.Text)
+		label.RichText = true
+		label:GetPropertyChangedSignal("Text"):Connect(function()
+			if label.Text ~= label:GetAttribute("RenderedText") then
+				label:SetAttribute("RawText", label.Text)
+				renderSpacing(label)
+			end
+		end)
+	end
+	label:SetAttribute("LetterSpacing", math.max(0, px))
+	renderSpacing(label)
+end
+
 local function tween(object, duration, props, style, direction)
 	local t = TweenService:Create(
 		object,
@@ -530,15 +567,6 @@ new("UIListLayout", {
 }, strip)
 
 local recipeTiles = {}
-local tileNameSize = 25 / CONFIG.FontScale
-for _, list in pairs(RECIPES) do
-	for _, recipe in ipairs(list) do
-		while tileNameSize > 12 and textWidth(ITEMS[recipe.id].Name, tileNameSize) > 90 do
-			tileNameSize -= 0.25
-		end
-	end
-end
-for _, category in ipairs(CATEGORY_ORDER) do
 	for order, recipe in ipairs(RECIPES[category]) do
 		local tile = textButton(strip, {
 			Name = recipe.id,
@@ -565,18 +593,18 @@ for _, category in ipairs(CATEGORY_ORDER) do
 		local iconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1 }, content)
 		local icon = itemIcon(iconHolder, 66, UDim2.new(0.5, -2, 0.5, 2))
 		icon.Set(recipe.id)
-		local nameSize = tileNameSize
+		local nameSize = 25 / CONFIG.FontScale
 		local nameLines = 1
-		local nameHolder = new("Frame", { LayoutOrder = 2, Size = UDim2.fromOffset(92, 20 * nameLines), BackgroundTransparency = 1 }, content)
-		text(nameHolder, {
+		local nameHolder = new("Frame", { LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 20 * nameLines), BackgroundTransparency = 1 }, content)
+		local nameLabel = text(nameHolder, {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(0.5, 0, 0.5, 2),
-			Size = UDim2.fromOffset(92, 0),
+			Size = UDim2.new(1, -4, 0, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			Text = ITEMS[recipe.id].Name,
 			TextSize = nameSize,
 			LineHeight = 0.82,
-			TextWrapped = true,
+			TextWrapped = false,
 			TextXAlignment = Enum.TextXAlignment.Center,
 		})
 		local badge = new("Frame", {
@@ -597,7 +625,7 @@ for _, category in ipairs(CATEGORY_ORDER) do
 			ZIndex = 3,
 		})
 		local pop = new("UIScale", {}, tile)
-		recipeTiles[recipe.id] = { Button = tile, Stroke = outline, Icon = icon, Badge = badge, BadgeText = badgeText, Category = category, Pop = pop }
+		recipeTiles[recipe.id] = { Button = tile, Stroke = outline, Icon = icon, NameLabel = nameLabel, Badge = badge, BadgeText = badgeText, Category = category, Pop = pop }
 	end
 end
 
@@ -617,7 +645,7 @@ new("UIListLayout", {
 	Padding = UDim.new(0, 4),
 }, preview)
 local previewIconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(156, 164), BackgroundTransparency = 1 }, preview)
-local previewIcon = itemIcon(previewIconHolder, 156, UDim2.fromOffset(78, 78))
+local previewIcon = itemIcon(previewIconHolder, 156, UDim2.fromOffset(78, 91))
 local previewPop = new("UIScale", {}, previewIcon.Image)
 local function popPreview()
 	previewPop.Scale = 0.82
@@ -627,13 +655,14 @@ local function popPreview()
 end
 local previewNameHolder = new("Frame", { Name = "NameHolder", LayoutOrder = 2, Size = UDim2.new(1, -25, 0, 31), BackgroundTransparency = 1 }, preview)
 local previewName = text(previewNameHolder, {
+	Position = UDim2.fromOffset(0, 16),
 	Size = UDim2.fromScale(1, 1),
 	TextSize = 39,
 	TextXAlignment = Enum.TextXAlignment.Center,
 })
 local previewCategoryHolder = new("Frame", { Name = "CategoryHolder", LayoutOrder = 3, Size = UDim2.new(1, -24, 0, 22), BackgroundTransparency = 1 }, preview)
 local previewCategory = text(previewCategoryHolder, {
-	Position = UDim2.fromOffset(0, 2),
+	Position = UDim2.fromOffset(0, 30),
 	Size = UDim2.fromScale(1, 1),
 	TextSize = 32 / CONFIG.FontScale,
 	TextTransparency = 0.3,
@@ -641,7 +670,7 @@ local previewCategory = text(previewCategoryHolder, {
 })
 local previewDescHolder = new("Frame", { Name = "DescHolder", LayoutOrder = 4, Size = UDim2.fromOffset(240, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, preview)
 local previewDesc = text(previewDescHolder, {
-	Position = UDim2.fromOffset(0, -25),
+	Position = UDim2.fromOffset(0, 13),
 	Size = UDim2.fromScale(1, 0),
 	AutomaticSize = Enum.AutomaticSize.Y,
 	TextSize = 32 / CONFIG.FontScale,
@@ -740,14 +769,14 @@ for index = 1, 8 do
 		Name = "Hotbar" .. index,
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromOffset(40 + (index - 1) * 72, 40),
-		Size = UDim2.fromOffset(64, 64),
+		Size = UDim2.fromOffset(58, 58),
 		BackgroundColor3 = CONFIG.PanelColor,
 		BackgroundTransparency = CONFIG.HotbarTransparency,
 	})
-	corner(slot, 8)
-	local ring = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -10, 1, -10), BackgroundTransparency = 1 }, slot)
+	corner(slot, 7)
+	local ring = new("Frame", { Position = UDim2.fromOffset(1, 1), Size = UDim2.new(1, -2, 1, -2), BackgroundTransparency = 1 }, slot)
 	corner(ring, 6)
-	local outline = stroke(ring, Color3.new(1, 1, 1), 2, 0.85)
+	local outline = stroke(ring, Color3.new(1, 1, 1), 1, 0.85)
 	local icon = itemIcon(slot, 40, UDim2.fromScale(0.5, 0.5))
 	local pop = new("UIScale", {}, slot)
 	hotbarSlots[index] = { Button = slot, Stroke = outline, Icon = icon, Pop = pop }
@@ -756,12 +785,12 @@ end
 local keyboard = UserInputService.KeyboardEnabled
 local openButton = textButton(hotbarGroup, {
 	Name = "OpenInventory",
-	Position = UDim2.fromOffset(584, 8),
-	Size = UDim2.fromOffset(64, 64),
+	Position = UDim2.fromOffset(587, 11),
+	Size = UDim2.fromOffset(58, 58),
 	BackgroundColor3 = CONFIG.PanelColor,
 	BackgroundTransparency = CONFIG.HotbarTransparency,
 })
-corner(openButton, 8)
+corner(openButton, 7)
 local openStroke = stroke(openButton, CONFIG.Accent, 2, 1)
 local openPop = new("UIScale", {}, openButton)
 do
@@ -769,7 +798,7 @@ do
 	local line = 2.6
 	local bag = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromOffset(32, 35),
+		Position = UDim2.fromOffset(29, 32),
 		Size = UDim2.fromOffset(19, 16),
 		BackgroundTransparency = 1,
 	}, openButton)
@@ -777,7 +806,7 @@ do
 	stroke(bag, CONFIG.Text, line, 0)
 	local handle = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.fromOffset(32, 27 - line),
+		Position = UDim2.fromOffset(29, 24 - line),
 		Size = UDim2.fromOffset(7, 4),
 		BackgroundTransparency = 1,
 	}, openButton)
@@ -785,7 +814,7 @@ do
 	stroke(handle, CONFIG.Text, line, 0)
 	local strap = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromOffset(32, 35),
+		Position = UDim2.fromOffset(29, 32),
 		Size = UDim2.fromOffset(14, line),
 		BackgroundColor3 = CONFIG.Text,
 		BorderSizePixel = 0,
@@ -998,7 +1027,9 @@ local function refreshCrafting()
 		local n = queuedCount(id)
 		tile.Stroke.Transparency = on and 0 or 1
 		tile.Button.BackgroundTransparency = on and 0.88 or 0.95
-		tile.Icon.SetFaded(maxCraftable(findRecipe(id)) == 0 and n == 0)
+		local faded = maxCraftable(findRecipe(id)) == 0 and n == 0
+		tile.Icon.SetFaded(faded)
+		tile.NameLabel.TextTransparency = faded and 0.55 or 0
 		tile.Badge.Visible = n > 0
 		tile.BadgeText.Text = "x" .. n
 		tile.Badge.Size = UDim2.fromOffset(math.max(28, math.ceil(textWidth("x" .. n, 14)) + 12), 20)
@@ -1684,7 +1715,7 @@ local function startTuner()
 		if originals[o] then
 			return
 		end
-		local entry = { Position = o.Position, Size = o.Size, compX = 0, compY = 0 }
+		local entry = { Position = o.Position, Size = o.Size, compX = 0, compY = 0, Spacing = o:GetAttribute("LetterSpacing") or 0 }
 		if isText(o) then
 			entry.TextSize = o.TextSize
 		end
@@ -1712,6 +1743,10 @@ local function startTuner()
 		end
 		if dh ~= 0 then
 			table.insert(list, (dh < 0 and "shorter " or "taller ") .. math.abs(dh))
+		end
+		local ds = math.floor(((o:GetAttribute("LetterSpacing") or 0) - orig.Spacing) * 10 + 0.5) / 10
+		if ds ~= 0 then
+			table.insert(list, "letters " .. (ds < 0 and "closer " or "wider ") .. math.abs(ds))
 		end
 		if orig.TextSize and o.TextSize ~= orig.TextSize then
 			local dt = math.floor((o.TextSize - orig.TextSize) * 10 + 0.5) / 10
@@ -1769,6 +1804,8 @@ local function startTuner()
 		if kind == "move" then
 			local p = o.Position
 			o.Position = UDim2.new(p.X.Scale, p.X.Offset + a * n, p.Y.Scale, p.Y.Offset + b * n)
+		elseif kind == "size" and isText(o) and b == 0 and a ~= 0 then
+			letterSpacing(o, (o:GetAttribute("LetterSpacing") or 0) + a * n)
 		elseif kind == "size" then
 			local sz = o.Size
 			local dw, dh = a * n, b * n
@@ -1986,6 +2023,9 @@ local function startTuner()
 				if orig.TextSize then
 					entry ..= "/T" .. o.TextSize
 				end
+				if (o:GetAttribute("LetterSpacing") or 0) ~= 0 then
+					entry ..= "/L" .. o:GetAttribute("LetterSpacing")
+				end
 				table.insert(parts, entry)
 			end
 		end
@@ -2095,6 +2135,9 @@ local function startTuner()
 		o.Size = orig.Size
 		if orig.TextSize then
 			o.TextSize = orig.TextSize
+		end
+		if (o:GetAttribute("LetterSpacing") or 0) ~= orig.Spacing then
+			letterSpacing(o, orig.Spacing)
 		end
 		originals[o] = nil
 	end
