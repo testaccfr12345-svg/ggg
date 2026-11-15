@@ -28,13 +28,12 @@ local CONFIG = {
 	PanelColor = Color3.fromRGB(16, 21, 19),
 
 	PanelTransparency = 0.32,
-	HotbarTransparency = 0.15,
 	FontEnum = Enum.Font.PatrickHand,
 
 	FontScale = 1.354,
 	CraftCompleteSound = "rbxassetid://100545760361878",
 	QueueMax = 8,
-	BackpackSlots = 18,
+	BackpackSlots = 26,
 	BarResetSpeed = 35,
 	BlurSize = 12,
 	DimTransparency = 0.16,
@@ -547,36 +546,40 @@ do
 	end
 end
 
-local strip = new("ScrollingFrame", {
-	Name = "ItemStrip",
-	Position = UDim2.fromOffset(20, 72),
-	Size = UDim2.new(1, -40, 0, 112),
-	BackgroundTransparency = 1,
-	BorderSizePixel = 0,
-	ScrollingDirection = Enum.ScrollingDirection.X,
-	AutomaticCanvasSize = Enum.AutomaticSize.X,
-	CanvasSize = UDim2.new(),
-	ScrollBarThickness = 4,
-	ScrollBarImageColor3 = CONFIG.Text,
-	ScrollBarImageTransparency = 0.7,
-	ElasticBehavior = Enum.ElasticBehavior.Never,
-}, craftPanel)
-new("UIListLayout", {
-	FillDirection = Enum.FillDirection.Horizontal,
-	SortOrder = Enum.SortOrder.LayoutOrder,
-	Padding = UDim.new(0, 8),
-}, strip)
+local strips = {}
+for _, category in ipairs(CATEGORY_ORDER) do
+	local strip = new("ScrollingFrame", {
+		Name = "ItemStrip",
+		Position = UDim2.fromOffset(20, 72),
+		Size = UDim2.new(1, -40, 0, 112),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollingDirection = Enum.ScrollingDirection.X,
+		AutomaticCanvasSize = Enum.AutomaticSize.X,
+		CanvasSize = UDim2.new(),
+		ScrollBarThickness = 4,
+		ScrollBarImageColor3 = CONFIG.Text,
+		ScrollBarImageTransparency = 0.7,
+		ElasticBehavior = Enum.ElasticBehavior.Never,
+		Visible = category == selectedCategory,
+	}, craftPanel)
+	new("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Padding = UDim.new(0, 8),
+	}, strip)
+	strips[category] = strip
+end
 
 local recipeTiles = {}
 for _, category in ipairs(CATEGORY_ORDER) do
 	for order, recipe in ipairs(RECIPES[category]) do
-		local tile = textButton(strip, {
+		local tile = textButton(strips[category], {
 			Name = recipe.id,
 			LayoutOrder = order,
 			Size = UDim2.fromOffset(90, 100),
 			BackgroundColor3 = Color3.new(1, 1, 1),
 			BackgroundTransparency = 0.95,
-			Visible = false,
 		})
 		corner(tile, 10)
 		local outlineHolder = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, tile)
@@ -640,29 +643,16 @@ local preview = new("Frame", {
 	BorderSizePixel = 0,
 }, craftPanel)
 corner(preview, 12)
-new("UIListLayout", {
-	SortOrder = Enum.SortOrder.LayoutOrder,
-	HorizontalAlignment = Enum.HorizontalAlignment.Center,
-	VerticalAlignment = Enum.VerticalAlignment.Center,
-	Padding = UDim.new(0, 4),
-}, preview)
-local previewIconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(156, 164), BackgroundTransparency = 1 }, preview)
+local previewIconHolder = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(156, 164), BackgroundTransparency = 1 }, preview)
 local previewIcon = itemIcon(previewIconHolder, 156, UDim2.fromOffset(78, 91))
-local previewPop = new("UIScale", {}, previewIcon.Image)
-local function popPreview()
-	previewPop.Scale = 0.82
-	previewIcon.Image.Rotation = -8
-	tween(previewPop, 0.2, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-	tween(previewIcon.Image, 0.2, { Rotation = 0 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-end
-local previewNameHolder = new("Frame", { Name = "NameHolder", LayoutOrder = 2, Size = UDim2.new(1, -25, 0, 31), BackgroundTransparency = 1 }, preview)
+local previewNameHolder = new("Frame", { Name = "NameHolder", AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.new(1, -25, 0, 31), BackgroundTransparency = 1 }, preview)
 local previewName = text(previewNameHolder, {
 	Position = UDim2.fromOffset(0, 16),
 	Size = UDim2.fromScale(1, 1),
 	TextSize = 39,
 	TextXAlignment = Enum.TextXAlignment.Center,
 })
-local previewCategoryHolder = new("Frame", { Name = "CategoryHolder", LayoutOrder = 3, Size = UDim2.new(1, -24, 0, 22), BackgroundTransparency = 1 }, preview)
+local previewCategoryHolder = new("Frame", { Name = "CategoryHolder", AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.new(1, -24, 0, 22), BackgroundTransparency = 1 }, preview)
 local previewCategory = text(previewCategoryHolder, {
 	Position = UDim2.fromOffset(0, 30),
 	Size = UDim2.fromScale(1, 1),
@@ -670,7 +660,7 @@ local previewCategory = text(previewCategoryHolder, {
 	TextTransparency = 0.3,
 	TextXAlignment = Enum.TextXAlignment.Center,
 })
-local previewDescHolder = new("Frame", { Name = "DescHolder", LayoutOrder = 4, Size = UDim2.fromOffset(240, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, preview)
+local previewDescHolder = new("Frame", { Name = "DescHolder", AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(240, 0), BackgroundTransparency = 1 }, preview)
 local previewDesc = text(previewDescHolder, {
 	Position = UDim2.fromOffset(0, 13),
 	Size = UDim2.fromScale(1, 0),
@@ -682,6 +672,25 @@ local previewDesc = text(previewDescHolder, {
 	TextYAlignment = Enum.TextYAlignment.Top,
 })
 new("UIPadding", { PaddingTop = UDim.new(0, 12) }, previewDesc)
+
+local function layoutPreview()
+	local descHeight = 0
+	if previewDesc.Text ~= "" then
+		descHeight = TextService:GetTextSize(previewDesc.Text, previewDesc.TextSize, CONFIG.FontEnum, Vector2.new(240, 2000)).Y
+	end
+	local descHolderHeight = 13 + 12 + descHeight
+	local gap = 4
+	local total = 164 + 31 + 22 + descHolderHeight + gap * 3
+	local y = (342 - total) / 2
+	previewIconHolder.Position = UDim2.new(0.5, 0, 0, y)
+	y += 164 + gap
+	previewNameHolder.Position = UDim2.new(0.5, 0, 0, y)
+	y += 31 + gap
+	previewCategoryHolder.Position = UDim2.new(0.5, 0, 0, y)
+	y += 22 + gap
+	previewDescHolder.Position = UDim2.new(0.5, 0, 0, y)
+	previewDescHolder.Size = UDim2.fromOffset(240, descHolderHeight)
+end
 
 local right = new("Frame", {
 	Name = "Requirements",
@@ -748,76 +757,85 @@ local craftButton = textButton(right, {
 corner(craftButton, 12)
 local craftButtonScale = new("UIScale", {}, craftButton)
 
+local HOTBAR_SLOT, HOTBAR_GAP = 72, 8
+local HOTBAR_W = 9 * HOTBAR_SLOT + 8 * HOTBAR_GAP
+local HOTBAR_BORDER = Color3.fromRGB(237, 232, 220)
+
 local hotbarGroup = new("Frame", {
 	Name = "HotbarGroup",
 	AnchorPoint = Vector2.new(0.5, 1),
 	Position = UDim2.new(0.5, 0, 1, -14),
-	Size = UDim2.fromOffset(584, 80),
+	Size = UDim2.fromOffset(HOTBAR_W, HOTBAR_SLOT),
 	BackgroundTransparency = 1,
 }, gui)
 local hotbarScale = new("UIScale", {}, hotbarGroup)
 
 local hotbar = new("Frame", {
 	Name = "Hotbar",
-	Size = UDim2.fromOffset(584, 80),
+	Size = UDim2.fromOffset(HOTBAR_W, HOTBAR_SLOT),
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 }, hotbarGroup)
-corner(hotbar, 12)
+
+local function hotbarBox(parent, name, index)
+	local box = textButton(parent, {
+		Name = name,
+		Position = UDim2.fromOffset((index - 1) * (HOTBAR_SLOT + HOTBAR_GAP), 0),
+		Size = UDim2.fromOffset(HOTBAR_SLOT, HOTBAR_SLOT),
+		BackgroundColor3 = CONFIG.PanelColor,
+		BackgroundTransparency = 0.45,
+	})
+	corner(box, 4)
+	local ring = new("Frame", { BackgroundTransparency = 1 }, box)
+	local ringCorner = new("UICorner", {}, ring)
+	local ringStroke = stroke(ring, HOTBAR_BORDER, 1, 0.86)
+	local function setBorder(selected)
+		local width = selected and 2 or 1
+		ring.Position = UDim2.fromOffset(width, width)
+		ring.Size = UDim2.new(1, -2 * width, 1, -2 * width)
+		ringCorner.CornerRadius = UDim.new(0, math.max(0, 4 - width))
+		ringStroke.Thickness = width
+		ringStroke.Color = selected and CONFIG.Accent or HOTBAR_BORDER
+		ringStroke.Transparency = selected and 0 or 0.86
+		box.BackgroundTransparency = selected and 0.22 or 0.45
+	end
+	setBorder(false)
+	return box, setBorder
+end
 
 local hotbarSlots = {}
 for index = 1, 8 do
-	local slot = textButton(hotbar, {
-		Name = "Hotbar" .. index,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromOffset(40 + (index - 1) * 72, 40),
-		Size = UDim2.fromOffset(58, 58),
-		BackgroundColor3 = CONFIG.PanelColor,
-		BackgroundTransparency = CONFIG.HotbarTransparency,
-	})
-	corner(slot, 7)
-	local ring = new("Frame", { Position = UDim2.fromOffset(1, 1), Size = UDim2.new(1, -2, 1, -2), BackgroundTransparency = 1 }, slot)
-	corner(ring, 6)
-	local outline = stroke(ring, Color3.new(1, 1, 1), 1, 0.85)
-	local icon = itemIcon(slot, 40, UDim2.fromScale(0.5, 0.5))
-	local pop = new("UIScale", {}, slot)
-	hotbarSlots[index] = { Button = slot, Stroke = outline, Icon = icon, Pop = pop }
+	local slot, setBorder = hotbarBox(hotbar, "Hotbar" .. index, index)
+	local icon = itemIcon(slot, 48, UDim2.fromScale(0.5, 0.5))
+	hotbarSlots[index] = { Button = slot, SetBorder = setBorder, Icon = icon }
 end
 
 local keyboard = UserInputService.KeyboardEnabled
-local openButton = textButton(hotbarGroup, {
-	Name = "OpenInventory",
-	Position = UDim2.fromOffset(587, 11),
-	Size = UDim2.fromOffset(58, 58),
-	BackgroundColor3 = CONFIG.PanelColor,
-	BackgroundTransparency = CONFIG.HotbarTransparency,
-})
-corner(openButton, 7)
-local openStroke = stroke(openButton, CONFIG.Accent, 2, 1)
-local openPop = new("UIScale", {}, openButton)
+local openButton, setOpenBorder = hotbarBox(hotbarGroup, "OpenInventory", 9)
 do
-
-	local line = 2.6
+	local k = 26 / 28
+	local line = 2.2 * k
+	local origin = HOTBAR_SLOT / 2 - 13
 	local bag = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromOffset(29, 32),
-		Size = UDim2.fromOffset(19, 16),
+		Position = UDim2.fromOffset(origin + 14 * k, origin + 16.5 * k),
+		Size = UDim2.fromOffset((18 - 2.2) * k, (15 - 2.2) * k),
 		BackgroundTransparency = 1,
 	}, openButton)
-	corner(bag, 4)
+	corner(bag, 3.4 * k)
 	stroke(bag, CONFIG.Text, line, 0)
 	local handle = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.fromOffset(29, 24 - line),
-		Size = UDim2.fromOffset(7, 4),
+		Position = UDim2.fromOffset(origin + 14 * k, origin + (9 - 1.1) * k),
+		Size = UDim2.fromOffset((8 - 2.2) * k, (5.5 - 2.2) * k),
 		BackgroundTransparency = 1,
 	}, openButton)
-	corner(handle, 4)
+	corner(handle, 3 * k)
 	stroke(handle, CONFIG.Text, line, 0)
 	local strap = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromOffset(29, 32),
-		Size = UDim2.fromOffset(14, line),
+		Position = UDim2.fromOffset(origin + 14 * k, origin + 16.5 * k),
+		Size = UDim2.fromOffset(10 * k + line, line),
 		BackgroundColor3 = CONFIG.Text,
 		BorderSizePixel = 0,
 	}, openButton)
@@ -945,8 +963,8 @@ local function updateScale()
 	local hb = sc * (touchOnly and CONFIG.HotbarTouchBoost or CONFIG.HotbarBoost)
 	hotbarScale.Scale = hb
 	hotNameScale.Scale = sc
-	hotbarGroup.Position = UDim2.new(0.5, -32 * hb, 1, -10 * hb)
-	hotName.Position = UDim2.new(0.5, 0, 1, -(10 + 80) * hb - 3 * sc)
+	hotbarGroup.Position = UDim2.new(0.5, 0, 1, -14 * hb)
+	hotName.Position = UDim2.new(0.5, 0, 1, -(14 + HOTBAR_SLOT) * hb - 3 * sc)
 
 	progressHome = UDim2.new(1, -12 * sc, 0, 12 * sc)
 	progressAway = UDim2.new(1, 12 * sc, 0, 12 * sc)
@@ -954,7 +972,7 @@ local function updateScale()
 
 	local gap = 8 * sc
 	local top = math.max(topInset, 48 * sc) + 2 * sc
-	local bottom = viewport.Y - (10 + 80) * hb - (28 + INV_EXTRA_H) * sc
+	local bottom = viewport.Y - (14 + HOTBAR_SLOT) * hb - (28 + INV_EXTRA_H) * sc
 	local availH = math.max(100, bottom - top)
 	local availW = viewport.X - gap * 2
 	local fitH = math.min(sc, availH / MENU_H)
@@ -1022,9 +1040,12 @@ local function refreshCrafting()
 		tab.TextColor3 = on and CONFIG.DarkText or CONFIG.Text
 	end
 
+	for category, strip in pairs(strips) do
+		strip.Visible = category == selectedCategory
+	end
+
 	local recipe = currentRecipe()
 	for id, tile in pairs(recipeTiles) do
-		tile.Button.Visible = tile.Category == selectedCategory
 		local on = id == recipe.id
 		local n = queuedCount(id)
 		tile.Stroke.Transparency = on and 0 or 1
@@ -1042,6 +1063,7 @@ local function refreshCrafting()
 	previewName.Text = item.Name
 	previewCategory.Text = selectedCategory
 	previewDesc.Text = item.Desc or ""
+	layoutPreview()
 
 	local mats = recipe.mats or {}
 	for index, row in ipairs(materialRows) do
@@ -1080,10 +1102,7 @@ local function refreshHotbar()
 		local id = hotbarItems[index]
 		slot.Icon.Set(id or nil)
 		local on = selectedHotbar == index
-		slot.Stroke.Color = on and CONFIG.Accent or Color3.new(1, 1, 1)
-		slot.Stroke.Transparency = on and 0 or 0.85
-		slot.Stroke.Thickness = on and 2 or 1
-		slot.Button.BackgroundTransparency = on and 0.05 or CONFIG.HotbarTransparency
+		slot.SetBorder(on)
 	end
 	local held = hotbarItems[selectedHotbar]
 	hotName.Text = held and ITEMS[held].Name or ""
@@ -1251,7 +1270,7 @@ local function setOpen(open)
 	modal.Visible = open
 	crosshair.Visible = not open
 
-	openStroke.Transparency = open and 0 or 1
+	setOpenBorder(open)
 
 	if UserInputService.TouchEnabled then
 		if open then
@@ -1339,7 +1358,7 @@ for name, tab in pairs(categoryButtons) do
 		end
 		selectedCategory = name
 		selectedRecipe = RECIPES[name][1].id
-		strip.CanvasPosition = Vector2.zero
+		strips[name].CanvasPosition = Vector2.zero
 		refreshCrafting()
 
 	end)
