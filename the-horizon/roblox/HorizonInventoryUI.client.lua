@@ -43,6 +43,13 @@ local CONFIG = {
 	MaxWidthStretch = 1.2,
 	MenuWidthFraction = 0.878,
 
+	EquipmentIconLayout = {
+		Helmet = { 54, 0, 2 },
+		Chest = { 49, 0, 0 },
+		Gloves = { 48, -2, -1 },
+		Legs = { 48, -1, 0 },
+		Boots = { 47, -1, -1 },
+	},
 	EquipmentIcons = {
 		Helmet = "rbxassetid://122411372685446",
 		Chest = "rbxassetid://82728361755910",
@@ -438,10 +445,11 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Gloves", "Legs", "Boots" }) 
 	equipDashes[index] = new("Frame", { Name = "Dashes", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, slot)
 	local image = CONFIG.EquipmentIcons[slotName]
 	if image and image ~= "" then
+		local layout = CONFIG.EquipmentIconLayout[slotName] or { 36, 0, 0 }
 		new("ImageLabel", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(36, 36),
+			Position = UDim2.new(0.5, layout[2], 0.5, layout[3]),
+			Size = UDim2.fromOffset(layout[1], layout[1]),
 			BackgroundTransparency = 1,
 			Image = image,
 			ImageTransparency = 0.6,
@@ -496,7 +504,7 @@ for index = 1, CONFIG.BackpackSlots do
 end
 
 local craftPanel = panel(panels, "CraftingPanel", INV_W + PANEL_GAP, 0, CRAFT_W, 560)
-text(craftPanel, { Position = UDim2.fromOffset(20, 20), Size = UDim2.fromOffset(200, 36), Text = "Crafting", TextSize = 30 })
+text(craftPanel, { Position = UDim2.fromOffset(20, 13), Size = UDim2.fromOffset(200, 36), Text = "Crafting", TextSize = 30 })
 
 local closeButton = textButton(craftPanel, {
 	Name = "Close",
@@ -588,15 +596,15 @@ for _, category in ipairs(CATEGORY_ORDER) do
 		local iconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1 }, content)
 		local icon = itemIcon(iconHolder, 56, UDim2.fromScale(0.5, 0.5))
 		icon.Set(recipe.id)
-		local nameLines = TextService:GetTextSize(ITEMS[recipe.id].Name, ts(16), CONFIG.FontEnum, Vector2.new(82, 1000)).Y > ts(16) * 1.5 and 2 or 1
-		local nameHolder = new("Frame", { LayoutOrder = 2, Size = UDim2.fromOffset(82, 17 * nameLines), BackgroundTransparency = 1 }, content)
+		local nameLines = TextService:GetTextSize(ITEMS[recipe.id].Name, ts(19), CONFIG.FontEnum, Vector2.new(92, 1000)).Y > ts(19) * 1.5 and 2 or 1
+		local nameHolder = new("Frame", { LayoutOrder = 2, Size = UDim2.fromOffset(92, 20 * nameLines), BackgroundTransparency = 1 }, content)
 		text(nameHolder, {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(82, 0),
+			Position = UDim2.new(0.5, 0, 0.5, 2),
+			Size = UDim2.fromOffset(92, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			Text = ITEMS[recipe.id].Name,
-			TextSize = 16,
+			TextSize = 19,
 			LineHeight = 0.82,
 			TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Center,
@@ -649,8 +657,8 @@ local function popPreview()
 end
 local previewName = text(preview, {
 	LayoutOrder = 2,
-	Size = UDim2.new(1, -24, 0, 32),
-	TextSize = 32,
+	Size = UDim2.new(1, -25, 0, 31),
+	TextSize = 39,
 	TextXAlignment = Enum.TextXAlignment.Center,
 })
 local previewCategory = text(preview, {
@@ -691,14 +699,14 @@ for index = 1, 3 do
 		Visible = false,
 	}, right)
 	corner(row, 10)
-	local icon = itemIcon(row, 40, UDim2.fromOffset(32, 26))
-	local name = text(row, { Position = UDim2.fromOffset(62, 8), Size = UDim2.fromOffset(150, 20), TextSize = 19 })
-	local status = text(row, { Position = UDim2.fromOffset(62, 28), Size = UDim2.fromOffset(150, 16), TextSize = 15 })
+	local icon = itemIcon(row, 42, UDim2.fromOffset(32, 26))
+	local name = text(row, { Position = UDim2.fromOffset(64, 6), Size = UDim2.fromOffset(150, 20), TextSize = 21 })
+	local status = text(row, { Position = UDim2.fromOffset(65, 28), Size = UDim2.fromOffset(150, 16), TextSize = 16 })
 	local amount = text(row, {
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -12, 0, 0),
+		Position = UDim2.new(1, -13, 0, -1),
 		Size = UDim2.fromOffset(80, 52),
-		TextSize = 21,
+		TextSize = 22,
 		TextXAlignment = Enum.TextXAlignment.Right,
 	})
 	materialRows[index] = { Row = row, Icon = icon, Name = name, Status = status, Amount = amount }
@@ -731,7 +739,7 @@ local craftButton = textButton(right, {
 	Position = UDim2.fromOffset(0, 290),
 	Size = UDim2.new(1, 0, 0, 52),
 	BackgroundColor3 = CONFIG.Accent,
-	TextSize = 26,
+	TextSize = 32,
 	Text = "Craft",
 })
 corner(craftButton, 12)
@@ -1843,15 +1851,15 @@ local function startTuner()
 	local exportFrame = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.new(0.8, 0, 0.75, 0),
+		Size = UDim2.new(0.96, 0, 0.92, 0),
 		BackgroundColor3 = T_BG,
-		BackgroundTransparency = 0.02,
+		BackgroundTransparency = 0,
 		Visible = false,
 		ZIndex = 20,
 	}, tunerGui)
 	round(exportFrame, 8)
 	make("UIStroke", { Color = T_ACCENT, Thickness = 1 }, exportFrame)
-	label(exportFrame, "Select all of this, copy it, and send it", 10, 4, 400, 22, 12).ZIndex = 21
+	label(exportFrame, "Screenshot this (scroll for more) and send it", 10, 4, 400, 22, 13).ZIndex = 21
 	local closeExport = button(exportFrame, "Close", 0, 4, 60, 22)
 	closeExport.AnchorPoint = Vector2.new(1, 0)
 	closeExport.Position = UDim2.new(1, -8, 0, 4)
@@ -1865,16 +1873,13 @@ local function startTuner()
 		ScrollBarThickness = 6,
 		ZIndex = 21,
 	}, exportFrame)
-	local exportBox = make("TextBox", {
+	local exportBox = make("TextLabel", {
 		Size = UDim2.new(1, -8, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
-		ClearTextOnFocus = false,
-		TextEditable = true,
-		MultiLine = true,
 		TextWrapped = true,
 		Font = Enum.Font.Code,
-		TextSize = 12,
+		TextSize = 14,
 		TextColor3 = T_TEXT,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
@@ -1905,10 +1910,10 @@ local function startTuner()
 			table.insert(parts, 1, name)
 			cur = parent
 		end
-		return table.concat(parts, "/")
+		return (table.concat(parts, "/"):gsub("^Menu/Panels/", ""))
 	end
 	local function udim2(u)
-		return string.format("{%g,%g},{%g,%g}", u.X.Scale, u.X.Offset, u.Y.Scale, u.Y.Offset)
+		return string.format("%g,%g,%g,%g", u.X.Scale, u.X.Offset, u.Y.Scale, u.Y.Offset)
 	end
 
 	local function buildExport()
@@ -1917,11 +1922,11 @@ local function startTuner()
 			if o.Parent then
 				local list = changes(o)
 				if #list > 0 then
-					local exact = "Position " .. udim2(orig.Position) .. " -> " .. udim2(o.Position) .. "; Size " .. udim2(orig.Size) .. " -> " .. udim2(o.Size)
+					local exact = "P " .. udim2(o.Position) .. "  S " .. udim2(o.Size)
 					if orig.TextSize then
-						exact ..= "; TextSize " .. orig.TextSize .. " -> " .. o.TextSize
+						exact ..= "  T " .. o.TextSize
 					end
-					table.insert(lines, friendly(o) .. ": " .. table.concat(list, ", ") .. "\n    [" .. pathOf(o) .. "] " .. exact)
+					table.insert(lines, "• " .. friendly(o) .. ": " .. table.concat(list, ", ") .. "\n   " .. pathOf(o) .. "  " .. exact)
 				end
 			end
 		end
@@ -2050,7 +2055,8 @@ local function startTuner()
 	RunService.RenderStepped:Connect(function()
 		if selected and selected.Parent and selected:IsA("GuiObject") and selected.Visible then
 			highlight.Visible = true
-			highlight.Position = UDim2.fromOffset(selected.AbsolutePosition.X, selected.AbsolutePosition.Y)
+			local origin = tunerGui.AbsolutePosition
+			highlight.Position = UDim2.fromOffset(selected.AbsolutePosition.X - origin.X, selected.AbsolutePosition.Y - origin.Y)
 			highlight.Size = UDim2.fromOffset(selected.AbsoluteSize.X, selected.AbsoluteSize.Y)
 		else
 			highlight.Visible = false
