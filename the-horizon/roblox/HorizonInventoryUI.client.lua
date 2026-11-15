@@ -759,7 +759,7 @@ corner(craftButton, 12)
 local craftButtonScale = new("UIScale", {}, craftButton)
 
 local HOTBAR_SLOT, HOTBAR_GAP = 62, 8
-local BAG_SLOT = HOTBAR_SLOT * 0.5
+local BAG_SLOT = HOTBAR_SLOT * 0.6
 local HOTBAR_W = 8 * HOTBAR_SLOT + 8 * HOTBAR_GAP + BAG_SLOT
 local HOTBAR_BORDER = Color3.fromRGB(237, 232, 220)
 
@@ -800,7 +800,7 @@ local function hotbarBox(parent, name, index, size)
 		ringCorner.CornerRadius = UDim.new(0, math.max(0, 4 - width))
 		ringStroke.Thickness = width
 		ringStroke.Color = selected and CONFIG.Accent or HOTBAR_BORDER
-		ringStroke.Transparency = selected and 0 or 0.86
+		ringStroke.Transparency = selected and 0 or 1
 		box.BackgroundTransparency = selected and 0.22 or 0.45
 	end
 	setBorder(false)
@@ -947,6 +947,13 @@ local function applyStretch(k)
 	craftPanel.Position = CRAFT_HOME
 	for _, tile in pairs(recipeTiles) do
 		tile.Button.Size = UDim2.fromOffset(90 * k, 100)
+	end
+	local slotSide = (invW - 1) / 6 - 40 / 3
+	for index, slot in ipairs(backpackSlots) do
+		local column = (index - 1) % 6
+		local row = math.floor((index - 1) / 6)
+		slot.Button.Position = UDim2.new(column / 6, 20 - column * 16 / 3, 0, 208 + row * (slotSide + 8))
+		slot.Button.Size = UDim2.new(1 / 6, -40 / 3, 0, slotSide)
 	end
 end
 
