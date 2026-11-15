@@ -1680,7 +1680,7 @@ local function startTuner()
 		if originals[o] then
 			return
 		end
-		local entry = { Position = o.Position, Size = o.Size }
+		local entry = { Position = o.Position, Size = o.Size, compX = 0, compY = 0 }
 		if isText(o) then
 			entry.TextSize = o.TextSize
 		end
@@ -1693,8 +1693,8 @@ local function startTuner()
 			return {}
 		end
 		local list = {}
-		local dx = o.Position.X.Offset - orig.Position.X.Offset
-		local dy = o.Position.Y.Offset - orig.Position.Y.Offset
+		local dx = math.floor(o.Position.X.Offset - orig.Position.X.Offset - orig.compX + 0.5)
+		local dy = math.floor(o.Position.Y.Offset - orig.Position.Y.Offset - orig.compY + 0.5)
 		if dx ~= 0 then
 			table.insert(list, "moved " .. math.abs(dx) .. (dx < 0 and " left" or " right"))
 		end
@@ -1767,7 +1767,17 @@ local function startTuner()
 			o.Position = UDim2.new(p.X.Scale, p.X.Offset + a * n, p.Y.Scale, p.Y.Offset + b * n)
 		elseif kind == "size" then
 			local sz = o.Size
-			o.Size = UDim2.new(sz.X.Scale, sz.X.Offset + a * n, sz.Y.Scale, sz.Y.Offset + b * n)
+			local dw, dh = a * n, b * n
+			o.Size = UDim2.new(sz.X.Scale, sz.X.Offset + dw, sz.Y.Scale, sz.Y.Offset + dh)
+			local shiftX = -dw * (0.5 - o.AnchorPoint.X)
+			local shiftY = -dh * (0.5 - o.AnchorPoint.Y)
+			if shiftX ~= 0 or shiftY ~= 0 then
+				local p = o.Position
+				o.Position = UDim2.new(p.X.Scale, p.X.Offset + shiftX, p.Y.Scale, p.Y.Offset + shiftY)
+				local orig = originals[o]
+				orig.compX += shiftX
+				orig.compY += shiftY
+			end
 		elseif kind == "text" and isText(o) then
 			o.TextSize = math.clamp(o.TextSize + a * n, 1, 100)
 		end
