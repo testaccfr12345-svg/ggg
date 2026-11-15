@@ -1325,10 +1325,15 @@ fadeValue.Changed:Connect(function(a)
 	end
 end)
 
+local menuLockUntil = 0
 local function setOpen(open)
 	if isOpen == open and panels.Visible == open then
 		return
 	end
+	if os.clock() < menuLockUntil then
+		return
+	end
+	menuLockUntil = os.clock() + (open and 0.26 or 0.16) + 0.1
 	isOpen = open
 	modal.Visible = open
 	if not open and selectedSlot ~= nil then
@@ -1338,7 +1343,6 @@ local function setOpen(open)
 	refreshHotbar()
 	crosshair.Visible = not open
 
-	setOpenBorder(open)
 
 	if UserInputService.TouchEnabled then
 		if open then
