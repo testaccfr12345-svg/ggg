@@ -27,10 +27,15 @@ designed vs. actually working and the rules for working on this project.
 - **Text sizes are written as the HTML px sizes** and multiplied by `CONFIG.FontScale = 1.354` in the `text()`/`textButton()` helpers.
   Roblox TextSize is the font's line height; Patrick Hand's line height is 1.354 em, so without this all text came out ~26% too small.
 - **Equipment slots** use a dashed outline (built from small Frames) and icons from `design/equipment_icons/*.png`
-  once the user uploads them and fills `CONFIG.EquipmentIcons`.
+  once the user uploads them and fills `CONFIG.EquipmentIcons`. The PNGs are solid cream #EDE8DC (512px, transparent
+  background); the script sets ImageTransparency 0.7 so they look grey like the HTML. Don't bake grey into the PNGs.
+  How a slot looks when armour is equipped: **not decided yet** (user: decide later).
+- **Item icons:** the coloured rbxassetid pictures are final. The HTML's white line icons were placeholders only.
+  Only recipe tiles fade (ImageTransparency 0.55) when an item can't be crafted. Map/Compass show their name until they have art.
 
 **Layout**
-- **Panels:** dark semi-transparent, RGB 16,21,19 at 0.32 transparency, warm off-white text RGB 237,232,220.
+- **Panels:** dark semi-transparent, RGB 16,21,19, warm off-white text RGB 237,232,220. The user chose **darker than the HTML**
+  for the bright game world: `PanelTransparency = 0.15`, menu dim `DimTransparency = 0.45` (HTML was 0.32 / 0.42 black).
   Two panels side by side: Inventory (464×560) and Crafting (640×560), with a 20px gap.
 - **Design screen is 1280×720**, matching the HTML. Everything scales from it so proportions match the preview.
   The menu sits between Roblox's top-left buttons (GuiInset) and the hotbar. It must not be huge.
