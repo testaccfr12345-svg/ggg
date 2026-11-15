@@ -37,19 +37,11 @@ local CONFIG = {
 	BackpackSlots = 30,
 	BarResetSpeed = 35,
 	BlurSize = 12,
-	SlotDashColor = Color3.fromRGB(70, 75, 73),
 	DimTransparency = 0.16,
 	DimColor = Color3.fromRGB(12, 11, 6),
 	MaxWidthStretch = 1.2,
 	MenuWidthFraction = 0.878,
 
-	EquipmentIconLayout = {
-		Helmet = { 54, 0, 2 },
-		Chest = { 49, 0, 0 },
-		Gloves = { 48, -2, -1 },
-		Legs = { 48, -1, 0 },
-		Boots = { 47, -1, -1 },
-	},
 	EquipmentIcons = {
 		Helmet = "rbxassetid://122411372685446",
 		Chest = "rbxassetid://82728361755910",
@@ -388,87 +380,44 @@ local usedLabel = text(invPanel, {
 })
 text(invPanel, { Position = UDim2.fromOffset(20, 64), Size = UDim2.fromOffset(200, 24), Text = "Equipment", TextSize = 25 / CONFIG.FontScale, TextTransparency = 0.3 })
 
-local function dashedBorder(parent, w, h, color)
-	local thick, radius, dash, gapTarget = 2, 8, 6, 4
-	local function bar(x, y, length, rotation, thickness)
-		new("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromOffset(x, y),
-			Size = UDim2.fromOffset(length, thickness or thick),
-			Rotation = rotation,
-			BackgroundColor3 = color,
-			BorderSizePixel = 0,
-		}, parent)
-	end
-	local function run(length, place)
-		local count = math.max(1, math.floor((length - gapTarget) / (dash + gapTarget)))
-		local gap = (length - count * dash) / (count + 1)
-		for i = 0, count - 1 do
-			place(radius + gap + i * (dash + gap) + dash / 2)
-		end
-	end
-	run(w - radius * 2, function(at)
-		bar(at, thick / 2, dash, 0)
-		bar(at, h - thick / 2, dash, 0)
-	end)
-	run(h - radius * 2, function(at)
-		bar(thick / 2, at, dash, 90)
-		bar(w - thick / 2, at, dash, 90)
-	end)
-	local arcRadius = radius - thick / 2
-	local steps = 3
-	local segment = 2 * arcRadius * math.sin(math.rad(8.2)) + 0.3
-	for _, c in ipairs({
-		{ radius, radius, 180 },
-		{ w - radius, radius, 270 },
-		{ w - radius, h - radius, 0 },
-		{ radius, h - radius, 90 },
-	}) do
-		for i = 0, steps - 1 do
-			local angle = c[3] + 20.4 + (i + 0.5) * 16.4
-			local rad = math.rad(angle)
-			bar(c[1] + math.cos(rad) * arcRadius, c[2] + math.sin(rad) * arcRadius, segment, angle + 90, 1.2)
-		end
-	end
-end
-
-local equipDashes = {}
-for index, slotName in ipairs({ "Helmet", "Chest", "Gloves", "Legs", "Boots" }) do
+for index, slotName in ipairs({ "Helmet", "Chest", "Legs", "Boots", "Gloves" }) do
 	local slot = textButton(invPanel, {
 		Name = slotName .. "Slot",
-		Position = UDim2.new((index - 1) / 6, 20 - (index - 1) * 16 / 3, 0, 94),
-		Size = UDim2.new(1 / 6, -40 / 3, 0, 64),
+		Position = UDim2.new((index - 1) / 5, 20 - (index - 1) * 6.4, 0, 92),
+		Size = UDim2.new(1 / 5, -14.4, 0, 72),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.96,
 	})
-	corner(slot, 8)
-	equipDashes[index] = new("Frame", { Name = "Dashes", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, slot)
+	corner(slot, 10)
+	local ring = new("Frame", { Position = UDim2.fromOffset(1, 1), Size = UDim2.new(1, -2, 1, -2), BackgroundTransparency = 1 }, slot)
+	corner(ring, 9)
+	stroke(ring, CONFIG.Text, 1, 0.88)
 	local image = CONFIG.EquipmentIcons[slotName]
 	if image and image ~= "" then
-		local layout = CONFIG.EquipmentIconLayout[slotName] or { 36, 0, 0 }
 		new("ImageLabel", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, layout[2], 0.5, layout[3]),
-			Size = UDim2.fromOffset(layout[1], layout[1]),
+			Position = UDim2.new(0.5, 0, 0, 29),
+			Size = UDim2.fromOffset(30, 30),
 			BackgroundTransparency = 1,
 			Image = image,
-			ImageTransparency = 0.6,
+			ImageTransparency = 0.45,
 		}, slot)
-	else
-		text(slot, {
-			Size = UDim2.fromScale(1, 1),
-			Text = slotName,
-			TextSize = 14,
-			TextTransparency = 0.7,
-			TextXAlignment = Enum.TextXAlignment.Center,
-		})
 	end
+	text(slot, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0, 56),
+		Size = UDim2.new(1, -8, 0, 18),
+		Text = slotName,
+		TextSize = 14,
+		TextTransparency = 0.45,
+		TextXAlignment = Enum.TextXAlignment.Center,
+	})
 end
 
-text(invPanel, { Position = UDim2.fromOffset(20, 172), Size = UDim2.fromOffset(150, 24), Text = "Backpack", TextSize = 17, TextTransparency = 0.3 })
+text(invPanel, { Position = UDim2.fromOffset(20, 178), Size = UDim2.fromOffset(150, 24), Text = "Backpack", TextSize = 17, TextTransparency = 0.3 })
 local invInfo = text(invPanel, {
 	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -20, 0, 172),
+	Position = UDim2.new(1, -20, 0, 178),
 	Size = UDim2.fromOffset(274, 24),
 	TextSize = 27 / CONFIG.FontScale,
 	TextXAlignment = Enum.TextXAlignment.Right,
@@ -481,7 +430,7 @@ for index = 1, CONFIG.BackpackSlots do
 	local row = math.floor((index - 1) / 6)
 	local slot = textButton(invPanel, {
 		Name = "Slot" .. index,
-		Position = UDim2.new(column / 6, 20 - column * 16 / 3, 0, 202 + row * 72),
+		Position = UDim2.new(column / 6, 20 - column * 16 / 3, 0, 208 + row * 72),
 		Size = UDim2.new(1 / 6, -40 / 3, 0, 64),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.93,
@@ -924,11 +873,6 @@ local function applyStretch(k)
 	craftPanel.Position = CRAFT_HOME
 	for _, tile in pairs(recipeTiles) do
 		tile.Button.Size = UDim2.fromOffset(90 * k, 100)
-	end
-	local slotW = (invW - 80) / 6
-	for _, holder in ipairs(equipDashes) do
-		holder:ClearAllChildren()
-		dashedBorder(holder, slotW, 64, CONFIG.SlotDashColor)
 	end
 end
 
