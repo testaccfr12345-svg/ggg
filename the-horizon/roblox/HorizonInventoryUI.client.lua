@@ -1488,11 +1488,13 @@ local function startTuner()
 	if oldTuner then
 		oldTuner:Destroy()
 	end
+
 	local T_ACCENT = Color3.fromRGB(233, 185, 73)
 	local T_TEXT = Color3.fromRGB(237, 232, 220)
 	local T_BG = Color3.fromRGB(16, 21, 19)
 	local T_FONT = Enum.Font.GothamMedium
 	local T_STEPS = { 1, 2, 5, 10 }
+	local W = 236
 
 	local tunerGui = Instance.new("ScreenGui")
 	tunerGui.Name = "HorizonUITuner"
@@ -1510,13 +1512,11 @@ local function startTuner()
 		o.Parent = parent
 		return o
 	end
-
 	local function round(parent, r)
 		make("UICorner", { CornerRadius = UDim.new(0, r) }, parent)
 	end
 
 	local catcher = make("TextButton", {
-		Name = "Catcher",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "",
@@ -1524,19 +1524,12 @@ local function startTuner()
 		Visible = false,
 		ZIndex = 1,
 	}, tunerGui)
-
-	local highlight = make("Frame", {
-		Name = "Highlight",
-		BackgroundTransparency = 1,
-		Visible = false,
-		ZIndex = 2,
-	}, tunerGui)
+	local highlight = make("Frame", { BackgroundTransparency = 1, Visible = false, ZIndex = 2 }, tunerGui)
 	make("UIStroke", { Color = T_ACCENT, Thickness = 2 }, highlight)
 
 	local panel = make("Frame", {
-		Name = "Panel",
-		Position = UDim2.fromOffset(12, 70),
-		Size = UDim2.fromOffset(232, 262),
+		Position = UDim2.fromOffset(12, 60),
+		Size = UDim2.fromOffset(W, 316),
 		BackgroundColor3 = T_BG,
 		BackgroundTransparency = 0.05,
 		ZIndex = 10,
@@ -1558,7 +1551,6 @@ local function startTuner()
 			ZIndex = 11,
 		}, parent)
 	end
-
 	local function button(parent, text, x, y, w, h)
 		local b = make("TextButton", {
 			Position = UDim2.fromOffset(x, y),
@@ -1576,13 +1568,9 @@ local function startTuner()
 		return b
 	end
 
-	local titleBar = make("Frame", {
-		Size = UDim2.new(1, 0, 0, 24),
-		BackgroundTransparency = 1,
-		ZIndex = 11,
-	}, panel)
+	local titleBar = make("Frame", { Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, ZIndex = 11 }, panel)
 	label(titleBar, "UI Tuner  (drag here)", 8, 0, 170, 24, 12).TextColor3 = T_ACCENT
-	local minButton = button(titleBar, "–", 204, 3, 22, 18)
+	local minButton = button(titleBar, "–", W - 28, 3, 22, 18)
 
 	local body = make("Frame", {
 		Position = UDim2.fromOffset(0, 24),
@@ -1591,14 +1579,17 @@ local function startTuner()
 		ZIndex = 11,
 	}, panel)
 
-	local selectedLabel = label(body, "Nothing selected", 8, 0, 216, 16, 11)
-	local infoLabel = label(body, "", 8, 16, 216, 14, 10)
-	infoLabel.TextTransparency = 0.35
+	local pickButton = button(body, "Pick", 8, 0, 52, 24)
+	local dragButton = button(body, "Drag", 64, 0, 52, 24)
+	local upButton = button(body, "Bigger part", 120, 0, 74, 24)
+	local stepButton = button(body, "x1", 198, 0, 30, 24)
 
-	local pickButton = button(body, "Pick", 8, 34, 50, 24)
-	local dragButton = button(body, "Drag", 62, 34, 50, 24)
-	local upButton = button(body, "Parent", 116, 34, 54, 24)
-	local stepButton = button(body, "Step 1", 174, 34, 50, 24)
+	local nameLabel = label(body, "Tap Pick, then tap something", 8, 28, W - 16, 16, 12)
+	nameLabel.TextColor3 = T_ACCENT
+	local changeLabel = label(body, "", 8, 44, W - 16, 30, 11)
+	changeLabel.TextWrapped = true
+	changeLabel.TextTruncate = Enum.TextTruncate.None
+	changeLabel.TextYAlignment = Enum.TextYAlignment.Top
 
 	local selected = nil
 	local originals = {}
@@ -1608,76 +1599,133 @@ local function startTuner()
 	local function step()
 		return T_STEPS[stepIndex]
 	end
+	local function isText(o)
+		return o:IsA("TextLabel") or o:IsA("TextButton") or o:IsA("TextBox")
+	end
+
+	local SLOT_NAMES = { Helmet = true, Chest = true, Gloves = true, Legs = true, Boots = true }
+	local NAMED = {
+		Menu = "Whole menu",
+		Panels = "Both panels",
+		InventoryPanel = "Inventory panel",
+		CraftingPanel = "Crafting panel",
+		Close = "Close (X) button",
+		ItemStrip = "Recipe tile row",
+		Preview = "Item preview box",
+		Requirements = "Materials column",
+		HotbarGroup = "Hotbar + bag button",
+		Hotbar = "Hotbar",
+		OpenInventory = "Bag button",
+		HeldItemName = "Held item name",
+		CraftingProgress = "Crafting progress",
+		Dashes = "Dashed outline",
+		Crosshair = "Crosshair",
+	}
+
+	local friendly
+	friendly = function(o)
+		if not o or o == target then
+			return "UI"
+		end
+		local n = o.Name
+		if NAMED[n] then
+			return NAMED[n]
+		end
+		local slotName = n:match("^(%a+)Slot$")
+		if slotName and SLOT_NAMES[slotName] then
+			return slotName .. " slot"
+		end
+		local num = n:match("^Slot(%d+)$")
+		if num then
+			return "Backpack slot " .. num
+		end
+		num = n:match("^Hotbar(%d+)$")
+		if num then
+			return "Hotbar slot " .. num
+		end
+		local tab = n:match("^(%a+)Tab$")
+		if tab then
+			return tab .. " tab"
+		end
+		if ITEMS[n] and o:IsA("GuiButton") then
+			return ITEMS[n].Name .. " recipe tile"
+		end
+		if o:IsA("ImageLabel") or o:IsA("ImageButton") then
+			for slot, img in pairs(CONFIG.EquipmentIcons) do
+				if img ~= "" and o.Image == img then
+					return slot .. " icon"
+				end
+			end
+			for _, item in pairs(ITEMS) do
+				if item.Image ~= "" and o.Image == item.Image then
+					return item.Name .. " icon (" .. friendly(o.Parent) .. ")"
+				end
+			end
+			return "Picture in " .. friendly(o.Parent)
+		end
+		if isText(o) and o.Text ~= "" then
+			local t = o.Text
+			if #t > 22 then
+				t = t:sub(1, 20) .. "…"
+			end
+			return '"' .. t .. '" ' .. (o:IsA("TextButton") and "button" or "text")
+		end
+		if isText(o) then
+			return "Empty text in " .. friendly(o.Parent)
+		end
+		return "Part of " .. friendly(o.Parent)
+	end
 
 	local function remember(o)
 		if originals[o] then
 			return
 		end
 		local entry = { Position = o.Position, Size = o.Size }
-		if o:IsA("TextLabel") or o:IsA("TextButton") or o:IsA("TextBox") then
+		if isText(o) then
 			entry.TextSize = o.TextSize
-		end
-		local scale = o:FindFirstChildOfClass("UIScale")
-		if scale then
-			entry.Scale = scale.Scale
 		end
 		originals[o] = entry
 	end
 
-	local function pathOf(o)
-		local parts = {}
-		local cur = o
-		while cur and cur ~= target do
-			local name = cur.Name
-			local parent = cur.Parent
-			if parent then
-				local same, index = 0, 0
-				for _, c in ipairs(parent:GetChildren()) do
-					if c.Name == name then
-						same += 1
-						if c == cur then
-							index = same
-						end
-					end
-				end
-				if same > 1 then
-					name = name .. "#" .. index
-				end
-			end
-			table.insert(parts, 1, name)
-			cur = parent
+	local function changes(o)
+		local orig = originals[o]
+		if not orig then
+			return {}
 		end
-		return table.concat(parts, "/")
-	end
-
-	local function udim2(u)
-		return string.format("{%g,%g},{%g,%g}", u.X.Scale, u.X.Offset, u.Y.Scale, u.Y.Offset)
-	end
-
-	local function textOf(o)
-		if o:IsA("TextLabel") or o:IsA("TextButton") or o:IsA("TextBox") then
-			if o.Text ~= "" then
-				return o.Text
-			end
+		local list = {}
+		local dx = o.Position.X.Offset - orig.Position.X.Offset
+		local dy = o.Position.Y.Offset - orig.Position.Y.Offset
+		if dx ~= 0 then
+			table.insert(list, "moved " .. math.abs(dx) .. (dx < 0 and " left" or " right"))
 		end
-		return nil
+		if dy ~= 0 then
+			table.insert(list, "moved " .. math.abs(dy) .. (dy < 0 and " up" or " down"))
+		end
+		local dw = o.Size.X.Offset - orig.Size.X.Offset
+		local dh = o.Size.Y.Offset - orig.Size.Y.Offset
+		if dw ~= 0 then
+			table.insert(list, (dw < 0 and "narrower " or "wider ") .. math.abs(dw))
+		end
+		if dh ~= 0 then
+			table.insert(list, (dh < 0 and "shorter " or "taller ") .. math.abs(dh))
+		end
+		if orig.TextSize and o.TextSize ~= orig.TextSize then
+			local dt = o.TextSize - orig.TextSize
+			table.insert(list, "text " .. (dt < 0 and "smaller " or "bigger ") .. math.abs(dt))
+		end
+		return list
 	end
 
 	local function refreshInfo()
 		if not selected or not selected.Parent then
 			selected = nil
-			selectedLabel.Text = "Nothing selected"
-			infoLabel.Text = ""
+			nameLabel.Text = "Tap Pick, then tap something"
+			changeLabel.Text = ""
 			return
 		end
-		local t = textOf(selected)
-		selectedLabel.Text = selected.Name .. (t and (' "' .. t .. '"') or "")
-		local pos, size = selected.Position, selected.Size
-		local extra = ""
-		if selected:IsA("TextLabel") or selected:IsA("TextButton") or selected:IsA("TextBox") then
-			extra = "  T" .. selected.TextSize
-		end
-		infoLabel.Text = string.format("P %g,%g  S %g,%g%s", pos.X.Offset, pos.Y.Offset, size.X.Offset, size.Y.Offset, extra)
+		nameLabel.Text = friendly(selected)
+		local list = changes(selected)
+		changeLabel.Text = #list > 0 and table.concat(list, ", ") or "No changes yet"
 	end
 
 	local function selectObject(o)
@@ -1688,48 +1736,40 @@ local function startTuner()
 	local function setMode(m)
 		mode = mode == m and "none" or m
 		catcher.Visible = mode ~= "none"
-		pickButton.BackgroundTransparency = mode == "pick" and 0.6 or 0.88
-		dragButton.BackgroundTransparency = mode == "drag" and 0.6 or 0.88
 		pickButton.TextColor3 = mode == "pick" and T_ACCENT or T_TEXT
 		dragButton.TextColor3 = mode == "drag" and T_ACCENT or T_TEXT
+		pickButton.BackgroundTransparency = mode == "pick" and 0.6 or 0.88
+		dragButton.BackgroundTransparency = mode == "drag" and 0.6 or 0.88
 	end
 
 	local function effectiveScale(o)
-		local s = 1
+		local sc = 1
 		local cur = o.Parent
 		while cur and cur ~= target do
 			local u = cur:FindFirstChildOfClass("UIScale")
 			if u then
-				s *= u.Scale
+				sc *= u.Scale
 			end
 			cur = cur.Parent
 		end
-		return s
+		return sc
 	end
 
-	local function nudge(kind, dx, dy)
+	local function apply(kind, a, b)
 		local o = selected
 		if not o then
 			return
 		end
 		remember(o)
-		if kind == "pos" then
+		local n = step()
+		if kind == "move" then
 			local p = o.Position
-			o.Position = UDim2.new(p.X.Scale, p.X.Offset + dx, p.Y.Scale, p.Y.Offset + dy)
+			o.Position = UDim2.new(p.X.Scale, p.X.Offset + a * n, p.Y.Scale, p.Y.Offset + b * n)
 		elseif kind == "size" then
-			local s = o.Size
-			o.Size = UDim2.new(s.X.Scale, s.X.Offset + dx, s.Y.Scale, s.Y.Offset + dy)
-		elseif kind == "text" then
-			if o:IsA("TextLabel") or o:IsA("TextButton") or o:IsA("TextBox") then
-				o.TextSize = math.clamp(o.TextSize + dx, 1, 100)
-			end
-		elseif kind == "scale" then
-			local u = o:FindFirstChildOfClass("UIScale")
-			if not u then
-				u = Instance.new("UIScale")
-				u.Parent = o
-			end
-			u.Scale = math.max(0.05, math.floor((u.Scale + dx * 0.01) * 100 + 0.5) / 100)
+			local sz = o.Size
+			o.Size = UDim2.new(sz.X.Scale, sz.X.Offset + a * n, sz.Y.Scale, sz.Y.Offset + b * n)
+		elseif kind == "text" and isText(o) then
+			o.TextSize = math.clamp(o.TextSize + a * n, 1, 100)
 		end
 		refreshInfo()
 	end
@@ -1745,7 +1785,7 @@ local function startTuner()
 			task.delay(0.35, function()
 				while holding do
 					fn()
-					task.wait(0.06)
+					task.wait(0.07)
 				end
 			end)
 		end)
@@ -1759,37 +1799,38 @@ local function startTuner()
 		end)
 	end
 
-	local rows = {
-		{ "Move X", "pos", 1, 0 },
-		{ "Move Y", "pos", 0, 1 },
-		{ "Width", "size", 1, 0 },
-		{ "Height", "size", 0, 1 },
-		{ "Both size", "size", 1, 1 },
-		{ "Text size", "text", 1, 0 },
-		{ "Scale %", "scale", 1, 0 },
+	local sections = {
+		{ "Move", { { "Left", "move", -1, 0 }, { "Right", "move", 1, 0 }, { "Up", "move", 0, -1 }, { "Down", "move", 0, 1 } } },
+		{ "Size", { { "Smaller", "size", -1, -1 }, { "Bigger", "size", 1, 1 } } },
+		{ "Text", { { "Smaller", "text", -1, 0 }, { "Bigger", "text", 1, 0 } } },
+		{ "Width", { { "Narrower", "size", -1, 0 }, { "Wider", "size", 1, 0 } } },
+		{ "Height", { { "Shorter", "size", 0, -1 }, { "Taller", "size", 0, 1 } } },
 	}
-	for i, r in ipairs(rows) do
-		local y = 62 + (i - 1) * 22
-		label(body, r[1], 8, y, 90, 20, 12)
-		local minus = button(body, "–", 120, y, 50, 20)
-		local plus = button(body, "+", 174, y, 50, 20)
-		holdButton(minus, function()
-			nudge(r[2], -r[3] * step(), -r[4] * step())
-		end)
-		holdButton(plus, function()
-			nudge(r[2], r[3] * step(), r[4] * step())
-		end)
+	local y = 78
+	for _, section in ipairs(sections) do
+		label(body, section[1], 8, y, 50, 24, 12).TextTransparency = 0.25
+		local count = #section[2]
+		local x0, total = 58, W - 58 - 8
+		local bw = (total - (count - 1) * 4) / count
+		for i, spec in ipairs(section[2]) do
+			local b = button(body, spec[1], x0 + (i - 1) * (bw + 4), y, bw, 24)
+			holdButton(b, function()
+				apply(spec[2], spec[3], spec[4])
+			end)
+		end
+		y += 30
 	end
 
-	local resetButton = button(body, "Reset this", 8, 216, 70, 18)
-	local resetAllButton = button(body, "Reset all", 82, 216, 64, 18)
-	local copyButton = button(body, "Copy all", 150, 216, 74, 18)
+	local resetButton = button(body, "Undo this", 8, y + 2, 70, 22)
+	local resetAllButton = button(body, "Undo all", 82, y + 2, 64, 22)
+	local copyButton = button(body, "Copy all", 150, y + 2, W - 158, 22)
 	copyButton.BackgroundColor3 = T_ACCENT
 	copyButton.BackgroundTransparency = 0
 	copyButton.TextColor3 = Color3.fromRGB(27, 26, 20)
+	panel.Size = UDim2.fromOffset(W, 24 + y + 30)
+	local fullHeight = 24 + y + 30
 
 	local exportFrame = make("Frame", {
-		Name = "Export",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.new(0.8, 0, 0.75, 0),
@@ -1800,8 +1841,7 @@ local function startTuner()
 	}, tunerGui)
 	round(exportFrame, 8)
 	make("UIStroke", { Color = T_ACCENT, Thickness = 1 }, exportFrame)
-	local exportTitle = label(exportFrame, "Select all of this text, copy it, and send it", 10, 4, 400, 22, 12)
-	exportTitle.ZIndex = 21
+	label(exportFrame, "Select all of this, copy it, and send it", 10, 4, 400, 22, 12).ZIndex = 21
 	local closeExport = button(exportFrame, "Close", 0, 4, 60, 22)
 	closeExport.AnchorPoint = Vector2.new(1, 0)
 	closeExport.Position = UDim2.new(1, -8, 0, 4)
@@ -1832,28 +1872,46 @@ local function startTuner()
 		ZIndex = 21,
 	}, exportScroll)
 
+	local function pathOf(o)
+		local parts = {}
+		local cur = o
+		while cur and cur ~= target do
+			local name = cur.Name
+			local parent = cur.Parent
+			if parent then
+				local same, index = 0, 0
+				for _, c in ipairs(parent:GetChildren()) do
+					if c.Name == name then
+						same += 1
+						if c == cur then
+							index = same
+						end
+					end
+				end
+				if same > 1 then
+					name = name .. "#" .. index
+				end
+			end
+			table.insert(parts, 1, name)
+			cur = parent
+		end
+		return table.concat(parts, "/")
+	end
+	local function udim2(u)
+		return string.format("{%g,%g},{%g,%g}", u.X.Scale, u.X.Offset, u.Y.Scale, u.Y.Offset)
+	end
+
 	local function buildExport()
 		local lines = {}
 		for o, orig in pairs(originals) do
 			if o.Parent then
-				local parts = {}
-				if o.Position ~= orig.Position then
-					table.insert(parts, "Position " .. udim2(orig.Position) .. " -> " .. udim2(o.Position))
-				end
-				if o.Size ~= orig.Size then
-					table.insert(parts, "Size " .. udim2(orig.Size) .. " -> " .. udim2(o.Size))
-				end
-				if orig.TextSize and o.TextSize ~= orig.TextSize then
-					table.insert(parts, "TextSize " .. orig.TextSize .. " -> " .. o.TextSize)
-				end
-				local u = o:FindFirstChildOfClass("UIScale")
-				local nowScale = u and u.Scale or 1
-				if (orig.Scale or 1) ~= nowScale then
-					table.insert(parts, "Scale " .. (orig.Scale or 1) .. " -> " .. nowScale)
-				end
-				if #parts > 0 then
-					local t = textOf(o)
-					table.insert(lines, pathOf(o) .. (t and (' "' .. t .. '"') or "") .. " | " .. table.concat(parts, " | "))
+				local list = changes(o)
+				if #list > 0 then
+					local exact = "Position " .. udim2(orig.Position) .. " -> " .. udim2(o.Position) .. "; Size " .. udim2(orig.Size) .. " -> " .. udim2(o.Size)
+					if orig.TextSize then
+						exact ..= "; TextSize " .. orig.TextSize .. " -> " .. o.TextSize
+					end
+					table.insert(lines, friendly(o) .. ": " .. table.concat(list, ", ") .. "\n    [" .. pathOf(o) .. "] " .. exact)
 				end
 			end
 		end
@@ -1868,8 +1926,7 @@ local function startTuner()
 	end
 
 	local function pickAt(pos)
-		local list = playerGui:GetGuiObjectsAtPosition(pos.X, pos.Y)
-		for _, o in ipairs(list) do
+		for _, o in ipairs(playerGui:GetGuiObjectsAtPosition(pos.X, pos.Y)) do
 			if o:IsDescendantOf(target) and o.Name ~= "Dim" and o.Name ~= "MouseUnlock" then
 				return o
 			end
@@ -1893,47 +1950,32 @@ local function startTuner()
 		end
 	end)
 
-	UserInputService.InputChanged:Connect(function(input)
-		if not dragging or not selected then
-			return
-		end
-		if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
-			return
-		end
-		local d = (input.Position - dragging.start) / math.max(dragging.scale, 0.01)
-		local p = dragging.pos
-		selected.Position = UDim2.new(p.X.Scale, p.X.Offset + math.floor(d.X + 0.5), p.Y.Scale, p.Y.Offset + math.floor(d.Y + 0.5))
-		refreshInfo()
-	end)
-
-	UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = nil
-		end
-	end)
-
 	local panelDrag = nil
 	titleBar.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			panelDrag = { start = input.Position, pos = panel.Position }
-			local c
-			c = input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					panelDrag = nil
-					c:Disconnect()
-				end
-			end)
 		end
 	end)
+
 	UserInputService.InputChanged:Connect(function(input)
-		if not panelDrag then
-			return
-		end
 		if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
 			return
 		end
-		local d = input.Position - panelDrag.start
-		panel.Position = UDim2.new(panelDrag.pos.X.Scale, panelDrag.pos.X.Offset + d.X, panelDrag.pos.Y.Scale, panelDrag.pos.Y.Offset + d.Y)
+		if panelDrag then
+			local d = input.Position - panelDrag.start
+			panel.Position = UDim2.fromOffset(panelDrag.pos.X.Offset + d.X, panelDrag.pos.Y.Offset + d.Y)
+		elseif dragging and selected then
+			local d = (input.Position - dragging.start) / math.max(dragging.scale, 0.01)
+			local p = dragging.pos
+			selected.Position = UDim2.new(p.X.Scale, p.X.Offset + math.floor(d.X + 0.5), p.Y.Scale, p.Y.Offset + math.floor(d.Y + 0.5))
+			refreshInfo()
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = nil
+			panelDrag = nil
+		end
 	end)
 
 	pickButton.Activated:Connect(function()
@@ -1949,7 +1991,7 @@ local function startTuner()
 	end)
 	stepButton.Activated:Connect(function()
 		stepIndex = stepIndex % #T_STEPS + 1
-		stepButton.Text = "Step " .. step()
+		stepButton.Text = "x" .. step()
 	end)
 
 	local function restore(o)
@@ -1962,17 +2004,8 @@ local function startTuner()
 		if orig.TextSize then
 			o.TextSize = orig.TextSize
 		end
-		local u = o:FindFirstChildOfClass("UIScale")
-		if u then
-			if orig.Scale then
-				u.Scale = orig.Scale
-			else
-				u:Destroy()
-			end
-		end
 		originals[o] = nil
 	end
-
 	resetButton.Activated:Connect(function()
 		if selected then
 			restore(selected)
@@ -2000,7 +2033,7 @@ local function startTuner()
 	minButton.Activated:Connect(function()
 		minimized = not minimized
 		body.Visible = not minimized
-		panel.Size = UDim2.fromOffset(232, minimized and 24 or 262)
+		panel.Size = UDim2.fromOffset(W, minimized and 24 or fullHeight)
 		minButton.Text = minimized and "+" or "–"
 	end)
 
@@ -2013,6 +2046,7 @@ local function startTuner()
 			highlight.Visible = false
 		end
 	end)
+
 	gui.Destroying:Connect(function()
 		tunerGui:Destroy()
 	end)
