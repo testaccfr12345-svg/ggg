@@ -36,6 +36,7 @@ local CONFIG = {
 	BackpackSlots = 24,
 	BarResetSpeed = 35,
 	BlurSize = 12,
+	SelectFade = 0.12,
 	DimTransparency = 0.16,
 	DimColor = Color3.fromRGB(12, 11, 6),
 	MaxWidthStretch = 1.2,
@@ -759,7 +760,7 @@ corner(craftButton, 12)
 local craftButtonScale = new("UIScale", {}, craftButton)
 
 local HOTBAR_SLOT, HOTBAR_GAP = 62, 8
-local BAG_SLOT = HOTBAR_SLOT * 0.6
+local BAG_SLOT = HOTBAR_SLOT * 0.8
 local HOTBAR_W = 8 * HOTBAR_SLOT + 8 * HOTBAR_GAP + BAG_SLOT
 local HOTBAR_BORDER = Color3.fromRGB(237, 232, 220)
 
@@ -790,20 +791,17 @@ local function hotbarBox(parent, name, index, size)
 		BackgroundTransparency = 0.45,
 	})
 	corner(box, 4)
-	local ring = new("Frame", { BackgroundTransparency = 1 }, box)
-	local ringCorner = new("UICorner", {}, ring)
-	local ringStroke = stroke(ring, HOTBAR_BORDER, 1, 0.86)
+	local ring = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, box)
+	corner(ring, 2)
+	local ringStroke = stroke(ring, CONFIG.Accent, 2, 1)
+	local current = false
 	local function setBorder(selected)
-		local width = selected and 2 or 1
-		ring.Position = UDim2.fromOffset(width, width)
-		ring.Size = UDim2.new(1, -2 * width, 1, -2 * width)
-		ringCorner.CornerRadius = UDim.new(0, math.max(0, 4 - width))
-		ringStroke.Thickness = width
-		ringStroke.Color = selected and CONFIG.Accent or HOTBAR_BORDER
-		ringStroke.Transparency = selected and 0 or 1
-		box.BackgroundTransparency = selected and 0.22 or 0.45
+		if selected == current then
+			return
+		end
+		current = selected
+		tween(ringStroke, CONFIG.SelectFade, { Transparency = selected and 0 or 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 	end
-	setBorder(false)
 	return box, setBorder
 end
 
@@ -1027,7 +1025,10 @@ local function refreshInventory()
 		slot.Count.Text = amount > 1 and tostring(amount) or ""
 		local selected = selectedSlot == index and id ~= nil
 		slot.Stroke.Color = CONFIG.Accent
-		slot.Stroke.Transparency = selected and 0 or 1
+		if slot.Selected ~= selected then
+			slot.Selected = selected
+			tween(slot.Stroke, CONFIG.SelectFade, { Transparency = selected and 0 or 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+		end
 	end
 	local selectedId = selectedSlot and keys[selectedSlot]
 	invInfo.Text = selectedId and (ITEMS[selectedId].Name .. " x" .. inventory[selectedId]) or ""
