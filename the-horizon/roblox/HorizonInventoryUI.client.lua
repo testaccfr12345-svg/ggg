@@ -386,7 +386,7 @@ local usedLabel = text(invPanel, {
 	TextTransparency = 0.3,
 	TextXAlignment = Enum.TextXAlignment.Right,
 })
-text(invPanel, { Position = UDim2.fromOffset(20, 64), Size = UDim2.fromOffset(200, 24), Text = "Equipment", TextSize = 17, TextTransparency = 0.3 })
+text(invPanel, { Position = UDim2.fromOffset(20, 64), Size = UDim2.fromOffset(200, 24), Text = "Equipment", TextSize = 25 / CONFIG.FontScale, TextTransparency = 0.3 })
 
 local function dashedBorder(parent, w, h, color)
 	local thick, radius, dash, gapTarget = 2, 8, 6, 4
@@ -493,9 +493,9 @@ for index = 1, CONFIG.BackpackSlots do
 	local icon = itemIcon(slot, 52, UDim2.fromScale(0.5, 0.5))
 	local count = text(slot, {
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -8, 1, -7),
+		Position = UDim2.new(1, -7, 1, -6),
 		Size = UDim2.fromOffset(40, 18),
-		TextSize = 17,
+		TextSize = 24 / CONFIG.FontScale,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		ZIndex = 2,
 	})
@@ -595,7 +595,7 @@ for _, category in ipairs(CATEGORY_ORDER) do
 			Padding = UDim.new(0, 6),
 		}, content)
 		local iconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1 }, content)
-		local icon = itemIcon(iconHolder, 56, UDim2.fromScale(0.5, 0.5))
+		local icon = itemIcon(iconHolder, 56, UDim2.new(0.5, 0, 0.5, 12))
 		icon.Set(recipe.id)
 		local nameLines = TextService:GetTextSize(ITEMS[recipe.id].Name, ts(19), CONFIG.FontEnum, Vector2.new(92, 1000)).Y > ts(19) * 1.5 and 2 or 1
 		local nameHolder = new("Frame", { LayoutOrder = 2, Size = UDim2.fromOffset(92, 20 * nameLines), BackgroundTransparency = 1 }, content)
@@ -830,9 +830,9 @@ end
 local hotName = text(gui, {
 	Name = "HeldItemName",
 	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -96),
+	Position = UDim2.new(0.5, 0, 1, -97),
 	Size = UDim2.fromOffset(400, 24),
-	TextSize = 20,
+	TextSize = 28 / CONFIG.FontScale,
 	TextXAlignment = Enum.TextXAlignment.Center,
 	TextStrokeTransparency = 0.7,
 })
@@ -918,7 +918,7 @@ local function applyStretch(k)
 	MENU_W = invW + PANEL_GAP + craftW
 	CRAFT_HOME = UDim2.fromOffset(invW + PANEL_GAP, 0)
 	canvas.Size = UDim2.fromOffset(MENU_W, MENU_H)
-	invPanel.Size = UDim2.fromOffset(invW, MENU_H + 7)
+	invPanel.Size = UDim2.fromOffset(invW - 1, MENU_H + 6)
 	craftPanel.Size = UDim2.fromOffset(craftW, MENU_H)
 	invPanel.Position = INV_HOME
 	craftPanel.Position = CRAFT_HOME
@@ -946,7 +946,7 @@ local function updateScale()
 	end
 
 	hotbarGroup.Position = UDim2.new(0.5, 0, 1, -14 * sc)
-	hotName.Position = UDim2.new(0.5, 0, 1, -(14 + 80 + 2) * sc)
+	hotName.Position = UDim2.new(0.5, 0, 1, -(14 + 80 + 3) * sc)
 
 	progressHome = UDim2.new(1, -12 * sc, 0, 12 * sc)
 	progressAway = UDim2.new(1, 12 * sc, 0, 12 * sc)
