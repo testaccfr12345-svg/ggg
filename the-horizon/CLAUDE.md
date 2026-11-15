@@ -93,6 +93,7 @@ designed vs. actually working and the rules for working on this project.
    survival stats → saving per world → building → combat → NPCs → world.
 
 ## Working with the user
+- **NEVER put comments or prints in the user's scripts.** No `--` comments, no `print`/`warn`. Explain things in chat instead.
 - **Short, direct messages.** They test on mobile (landscape phone) and send screenshots.
 - **Match the approved preview closely.** Don't restyle things they didn't ask about.
 - **Keep their existing names, assets and structure** (see the overview's rules section).

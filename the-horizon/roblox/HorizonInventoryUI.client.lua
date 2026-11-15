@@ -1,26 +1,3 @@
---!nonstrict
---[[
-	THE HORIZON — Inventory, Crafting & Hotbar UI  (client)
-	Put this LocalScript in StarterPlayer > StarterPlayerScripts.
-
-	What it does
-	  • Inventory panel (5 armour slots + 30-slot backpack)
-	  • Crafting panel (Tools / Resources / Consumables, item strip, preview,
-	    materials, Craft / All, queue + Clear queue)
-	  • 8-slot hotbar (keys 1–8), crosshair, TAB button
-	  • Crafting progress at the top-right that slides in, fills once per item,
-	    counts the amount down (100x → 99x …) and slides out when done
-
-	IMPORTANT
-	  This is the UI with a LOCAL DEMO inventory so you can test it in Studio.
-	  The client must never give itself items. When you hook it up, replace the
-	  body of `requestCraft` with a call to your server, and feed `inventory`
-	  from server data. Search for "SERVER HOOK".
-
-	  Don't run this together with the old SurvivalCraftingUI / SurvivalInventoryUI
-	  scripts — they would both draw on screen.
-]]
-
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -38,16 +15,10 @@ if existing then
 	existing:Destroy()
 end
 
--- Our own hotbar replaces Roblox's default backpack bar.
 pcall(function()
 	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 end)
--- Roblox's player list also opens with Tab. Uncomment if it gets in the way:
--- pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false) end)
 
---------------------------------------------------------------------------------
--- CONFIG
---------------------------------------------------------------------------------
 local CONFIG = {
 	ToggleKey = Enum.KeyCode.Tab,
 	Accent = Color3.fromRGB(233, 185, 73),
@@ -55,21 +26,19 @@ local CONFIG = {
 	DarkText = Color3.fromRGB(27, 26, 20),
 	Missing = Color3.fromRGB(244, 164, 124),
 	PanelColor = Color3.fromRGB(16, 21, 19),
-	-- The HTML uses 0.32 over a dark scene. The real game world is bright, so the
-	-- panels need to be more solid to look as dark as the preview.
+
 	PanelTransparency = 0.15,
 	FontEnum = Enum.Font.PatrickHand,
-	-- Roblox TextSize = the font's full line height; HTML font-size = its em size.
-	-- Patrick Hand's line height is 1.354 em, so this makes text match the HTML.
+
 	FontScale = 1.354,
 	CraftCompleteSound = "rbxassetid://100545760361878",
-	QueueMax = 8, -- different items in the queue at once
+	QueueMax = 8,
 	BackpackSlots = 30,
-	BarResetSpeed = 35, -- how fast the bar slides back to empty between items (higher = faster)
-	BlurSize = 12, -- background blur while the menu is open
-	DimTransparency = 0.45, -- dark layer behind the menu (darker than the HTML because the game world is bright)
-	-- Equipment slot icons. Upload the PNGs in design/equipment_icons/ as Decals
-	-- and paste the rbxassetid:// ids here. Empty = shows the slot name instead.
+	BarResetSpeed = 35,
+	BlurSize = 12,
+	SlotDashColor = Color3.fromRGB(70, 75, 73),
+	DimTransparency = 0.45,
+
 	EquipmentIcons = {
 		Helmet = "rbxassetid://122411372685446",
 		Chest = "rbxassetid://82728361755910",
@@ -77,19 +46,16 @@ local CONFIG = {
 		Legs = "rbxassetid://109587618198386",
 		Boots = "rbxassetid://104349095380038",
 	},
-	-- everything is laid out on a 1280 x 720 design screen (same as the HTML preview)
+
 	DesignWidth = 1280,
 	DesignHeight = 720,
 }
 local FONT = Font.fromEnum(CONFIG.FontEnum)
--- HTML font-size (px) → Roblox TextSize
+
 local function ts(size)
 	return math.floor(size * CONFIG.FontScale + 0.5)
 end
 
---------------------------------------------------------------------------------
--- ITEMS (images from your old crafting script)
---------------------------------------------------------------------------------
 local ITEMS = {
 	planks = { Name = "Planks", Image = "rbxassetid://78387750873126" },
 	stone = { Name = "Stone", Image = "rbxassetid://127351259030040" },
@@ -116,7 +82,6 @@ local ITEMS = {
 	compass = { Name = "Compass", Image = "", Desc = "A compass for finding your direction." },
 }
 
--- mats = nil means "Recipe not set yet"
 local RECIPES = {
 	Tools = {
 		{ id = "stone_pickaxe", mats = { { "planks", 4 }, { "stone", 4 }, { "rope", 2 } } },
@@ -142,15 +107,11 @@ local RECIPES = {
 }
 local CATEGORY_ORDER = { "Tools", "Resources", "Consumables" }
 
--- Seconds per item. Placeholders — set your real times here.
 local CRAFT_TIME = {
 	stone_pickaxe = 4, stone_axe = 4, stone_spear = 3, wooden_club = 2.5, stone_sword = 5,
 	torch = 2, wooden_shield = 4, map = 3, compass = 3, rope = 1.5, nails = 1,
 }
 
---------------------------------------------------------------------------------
--- DEMO STATE (SERVER HOOK: replace with real player data)
---------------------------------------------------------------------------------
 local inventory = { planks = 12, stone = 9, leaves = 14, rope = 3, fiber = 6, scrap = 2, hide = 3, cup_clean = 1 }
 local inventoryOrder = { "planks", "stone", "leaves", "rope", "fiber", "scrap", "hide", "cup_clean" }
 local hotbarItems = { "stone_axe", "torch", "cup_sea", false, false, false, false, false }
@@ -161,15 +122,11 @@ local selectedSlot = nil
 local selectedHotbar = 1
 local isOpen = false
 
--- crafting queue: { id, dur, mats, count, total }
 local queue = {}
 local unitStarted = false
 local unitElapsed = 0
-local finishing = nil -- { id, total } while the "Crafted" state is shown
+local finishing = nil
 
---------------------------------------------------------------------------------
--- HELPERS
---------------------------------------------------------------------------------
 local function new(className, props, parent)
 	local object = Instance.new(className)
 	for key, value in pairs(props) do
@@ -255,7 +212,6 @@ local function panel(parent, name, x, y, w, h)
 	return frame
 end
 
--- An item picture; falls back to the item name when there is no image yet.
 local function itemIcon(parent, size, position, anchor)
 	local image = new("ImageLabel", {
 		BackgroundTransparency = 1,
@@ -289,9 +245,6 @@ local function itemIcon(parent, size, position, anchor)
 	}
 end
 
---------------------------------------------------------------------------------
--- INVENTORY / CRAFT LOGIC
---------------------------------------------------------------------------------
 local function findRecipe(id)
 	for _, list in pairs(RECIPES) do
 		for _, recipe in ipairs(list) do
@@ -307,7 +260,6 @@ local function currentRecipe()
 	return findRecipe(selectedRecipe) or RECIPES[selectedCategory][1]
 end
 
--- materials still needed for queued items that haven't started yet
 local function reserved()
 	local need = {}
 	for index, job in ipairs(queue) do
@@ -352,9 +304,6 @@ local function addItem(id, amount)
 	inventory[id] += amount
 end
 
---------------------------------------------------------------------------------
--- GUI ROOT
---------------------------------------------------------------------------------
 local gui = new("ScreenGui", {
 	Name = "HorizonInventoryUI",
 	ResetOnSpawn = false,
@@ -374,7 +323,6 @@ local dim = new("Frame", {
 	Visible = false,
 }, gui)
 
--- frees the mouse in first person while the menu is open
 local modal = textButton(gui, {
 	Name = "MouseUnlock",
 	Size = UDim2.fromOffset(0, 0),
@@ -386,7 +334,6 @@ local modal = textButton(gui, {
 local blur = Lighting:FindFirstChild("HorizonInventoryBlur") or new("BlurEffect", { Name = "HorizonInventoryBlur" }, Lighting)
 blur.Size = 0
 
--- the two panels together are 1124 x 560; this frame is scaled to fit the safe area
 local MENU_W, MENU_H = 1124, 560
 local canvas = new("Frame", {
 	Name = "Menu",
@@ -414,9 +361,6 @@ local function hudScale(parent)
 	return scale
 end
 
---------------------------------------------------------------------------------
--- INVENTORY PANEL
---------------------------------------------------------------------------------
 local invPanel = panel(panels, "InventoryPanel", 0, 0, 464, 560)
 text(invPanel, { Position = UDim2.fromOffset(20, 20), Size = UDim2.fromOffset(300, 32), Text = "Inventory", TextSize = 30 })
 local usedLabel = text(invPanel, {
@@ -428,41 +372,61 @@ local usedLabel = text(invPanel, {
 })
 text(invPanel, { Position = UDim2.fromOffset(20, 64), Size = UDim2.fromOffset(200, 20), Text = "Equipment", TextSize = 17, TextTransparency = 0.3 })
 
--- dashed outline (Roblox has no dashed strokes, so it's built from small bars)
-local function dashedBorder(parent, size, color, transparency)
-	local dash, gap, thick, inset = 6, 6, 2, 8
-	local run = size - inset * 2
-	local count = math.floor((run + gap) / (dash + gap))
-	local start = inset + (run - (count * dash + (count - 1) * gap)) / 2
-	for i = 0, count - 1 do
-		local at = start + i * (dash + gap)
-		for _, spec in ipairs({
-			{ at, 0, dash, thick },
-			{ at, size - thick, dash, thick },
-			{ 0, at, thick, dash },
-			{ size - thick, at, thick, dash },
-		}) do
-			new("Frame", {
-				Position = UDim2.fromOffset(spec[1], spec[2]),
-				Size = UDim2.fromOffset(spec[3], spec[4]),
-				BackgroundColor3 = color,
-				BackgroundTransparency = transparency,
-				BorderSizePixel = 0,
-			}, parent)
+local function dashedBorder(parent, w, h, color)
+	local thick, radius, dash, gapTarget = 2, 8, 4, 3
+	local function bar(x, y, length, rotation)
+		new("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromOffset(x, y),
+			Size = UDim2.fromOffset(length, thick),
+			Rotation = rotation,
+			BackgroundColor3 = color,
+			BorderSizePixel = 0,
+		}, parent)
+	end
+	local function run(length, place)
+		local count = math.max(1, math.floor((length - gapTarget) / (dash + gapTarget)))
+		local gap = (length - count * dash) / (count + 1)
+		for i = 0, count - 1 do
+			place(radius + gap + i * (dash + gap) + dash / 2)
+		end
+	end
+	run(w - radius * 2, function(at)
+		bar(at, thick / 2, dash, 0)
+		bar(at, h - thick / 2, dash, 0)
+	end)
+	run(h - radius * 2, function(at)
+		bar(thick / 2, at, dash, 90)
+		bar(w - thick / 2, at, dash, 90)
+	end)
+	local arcRadius = radius - thick / 2
+	local steps = 6
+	local segment = 2 * arcRadius * math.sin(math.rad(90 / steps / 2)) + 0.6
+	for _, c in ipairs({
+		{ radius, radius, 180 },
+		{ w - radius, radius, 270 },
+		{ w - radius, h - radius, 0 },
+		{ radius, h - radius, 90 },
+	}) do
+		for i = 0, steps - 1 do
+			local angle = c[3] + (i + 0.5) * 90 / steps
+			local rad = math.rad(angle)
+			bar(c[1] + math.cos(rad) * arcRadius, c[2] + math.sin(rad) * arcRadius, segment, angle + 90)
 		end
 	end
 end
 
+local EQUIP_W = (424 - 4 * 8) / 5
 for index, slotName in ipairs({ "Helmet", "Chest", "Gloves", "Legs", "Boots" }) do
 	local slot = textButton(invPanel, {
 		Name = slotName .. "Slot",
-		Position = UDim2.fromOffset(20 + (index - 1) * 72, 90),
-		Size = UDim2.fromOffset(64, 64),
+		Position = UDim2.fromOffset(20 + (index - 1) * (EQUIP_W + 8), 90),
+		Size = UDim2.fromOffset(EQUIP_W, 64),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.96,
 	})
 	corner(slot, 8)
-	dashedBorder(slot, 64, CONFIG.Text, 0.82)
+	dashedBorder(slot, EQUIP_W, 64, CONFIG.SlotDashColor)
 	local image = CONFIG.EquipmentIcons[slotName]
 	if image and image ~= "" then
 		new("ImageLabel", {
@@ -470,7 +434,7 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Gloves", "Legs", "Boots" }) 
 			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromOffset(36, 36),
 			BackgroundTransparency = 1,
-			Image = image, -- cream PNG; 70% transparent = the faded look from the HTML
+			Image = image,
 			ImageTransparency = 0.7,
 		}, slot)
 	else
@@ -519,13 +483,9 @@ for index = 1, CONFIG.BackpackSlots do
 	backpackSlots[index] = { Button = slot, Stroke = outline, Icon = icon, Count = count, Item = nil, Pop = pop }
 end
 
---------------------------------------------------------------------------------
--- CRAFTING PANEL
---------------------------------------------------------------------------------
 local craftPanel = panel(panels, "CraftingPanel", 484, 0, 640, 560)
 text(craftPanel, { Position = UDim2.fromOffset(20, 20), Size = UDim2.fromOffset(200, 36), Text = "Crafting", TextSize = 30 })
 
--- close (X)
 local closeButton = textButton(craftPanel, {
 	Name = "Close",
 	Position = UDim2.fromOffset(584, 20),
@@ -546,7 +506,6 @@ for _, rotation in ipairs({ 45, -45 }) do
 	corner(line, 1)
 end
 
--- category tabs (right-aligned, before the close button)
 local categoryButtons = {}
 do
 	local right = 584 - 6
@@ -569,7 +528,6 @@ do
 	end
 end
 
--- item strip
 local strip = new("ScrollingFrame", {
 	Name = "ItemStrip",
 	Position = UDim2.fromOffset(20, 72),
@@ -623,7 +581,7 @@ for _, category in ipairs(CATEGORY_ORDER) do
 			AutomaticSize = Enum.AutomaticSize.Y,
 			Text = ITEMS[recipe.id].Name,
 			TextSize = 16,
-			LineHeight = 0.78, -- HTML line-height 1.05
+			LineHeight = 0.78,
 			TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Center,
 		})
@@ -649,7 +607,6 @@ for _, category in ipairs(CATEGORY_ORDER) do
 	end
 end
 
--- preview (left column)
 local preview = new("Frame", {
 	Name = "Preview",
 	Position = UDim2.fromOffset(20, 198),
@@ -699,7 +656,6 @@ local previewDesc = text(preview, {
 })
 new("UIPadding", { PaddingTop = UDim.new(0, 6) }, previewDesc)
 
--- materials + buttons (right column)
 local right = new("Frame", {
 	Name = "Requirements",
 	Position = UDim2.fromOffset(328, 198),
@@ -765,11 +721,6 @@ local craftButton = textButton(right, {
 corner(craftButton, 12)
 local craftButtonScale = new("UIScale", {}, craftButton)
 
-
---------------------------------------------------------------------------------
--- HUD: hotbar, item name, crosshair, inventory button
---------------------------------------------------------------------------------
--- hotbar + inventory button, centred at the bottom (584 + 8 + 80 = 672 wide)
 local hotbarGroup = new("Frame", {
 	Name = "HotbarGroup",
 	AnchorPoint = Vector2.new(0.5, 1),
@@ -806,7 +757,6 @@ for index = 1, 8 do
 	hotbarSlots[index] = { Button = slot, Stroke = outline, Icon = icon, Pop = pop }
 end
 
--- inventory button, right next to slot 8
 local keyboard = UserInputService.KeyboardEnabled
 local openButton = textButton(hotbarGroup, {
 	Name = "OpenInventory",
@@ -819,7 +769,7 @@ corner(openButton, 12)
 local openStroke = stroke(openButton, CONFIG.Accent, 2, 1)
 local openPop = new("UIScale", {}, openButton)
 do
-	-- simple backpack icon built from frames
+
 	local line = 2.6
 	local bag = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -871,9 +821,6 @@ local crosshair = new("Frame", {
 new("Frame", { Position = UDim2.fromOffset(8, 0), Size = UDim2.fromOffset(2, 18), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.3, BorderSizePixel = 0 }, crosshair)
 new("Frame", { Position = UDim2.fromOffset(0, 8), Size = UDim2.fromOffset(18, 2), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.3, BorderSizePixel = 0 }, crosshair)
 
---------------------------------------------------------------------------------
--- HUD: crafting progress (top-right, outside the menu)
---------------------------------------------------------------------------------
 local progressHome = UDim2.new(1, -12, 0, 12)
 local progressAway = UDim2.new(1, 12, 0, 12)
 
@@ -920,7 +867,6 @@ local barFill = new("Frame", {
 }, barBack)
 new("UICorner", { CornerRadius = UDim.new(1, 0) }, barFill)
 
--- fades the whole progress element (0 = shown, 1 = hidden)
 local progressAlpha = new("NumberValue", { Name = "ProgressAlpha", Value = 1 }, gui)
 local function applyProgressAlpha()
 	local a = progressAlpha.Value
@@ -934,33 +880,26 @@ end
 progressAlpha.Changed:Connect(applyProgressAlpha)
 applyProgressAlpha()
 
---------------------------------------------------------------------------------
--- SCALING
---------------------------------------------------------------------------------
 local function updateScale()
 	local camera = workspace.CurrentCamera
 	if not camera then
 		return
 	end
 	local viewport = camera.ViewportSize
-	local topInset = GuiService:GetGuiInset().Y -- Roblox top bar (menu / chat buttons)
+	local topInset = GuiService:GetGuiInset().Y
 
-	-- one scale for everything, like fitting the 1280 x 720 preview to the screen
 	local sc = math.min(viewport.X / CONFIG.DesignWidth, viewport.Y / CONFIG.DesignHeight)
 	for _, uiScale in ipairs(hudScales) do
 		uiScale.Scale = sc
 	end
 
-	-- hotbar at the bottom, held-item name just above it
 	hotbarGroup.Position = UDim2.new(0.5, 0, 1, -14 * sc)
 	hotName.Position = UDim2.new(0.5, 0, 1, -(14 + 80 + 8) * sc)
 
-	-- crafting progress in the top-right corner (Roblox's buttons are top-left)
 	progressHome = UDim2.new(1, -12 * sc, 0, 12 * sc)
 	progressAway = UDim2.new(1, 12 * sc, 0, 12 * sc)
 	progress.Position = progress.Visible and progressHome or progressAway
 
-	-- menu: between the top bar / progress strip and the top of the hotbar
 	local gap = 8 * sc
 	local top = math.max(topInset, 48 * sc) + gap
 	local bottom = viewport.Y - (14 + 80) * sc - gap
@@ -984,9 +923,6 @@ end
 watchCamera()
 local cameraWatch = workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
 
---------------------------------------------------------------------------------
--- REFRESH
---------------------------------------------------------------------------------
 local function visibleInventoryKeys()
 	local keys = {}
 	for _, id in ipairs(inventoryOrder) do
@@ -1096,10 +1032,7 @@ local function refreshHotbar()
 	hotName.Text = held and ITEMS[held].Name or "Empty hand"
 end
 
---------------------------------------------------------------------------------
--- CRAFTING PROGRESS
---------------------------------------------------------------------------------
-local progressState = "hidden" -- hidden | showing | leaving
+local progressState = "hidden"
 local progressTweens = {}
 local progressToken = 0
 local displayedFill = 0
@@ -1121,7 +1054,7 @@ local function updateProgressText()
 		progressTitle.Text = "Crafted " .. ITEMS[finishing.id].Name
 		progressAmount.Text = "x" .. finishing.total
 	end
-	-- title uses all the room the amount leaves (like the HTML)
+
 	local amountWidth = math.ceil(textWidth(progressAmount.Text, 17))
 	progressAmount.Size = UDim2.fromOffset(amountWidth, 20)
 	progressTitle.Size = UDim2.fromOffset(190 - amountWidth - 8, 20)
@@ -1194,11 +1127,6 @@ local function flashItem(id)
 	end
 end
 
---------------------------------------------------------------------------------
--- ACTIONS
---------------------------------------------------------------------------------
--- SERVER HOOK: send the craft request to the server here and only add to the
--- queue when the server says yes. Right now it runs locally for testing.
 local function requestCraft(recipe, amount)
 	if amount < 1 or not canQueue(recipe) then
 		return
@@ -1217,7 +1145,7 @@ local function requestCraft(recipe, amount)
 		})
 	end
 	if finishing then
-		draining = true -- bar was full from the last batch: slide it back smoothly
+		draining = true
 	end
 	finishing = nil
 	selectedSlot = nil
@@ -1268,12 +1196,10 @@ local function setOpen(open)
 	crosshair.Visible = not open
 	hotName.Visible = not open
 
-	-- inventory button shows it's active
 	openStroke.Transparency = open and 0 or 1
 	openPop.Scale = 0.88
 	tween(openPop, 0.16, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
-	-- hide the mobile thumbstick / jump button while the menu is open
 	if UserInputService.TouchEnabled then
 		if open then
 			touchControlsBefore = GuiService.TouchControlsEnabled
@@ -1291,7 +1217,7 @@ local function setOpen(open)
 		refreshCrafting()
 		panels.Visible = true
 		dim.Visible = true
-		-- panels snap in from the sides with a little overshoot
+
 		panelsScale.Scale = 0.94
 		invPanel.Position = INV_HOME + UDim2.fromOffset(-28, 0)
 		craftPanel.Position = CRAFT_HOME + UDim2.fromOffset(28, 0)
@@ -1321,12 +1247,9 @@ local function selectHotbar(index)
 	local pop = hotbarSlots[index].Pop
 	pop.Scale = 0.86
 	tween(pop, 0.16, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-	-- SERVER HOOK: equip hotbarItems[index] here
+
 end
 
---------------------------------------------------------------------------------
--- CONNECTIONS
---------------------------------------------------------------------------------
 local connections = {}
 local function connect(signal, fn)
 	local c = signal:Connect(fn)
@@ -1344,7 +1267,7 @@ for name, tab in pairs(categoryButtons) do
 		selectedRecipe = RECIPES[name][1].id
 		strip.CanvasPosition = Vector2.zero
 		refreshCrafting()
-		-- item strip slides in from the side you moved towards
+
 		local dir = (newIndex or 0) > (oldIndex or 0) and 1 or -1
 		strip.Position = UDim2.fromOffset(20 + dir * 30, 72)
 		tween(strip, 0.16, { Position = UDim2.fromOffset(20, 72) }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
@@ -1420,12 +1343,11 @@ connect(UserInputService.InputBegan, function(input, processed)
 	end
 end)
 
--- crafting clock + bar
 connect(RunService.Heartbeat, function(dt)
 	local job = queue[1]
 	if job then
 		if not unitStarted then
-			-- materials are taken when each item starts
+
 			local ok = true
 			for _, mat in ipairs(job.mats) do
 				if (inventory[mat[1]] or 0) < mat[2] then
@@ -1458,7 +1380,7 @@ connect(RunService.Heartbeat, function(dt)
 					table.remove(queue, 1)
 				end
 				if #queue > 0 then
-					draining = true -- next item: slide the bar back quickly
+					draining = true
 					popAmount()
 					updateProgressText()
 				else
@@ -1473,7 +1395,6 @@ connect(RunService.Heartbeat, function(dt)
 		end
 	end
 
-	-- bar: fills once per item, then does a very fast smooth slide back to empty
 	if progress.Visible then
 		local target
 		local current = queue[1]
@@ -1510,9 +1431,6 @@ gui.Destroying:Connect(function()
 	end
 end)
 
---------------------------------------------------------------------------------
--- START
---------------------------------------------------------------------------------
 refreshInventory()
 refreshCrafting()
 refreshHotbar()
