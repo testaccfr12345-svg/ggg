@@ -115,7 +115,7 @@ The user's target is her reference screenshot (older design iteration), "just li
 - Menu open: tap = pick whole stack (yellow outline only; the user rejected the lift/shadow and the pop after a move); tap another slot = move / stack / swap; tap same = unpick.
   Hold 0.3s on a stack of 2+ = amount bar (auto counts up, slide sideways to adjust); release keeps the partial pick.
   Partial pick onto empty = new stack, onto same item = add, onto different item = cancelled.
-  Tap the dim background = drop the pick (toast "Dropped N Item"). Armour: tap slot with a wearable picked (ITEMS[id].Wear == slot name) = equip; tap worn slot = unequip.
+  Tap the dim background = drop the pick (no message). Armour: tap slot with a wearable picked (ITEMS[id].Wear == slot name) = equip; tap worn slot = unequip.
 - Menu closed: tap hotbar = select; hold hotbar 0.15s + 0.45s coral bar = throw whole stack.
 - Settings at top of script: HOLD_DELAY, HOLD_FILL, SLIDE_PX, SLIDE_MIN, SLIDE_MAX, THROW_DELAY, THROW_TIME, TAP_GUARD.
 - **Server hook spots** (no comments allowed in the script, so they are listed here): `moveTo` (move / stack / swap / move part of a stack),
@@ -132,9 +132,10 @@ The user's target is her reference screenshot (older design iteration), "just li
 ## Move animation + drag (Motion module)
 - Every move flies the item picture to its new slot (FLY_TIME 0.18, Quint Out, starts at 1.12x). Data changes at once; the destination hides its icon/count (`ui.Hidden`) until landing, stacks keep the old count (`ui.FrozenCount`) until landing.
 - NO landing pop and NO pop when crafting finishes (user removed them). The crafted slot keeps only the quick yellow outline flash.
-- Swap = two flyers at once. Equip/unequip fly to/from the armour icon. Unequip with a full backpack shows the "Backpack is full" toast.
+- Swap = two flyers at once. Equip/unequip fly to/from the armour icon. Unequip with a full backpack shows the "Backpack is full" toast (toast UI lives in Motion as motion:toast). Drops never show a message.
+- Menu open = character can't move or jump (PlayerModule controls Disable) and the camera is locked (CameraType Scriptable, old type restored on close), PC and mobile.
 - New move while flying = old flyers snap (`motion:finishAll()`); closing the menu snaps everything and cancels a drag.
-- Drag: move > DRAG_START_PX before the hold bar = drag. Ghost follows the finger (36px above on touch), hover target gets the yellow outline, outside the panels shows the coral "Release to drop" pill. Release: slot = move (ghost drops in), matching armour = equip, world = drop (fade + toast), anything else = ghost flies back.
+- Drag: move > DRAG_START_PX before the hold bar = drag. Ghost follows the finger (36px above on touch), hover target gets the yellow outline, outside the panels shows the coral "Release to drop" pill. Release: slot = move (ghost drops in), matching armour = equip, world = drop (fade, no message), anything else = ghost flies back.
 - The drop is where the server must spawn the item (listed here instead of a code comment).
 
 ## Next steps

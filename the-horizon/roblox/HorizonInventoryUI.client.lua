@@ -966,38 +966,6 @@ do
 	end
 end
 
-local toast = new("Frame", {
-	Name = "Toast",
-	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 0, 18),
-	Size = UDim2.fromOffset(0, 34),
-	AutomaticSize = Enum.AutomaticSize.X,
-	BackgroundColor3 = Color3.fromRGB(16, 21, 19),
-	BackgroundTransparency = 1,
-	BorderSizePixel = 0,
-	Visible = false,
-	ZIndex = 30,
-}, gui)
-corner(toast, 17)
-local toastStroke = stroke(toast, CONFIG.Text, 1, 1)
-new("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 14) }, toast)
-new("UIListLayout", {
-	FillDirection = Enum.FillDirection.Horizontal,
-	VerticalAlignment = Enum.VerticalAlignment.Center,
-	SortOrder = Enum.SortOrder.LayoutOrder,
-	Padding = UDim.new(0, 8),
-}, toast)
-local toastIconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(24, 24), BackgroundTransparency = 1, ZIndex = 30 }, toast)
-local toastIcon = itemIcon(toastIconHolder, 24, UDim2.fromScale(0.5, 0.5))
-toastIcon.Image.ZIndex = 31
-local toastText = text(toast, {
-	LayoutOrder = 2,
-	Size = UDim2.fromOffset(0, 34),
-	AutomaticSize = Enum.AutomaticSize.X,
-	TextSize = 18,
-	ZIndex = 31,
-})
-hudScale(toast)
 
 local hotName = text(gui, {
 	Name = "HeldItemName",
@@ -1127,7 +1095,6 @@ local function updateScale()
 	hotbarGroup.Position = UDim2.new(0.5, 0, 1, -14 * hb)
 	hotName.Position = UDim2.new(0.5, 0, 1, -(14 + HOTBAR_SLOT) * hb - 11 * sc)
 
-	toast.Position = UDim2.new(0.5, 0, 0, 18 * sc)
 	progressHome = UDim2.new(1, -12 * sc, 0, 12 * sc)
 	progressAway = UDim2.new(1, 12 * sc, 0, 12 * sc)
 	progress.Position = progress.Visible and progressHome or progressAway
@@ -1509,6 +1476,40 @@ local function clearQueue()
 end
 
 local touchControlsBefore = nil
+local controls = nil
+local frozen = false
+local cameraBefore = nil
+local function freeze(on)
+	if controls and frozen ~= on then
+		if on then
+			controls:Disable()
+		else
+			controls:Enable()
+		end
+	end
+	frozen = on
+	local camera = workspace.CurrentCamera
+	if on then
+		if not cameraBefore then
+			cameraBefore = camera.CameraType
+		end
+		camera.CameraType = Enum.CameraType.Scriptable
+	elseif cameraBefore then
+		camera.CameraType = cameraBefore
+		cameraBefore = nil
+	end
+end
+task.spawn(function()
+	local ok, module = pcall(function()
+		return require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule", 10))
+	end)
+	if ok and module then
+		controls = module:GetControls()
+		if frozen then
+			controls:Disable()
+		end
+	end
+end)
 local menuTweens = {}
 local function stopMenuTweens()
 	for _, t in ipairs(menuTweens) do
@@ -1609,7 +1610,7 @@ local function setOpen(open)
 	refreshSlots()
 	snapOutlines = false
 	crosshair.Visible = not open
-
+	freeze(open)
 
 	if UserInputService.TouchEnabled then
 		if open then
@@ -1727,39 +1728,8 @@ for id, tile in pairs(recipeTiles) do
 	end)
 end
 
-local toastToken = 0
-local toastTweens = {}
-local toastAlpha = new("NumberValue", { Name = "ToastAlpha", Value = 0 }, gui)
-toastAlpha.Changed:Connect(function(a)
-	toast.BackgroundTransparency = 1 - 0.9 * a
-	toastStroke.Transparency = 1 - 0.14 * a
-	toastText.TextTransparency = 1 - a
-	toastIcon.SetFaded(false)
-	toastIcon.Image.ImageTransparency = 1 - a
-end)
 local function showToast(id, message)
-	toastToken += 1
-	local token = toastToken
-	for _, t in ipairs(toastTweens) do
-		t:Cancel()
-	end
-	table.clear(toastTweens)
-	toastIcon.Set(id)
-	toastText.Text = message
-	toast.Visible = true
-	table.insert(toastTweens, tween(toastAlpha, 0.15, { Value = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out))
-	task.delay(1.9, function()
-		if token ~= toastToken then
-			return
-		end
-		local out = tween(toastAlpha, 0.3, { Value = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-		table.insert(toastTweens, out)
-		out.Completed:Once(function(state)
-			if state == Enum.PlaybackState.Completed and token == toastToken then
-				toast.Visible = false
-			end
-		end)
-	end)
+	motion:toast(id, message)
 end
 
 local function afterItemsChanged()
@@ -1779,7 +1749,6 @@ local function dropPicked()
 		if entry.n <= 0 then
 			list[pick.i] = nil
 		end
-		showToast(entry.id, "Dropped " .. amount .. " " .. ITEMS[entry.id].Name)
 	end
 	pick = nil
 	afterItemsChanged()
@@ -1791,7 +1760,6 @@ local function throwHotbar(index)
 		return
 	end
 	hb[index] = nil
-	showToast(entry.id, "Dropped " .. entry.n .. " " .. ITEMS[entry.id].Name)
 	afterItemsChanged()
 end
 
@@ -2233,7 +2201,6 @@ pc = motion:attachPC({
 	end,
 	changed = afterItemsChanged,
 	refresh = refreshSlots,
-	toast = showToast,
 	addItem = addItem,
 	setHover = function(key)
 		if hoverKey ~= key then
@@ -2433,6 +2400,7 @@ gui.Destroying:Connect(function()
 	if touchControlsBefore ~= nil then
 		GuiService.TouchControlsEnabled = touchControlsBefore
 	end
+	freeze(false)
 end)
 
 refreshSlots()

@@ -279,6 +279,72 @@ function Motion:pillHide()
 	self.pill.Visible = false
 end
 
+function Motion:toast(id, message)
+	if not self.toastFrame then
+		local frame = new("Frame", {
+			Name = "Toast",
+			AnchorPoint = Vector2.new(0.5, 0),
+			Size = UDim2.fromOffset(0, 34),
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundColor3 = Color3.fromRGB(16, 21, 19),
+			BackgroundTransparency = 1,
+			Visible = false,
+			ZIndex = 101,
+		}, self.layer)
+		new("UICorner", { CornerRadius = UDim.new(0, 17) }, frame)
+		local border = new("UIStroke", { Color = self.CONFIG.Text, Thickness = 1, Transparency = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, frame)
+		new("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 14) }, frame)
+		new("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Padding = UDim.new(0, 8),
+		}, frame)
+		local icon = new("ImageLabel", { LayoutOrder = 1, Size = UDim2.fromOffset(24, 24), BackgroundTransparency = 1, ScaleType = Enum.ScaleType.Fit, ZIndex = 102 }, frame)
+		local label = new("TextLabel", {
+			LayoutOrder = 2,
+			Size = UDim2.fromOffset(0, 34),
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundTransparency = 1,
+			FontFace = Font.fromEnum(self.CONFIG.FontEnum),
+			TextSize = math.floor(18 * self.CONFIG.FontScale + 0.5),
+			TextColor3 = self.CONFIG.Text,
+			ZIndex = 102,
+		}, frame)
+		local alpha = new("NumberValue", { Value = 0 }, frame)
+		alpha.Changed:Connect(function(a)
+			frame.BackgroundTransparency = 1 - 0.9 * a
+			border.Transparency = 1 - 0.14 * a
+			label.TextTransparency = 1 - a
+			icon.ImageTransparency = 1 - a
+		end)
+		self.toastFrame = frame
+		self.toastParts = { icon = icon, label = label, alpha = alpha, scale = new("UIScale", {}, frame), token = 0 }
+	end
+	local parts = self.toastParts
+	local item = self.ITEMS[id]
+	parts.icon.Image = item and item.Image or ""
+	parts.label.Text = message
+	local sc = self.getScale()
+	parts.scale.Scale = sc
+	self.toastFrame.Position = UDim2.new(0.5, 0, 0, 18 * sc)
+	self.toastFrame.Visible = true
+	parts.token += 1
+	local token = parts.token
+	tween(parts.alpha, 0.15, { Value = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	task.delay(1.9, function()
+		if token ~= parts.token then
+			return
+		end
+		local out = tween(parts.alpha, 0.3, { Value = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+		out.Completed:Once(function(state)
+			if state == Enum.PlaybackState.Completed and token == parts.token then
+				self.toastFrame.Visible = false
+			end
+		end)
+	end)
+end
+
 function Motion:hit(absolute, lookup, root)
 	for _, object in ipairs(self.playerGui:GetGuiObjectsAtPosition(absolute.X, absolute.Y)) do
 		local current = object
@@ -326,10 +392,6 @@ function Motion:attachPC(api)
 			cursorPic = motion:picture(cursor.id, api.backpackSlots[1].Icon.Image.AbsoluteSize, 0, cursor.n)
 			placeCursorPic()
 		end
-	end
-
-	local function toast(id, n)
-		api.toast(id, "Dropped " .. n .. " " .. ITEMS[id].Name)
 	end
 
 	local function hoverTarget()
@@ -507,9 +569,7 @@ function Motion:attachPC(api)
 		if cursor then
 			local id, n = cursor.id, cursor.n
 			setCursor(nil)
-			if not api.addItem(id, n) then
-				toast(id, n)
-			end
+			api.addItem(id, n)
 		end
 	end
 
@@ -518,14 +578,10 @@ function Motion:attachPC(api)
 			return
 		end
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			local id, n = cursor.id, cursor.n
 			setCursor(nil)
-			toast(id, n)
 			api.changed()
 		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-			local id = cursor.id
-			setCursor(id, cursor.n - 1)
-			toast(id, 1)
+			setCursor(cursor.id, cursor.n - 1)
 			api.changed()
 		end
 	end)
@@ -550,7 +606,6 @@ function Motion:attachPC(api)
 		if entry.n <= 0 then
 			list[target.i] = nil
 		end
-		toast(entry.id, n)
 		api.changed()
 	end)
 
