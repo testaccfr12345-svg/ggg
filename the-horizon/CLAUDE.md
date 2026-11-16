@@ -14,6 +14,7 @@ designed vs. actually working and the rules for working on this project.
 | Path | What it is |
 | --- | --- |
 | `roblox/HorizonInventoryUI.client.lua` | LocalScript (StarterPlayerScripts). The full inventory/crafting/hotbar UI with a LOCAL demo inventory. **The only script for now — the user wants UI only, no server scripts yet.** |
+| `roblox/HorizonUITuner.module.lua` | ModuleScript named `Tuner`, placed INSIDE the HorizonInventoryUI LocalScript. The UI tuner (Pick/Drag/move/size/text/letter spacing, Copy all -> `HZT` line). Loaded only when `CONFIG.Tuner = true`. |
 | `design/InventoryCrafting_preview.html` | **Open this in a browser** to see the approved design working (Tab = open/close, 1–8 = hotbar, Craft/All test the queue). Standalone, matches the latest decisions. |
 | `design/InventoryCrafting.dc.html` | Source of the approved HTML preview (Claude Design canvas format; needs the canvas runtime to render). Live canvas: https://claude.ai/artifact/THsdwNwjTZUf2NXa1FVNbJ |
 | `design/icons/*.svg` | Placeholder item icons used in the preview only. The Roblox script uses the user's real `rbxassetid` images. |
@@ -119,6 +120,7 @@ The user's target is her reference screenshot (older design iteration), "just li
    survival stats → saving per world → building → combat → NPCs → world.
 
 ## Working with the user
+- **Script size limit:** the user pastes scripts into an in-game editor that colour-codes them; the coloured text must stay under Roblox's 200,000-char limit (about 2.7x the raw size). Keep each script under ~70,000 chars; split into ModuleScripts when it grows.
 - **IMPORTANT: if anything in a request is unclear, ASK the user before doing it.** Don't guess.
 - **NEVER remove or change a value the user tuned with the UI tuner (HZT lines) without asking first.** Later edits must keep them.
 - **Tuner values for one repeated item apply to all of its kind** (one material row -> all rows, one recipe tile -> all tiles, one backpack slot -> all slots). Exception: armour/equipment slots are per-slot; never touch them unless asked.
