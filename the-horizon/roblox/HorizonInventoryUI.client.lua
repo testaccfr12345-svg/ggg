@@ -443,7 +443,7 @@ local INV_W, CRAFT_W, PANEL_GAP = 464, 640, 20
 local MENU_W, MENU_H = INV_W + PANEL_GAP + CRAFT_W, 560
 local INV_HOME, CRAFT_HOME = UDim2.fromOffset(0, 0), UDim2.fromOffset(INV_W + PANEL_GAP, 0)
 local stretch = 1
-local INV_EXTRA_H = 12
+local INV_EXTRA_H = 3
 local dashesBuilt = false
 local canvas = new("Frame", {
 	Name = "Menu",
@@ -682,7 +682,7 @@ local strips = {}
 for _, category in ipairs(CATEGORY_ORDER) do
 	local strip = new("ScrollingFrame", {
 		Name = "ItemStrip",
-		Position = UDim2.fromOffset(20, 72),
+		Position = UDim2.fromOffset(20, 73),
 		Size = UDim2.new(1, -40, 0, 112),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,

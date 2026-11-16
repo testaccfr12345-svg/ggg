@@ -328,7 +328,7 @@ return function(gui, CONFIG, ITEMS)
 			local p = o.Position
 			o.Position = UDim2.new(p.X.Scale, p.X.Offset + a * n, p.Y.Scale, p.Y.Offset + b * n)
 		elseif kind == "size" and isText(o) and b == 0 and a ~= 0 then
-			letterSpacing(o, (o:GetAttribute("LetterSpacing") or 0) + a * n)
+			letterSpacing(o, (o:GetAttribute("LetterSpacing") or 0) + a * math.max(n, 1))
 		elseif kind == "size" then
 			local sz = o.Size
 			local dw, dh = a * n, b * n
