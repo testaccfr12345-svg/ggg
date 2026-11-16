@@ -53,7 +53,6 @@ local CONFIG = {
 		Boots = "rbxassetid://104349095380038",
 	},
 
-	Tuner = true,
 	DesignWidth = 1280,
 	DesignHeight = 720,
 }
@@ -979,16 +978,6 @@ local hotName = text(gui, {
 })
 local hotNameScale = new("UIScale", {}, hotName)
 
-local crosshair = new("Frame", {
-	Name = "Crosshair",
-	AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromOffset(18, 18),
-	BackgroundTransparency = 1,
-}, gui)
-new("Frame", { Position = UDim2.fromOffset(8, 0), Size = UDim2.fromOffset(2, 18), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.3, BorderSizePixel = 0 }, crosshair)
-new("Frame", { Position = UDim2.fromOffset(0, 8), Size = UDim2.fromOffset(18, 2), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.3, BorderSizePixel = 0 }, crosshair)
-
 local progressHome = UDim2.new(1, -12, 0, 12)
 local progressAway = UDim2.new(1, 12, 0, 12)
 
@@ -1609,7 +1598,6 @@ local function setOpen(open)
 	snapOutlines = not open
 	refreshSlots()
 	snapOutlines = false
-	crosshair.Visible = not open
 	freeze(open)
 
 	if UserInputService.TouchEnabled then
@@ -2410,10 +2398,3 @@ isOpen = true
 setOpen(false)
 panels.Visible = false
 dim.Visible = false
-
-if CONFIG.Tuner then
-	local tunerModule = script:FindFirstChild("Tuner")
-	if tunerModule then
-		require(tunerModule)(gui, CONFIG, ITEMS)
-	end
-end

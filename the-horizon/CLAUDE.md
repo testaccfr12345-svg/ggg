@@ -15,7 +15,6 @@ designed vs. actually working and the rules for working on this project.
 | --- | --- |
 | `roblox/HorizonInventoryUI.client.lua` | LocalScript (StarterPlayerScripts). The full inventory/crafting/hotbar UI with a LOCAL demo inventory. **The only script for now — the user wants UI only, no server scripts yet.** |
 | `roblox/HorizonMotion.module.lua` | ModuleScript named `Motion`, INSIDE the HorizonInventoryUI LocalScript (required, the UI waits for it). Flying items, drag ghost, drop pill, landing pop, hit-testing. |
-| `roblox/HorizonUITuner.module.lua` | ModuleScript named `Tuner`, placed INSIDE the HorizonInventoryUI LocalScript. The UI tuner (Pick/Drag/move/size/text/letter spacing, Copy all -> `HZT` line). Loaded only when `CONFIG.Tuner = true`. |
 | `design/InventoryCrafting_preview.html` | **Open this in a browser** to see the approved design working (Tab = open/close, 1–8 = hotbar, Craft/All test the queue). Standalone, matches the latest decisions. |
 | `design/InventoryCrafting.dc.html` | Source of the approved HTML preview (Claude Design canvas format; needs the canvas runtime to render). Live canvas: https://claude.ai/artifact/THsdwNwjTZUf2NXa1FVNbJ |
 | `design/icons/*.svg` | Placeholder item icons used in the preview only. The Roblox script uses the user's real `rbxassetid` images. |
@@ -97,7 +96,7 @@ The user's target is her reference screenshot (older design iteration), "just li
   Panel children are laid out with scale-relative UDim2s so they follow the panel width.
 
 ## PC controls (Minecraft-style, mouse) - code lives in the Motion module (`Motion:attachPC(api)`)
-- Script order inside the LocalScript: Tuner, Motion. PC code is in Motion (user did not want a 3rd module).
+- Only one ModuleScript inside the LocalScript: Motion. PC code is in Motion (user did not want a 3rd module).
 - Menu open, mouse: left click item = it sticks to the cursor; left click slot = place/stack/swap; right click item = half; right click slot while holding = place 1.
   Holding + drag across empty/same slots: left = split evenly, right = 1 each. Click outside (dim) while holding: left = drop all, right = drop 1.
   Q on hovered slot = drop 1, Ctrl+Q = drop stack. Double-click = gather all of that item. Shift+click = equip/unequip armour ONLY.
@@ -106,7 +105,7 @@ The user's target is her reference screenshot (older design iteration), "just li
 
 ## CHECKPOINT: mobile controls finished
 - The user approved the mobile inventory as finished. Saved state = git commit `5155fe0` on branch `claude/new-session-wjmhlh`
-  (files: roblox/HorizonInventoryUI.client.lua + Motion and Tuner modules). Next: PC controls (mouse/keyboard), Minecraft-style.
+  (files: roblox/HorizonInventoryUI.client.lua + Motion and Tuner modules; the Tuner was removed later). Next: PC controls (mouse/keyboard), Minecraft-style.
 - PC controls must NOT change how mobile works.
 
 ## Mobile inventory controls (Bedrock-style, client only)
@@ -153,6 +152,7 @@ The user's target is her reference screenshot (older design iteration), "just li
 - **Script size limit:** the user pastes scripts into an in-game editor that colour-codes them; the coloured text must stay under Roblox's 200,000-char limit (about 2.7x the raw size). Keep each script under ~70,000 chars; split into ModuleScripts when it grows.
 - **IMPORTANT: if anything in a request is unclear, ASK the user before doing it.** Don't guess.
 - **NEVER remove or change a value the user tuned with the UI tuner (HZT lines) without asking first.** Later edits must keep them.
+- **The UI tuner and the + crosshair were removed (user request).** The tuner is in git history (commit before its removal) if it is ever wanted again.
 - **Tuner values for one repeated item apply to all of its kind** (one material row -> all rows, one recipe tile -> all tiles, one backpack slot -> all slots). Exception: armour/equipment slots are per-slot; never touch them unless asked.
 - **NEVER put comments or prints in the user's scripts.** No `--` comments, no `print`/`warn`. Explain things in chat instead.
 - **Short, direct messages.** They test on mobile (landscape phone) and send screenshots.
