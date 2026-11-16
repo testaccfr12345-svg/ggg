@@ -498,8 +498,7 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Legs", "Boots", "Gloves" }) 
 	end
 	local wornIcon = itemIcon(slot, layout[1], UDim2.new(0.5, 0, 0, layout[2]))
 	wornIcon.Set(nil)
-	local wornPop = new("UIScale", {}, slot)
-	equipSlots[slotName] = { Button = slot, Faded = faded, WornIcon = wornIcon, Pop = wornPop }
+	equipSlots[slotName] = { Button = slot, Faded = faded, WornIcon = wornIcon }
 	text(slot, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0, layout[3]),
@@ -567,27 +566,17 @@ local function setBar(bar, kind, fraction)
 	bar.Fill.Size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1)
 end
 
-local function makeSlotHolder(parent, name, props, radius)
+local function makeSlotHolder(parent, name, props)
 	local holder = new("Frame", { Name = name .. "Holder", BackgroundTransparency = 1 }, parent)
 	for key, value in pairs(props) do
 		holder[key] = value
 	end
-	local shadow = new("Frame", {
-		Name = "Shadow",
-		Position = UDim2.fromOffset(0, 3),
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-	}, holder)
-	corner(shadow, radius)
-	local shadowStroke = stroke(shadow, Color3.new(0, 0, 0), 3, 1)
 	local button = textButton(holder, {
 		Name = name,
 		Size = UDim2.fromScale(1, 1),
 		BorderSizePixel = 0,
 	})
-	return holder, button, shadow, shadowStroke
+	return holder, button
 end
 
 local backpackSlots = {}
@@ -595,10 +584,10 @@ local BACKPACK_SLOT_H = (560 - 208 - 3 * 8) / 4
 for index = 1, CONFIG.BackpackSlots do
 	local column = (index - 1) % 6
 	local row = math.floor((index - 1) / 6)
-	local holder, slot, shadow, shadowStroke = makeSlotHolder(invPanel, "Slot" .. index, {
+	local holder, slot = makeSlotHolder(invPanel, "Slot" .. index, {
 		Position = UDim2.new(column / 6, 20 - column * 16 / 3, 0, 208 + row * (BACKPACK_SLOT_H + 8)),
 		Size = UDim2.new(1 / 6, -40 / 3, 0, BACKPACK_SLOT_H),
-	}, 8)
+	})
 	slot.BackgroundColor3 = Color3.new(1, 1, 1)
 	slot.BackgroundTransparency = 0.93
 	corner(slot, 8)
@@ -616,7 +605,7 @@ for index = 1, CONFIG.BackpackSlots do
 	})
 	local bar = makeBar(slot)
 	local pop = new("UIScale", {}, slot)
-	backpackSlots[index] = { Holder = holder, Button = slot, Shadow = shadow, ShadowStroke = shadowStroke, Stroke = outline, Icon = icon, Count = count, Bar = bar, Pop = pop }
+	backpackSlots[index] = { Holder = holder, Button = slot, Stroke = outline, Icon = icon, Count = count, Bar = bar, Pop = pop }
 end
 
 local craftPanel = panel(panels, "CraftingPanel", INV_W + PANEL_GAP, 0, CRAFT_W, 560)
@@ -924,11 +913,11 @@ end
 
 local hotbarSlots = {}
 for index = 1, HOTBAR_COUNT do
-	local holder, slot, shadow, shadowStroke = makeSlotHolder(hotbar, "Hotbar" .. index, {
+	local holder, slot = makeSlotHolder(hotbar, "Hotbar" .. index, {
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, (index - 1) * (HOTBAR_SLOT + HOTBAR_GAP), 0.5, 0),
 		Size = UDim2.fromOffset(HOTBAR_SLOT, HOTBAR_SLOT),
-	}, 4)
+	})
 	slot.BackgroundColor3 = CONFIG.PanelColor
 	slot.BackgroundTransparency = 0.45
 	corner(slot, 4)
@@ -946,7 +935,7 @@ for index = 1, HOTBAR_COUNT do
 	})
 	local bar = makeBar(slot)
 	local pop = new("UIScale", {}, slot)
-	hotbarSlots[index] = { Holder = holder, Button = slot, Shadow = shadow, ShadowStroke = shadowStroke, Stroke = outline, Icon = icon, Count = count, Bar = bar, Pop = pop }
+	hotbarSlots[index] = { Holder = holder, Button = slot, Stroke = outline, Icon = icon, Count = count, Bar = bar, Pop = pop }
 end
 
 local keyboard = UserInputService.KeyboardEnabled
@@ -1183,16 +1172,6 @@ local function setOutline(ui, on)
 	tween(ui.Stroke, CONFIG.SelectFade, { Transparency = on and 0 or 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 end
 
-local function setLift(ui, on)
-	if ui.Lifted == on then
-		return
-	end
-	ui.Lifted = on
-	tween(ui.Button, CONFIG.SelectFade, { Position = UDim2.fromOffset(0, on and -4 or 0) }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-	tween(ui.Shadow, CONFIG.SelectFade, { BackgroundTransparency = on and 0.55 or 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-	tween(ui.ShadowStroke, CONFIG.SelectFade, { Transparency = on and 0.8 or 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-end
-
 local function validatePick()
 	if not pick then
 		return
@@ -1230,13 +1209,11 @@ local function renderSlot(ui, area, index)
 	else
 		setBar(ui.Bar, nil)
 	end
-	local lifted = picked or (holding and hold.kind == "pick")
-	local outlined = lifted
+	local outlined = picked or (holding and hold.kind == "pick")
 	if area == "hb" and selectedHotbar == index and not (isOpen and pick ~= nil) then
 		outlined = true
 	end
 	setOutline(ui, outlined)
-	setLift(ui, lifted)
 end
 
 local function headerText()
@@ -1702,20 +1679,6 @@ for id, tile in pairs(recipeTiles) do
 	end)
 end
 
-local function popSlot(ui)
-	ui.Pop.Scale = 0.86
-	local up = tween(ui.Pop, 0.11, { Scale = 1.08 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	up.Completed:Once(function(state)
-		if state == Enum.PlaybackState.Completed then
-			tween(ui.Pop, 0.11, { Scale = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-		end
-	end)
-end
-
-local function slotUi(area, index)
-	return area == "bp" and backpackSlots[index] or hotbarSlots[index]
-end
-
 local toastToken = 0
 local toastTweens = {}
 local toastAlpha = new("NumberValue", { Name = "ToastAlpha", Value = 0 }, gui)
@@ -1822,7 +1785,6 @@ local function moveTo(area, index)
 	end
 	pick = nil
 	afterItemsChanged()
-	popSlot(slotUi(area, index))
 end
 
 local function tapSlot(area, index)
@@ -1852,7 +1814,6 @@ local function tapEquip(slotName)
 	if not isOpen or os.clock() < tapGuardUntil then
 		return
 	end
-	local ui = equipSlots[slotName]
 	if pick then
 		local list = slotsOf(pick.area)
 		local entry = list[pick.i]
@@ -1872,7 +1833,6 @@ local function tapEquip(slotName)
 			end
 			pick = nil
 			afterItemsChanged()
-			popSlot(ui)
 		end
 		return
 	end
@@ -1883,7 +1843,6 @@ local function tapEquip(slotName)
 				bp[index] = item
 				worn[slotName] = nil
 				afterItemsChanged()
-				popSlot(backpackSlots[index])
 				return
 			end
 		end

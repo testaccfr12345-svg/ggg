@@ -98,7 +98,7 @@ The user's target is her reference screenshot (older design iteration), "just li
 ## Mobile inventory controls (Bedrock-style, client only)
 - Data: `bp` (24 backpack slots), `hb` (8 hotbar slots), `worn` (armour by slot name). Each slot is nil or `{ id, n }`.
   `pick = { area = "bp"|"hb", i, n }` (n nil = whole stack). `hold` tracks a finger press. Crafting counts items across bp + hb.
-- Menu open: tap = pick whole stack (yellow outline, lift 4px, shadow); tap another slot = move / stack / swap; tap same = unpick.
+- Menu open: tap = pick whole stack (yellow outline only; the user rejected the lift/shadow and the pop after a move); tap another slot = move / stack / swap; tap same = unpick.
   Hold 0.3s on a stack of 2+ = amount bar (auto counts up, slide sideways to adjust); release keeps the partial pick.
   Partial pick onto empty = new stack, onto same item = add, onto different item = cancelled.
   Tap the dim background = drop the pick (toast "Dropped N Item"). Armour: tap slot with a wearable picked (ITEMS[id].Wear == slot name) = equip; tap worn slot = unequip.
