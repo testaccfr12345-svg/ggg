@@ -715,7 +715,15 @@ return function(gui, CONFIG, ITEMS)
 	end)
 
 	RunService.RenderStepped:Connect(function()
-		if selected and selected.Parent and selected:IsA("GuiObject") and selected.Visible then
+		local shown = selected ~= nil and selected.Parent ~= nil and selected:IsA("GuiObject")
+		local current = selected
+		while shown and current and current ~= game do
+			if (current:IsA("GuiObject") and not current.Visible) or (current:IsA("ScreenGui") and not current.Enabled) then
+				shown = false
+			end
+			current = current.Parent
+		end
+		if shown then
 			highlight.Visible = true
 			local origin = tunerGui.AbsolutePosition
 			highlight.Position = UDim2.fromOffset(selected.AbsolutePosition.X - origin.X, selected.AbsolutePosition.Y - origin.Y)
