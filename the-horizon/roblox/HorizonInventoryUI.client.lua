@@ -1178,12 +1178,20 @@ end
 watchCamera()
 local cameraWatch = workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
 
-local function setOutline(ui, on)
+local function setOutline(ui, on, instant)
 	if ui.Outlined == on then
 		return
 	end
 	ui.Outlined = on
-	tween(ui.Stroke, CONFIG.SelectFade, { Transparency = on and 0 or 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	if ui.OutlineTween then
+		ui.OutlineTween:Cancel()
+		ui.OutlineTween = nil
+	end
+	if instant then
+		ui.Stroke.Transparency = on and 0 or 1
+	else
+		ui.OutlineTween = tween(ui.Stroke, CONFIG.SelectFade, { Transparency = on and 0 or 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	end
 end
 
 local function validatePick()
@@ -1203,7 +1211,14 @@ local function renderSlot(ui, area, index)
 	local hidden = (ui.Hidden or 0) > 0
 	local dragging = hold and hold.drag and hold.area == area and hold.i == index
 	ui.Icon.Set((entry and not hidden) and entry.id or nil)
-	ui.Icon.Image.ImageTransparency = (dragging and not hold.dragAmount) and 0.35 or 0
+	local dim = dragging and not hold.dragAmount or false
+	if ui.Dimmed ~= dim then
+		ui.Dimmed = dim
+		if ui.DimTween then
+			ui.DimTween:Cancel()
+		end
+		ui.DimTween = tween(ui.Icon.Image, dim and 0.1 or 0.25, { ImageTransparency = dim and 0.35 or 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	end
 	local holding = hold and hold.shown and hold.area == area and hold.i == index
 	local picked = pick ~= nil and pick.area == area and pick.i == index
 	local amount = nil
@@ -1235,11 +1250,13 @@ local function renderSlot(ui, area, index)
 	else
 		setBar(ui.Bar, nil)
 	end
-	local outlined = picked or (holding and hold.kind == "pick") or hoverKey == area .. index
+	local hovered = hoverKey == area .. index
+	local outlined = picked or (holding and hold.kind == "pick") or hovered
 	if area == "hb" and selectedHotbar == index and not (isOpen and pick ~= nil) then
 		outlined = true
 	end
-	setOutline(ui, outlined)
+	setOutline(ui, outlined, hovered ~= (ui.Hovered or false))
+	ui.Hovered = hovered
 end
 
 local function headerText()
@@ -2030,16 +2047,7 @@ local function finishDrag(h)
 		end
 	end
 	pick = nil
-	local whole = h.dragAmount == nil
-	if whole then
-		srcUi.Hidden = (srcUi.Hidden or 0) + 1
-	end
-	motion:ghostTo(centerOf(srcUi.Icon.Image), srcUi.Icon.Image.AbsoluteSize, FLY_TIME, function()
-		if whole then
-			srcUi.Hidden = math.max(0, (srcUi.Hidden or 1) - 1)
-		end
-		refreshSlots()
-	end)
+	motion:ghostTo(centerOf(srcUi.Icon.Image), srcUi.Icon.Image.AbsoluteSize, FLY_TIME, nil)
 	refreshSlots()
 end
 
