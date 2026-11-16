@@ -149,6 +149,7 @@ The user's target is her reference screenshot (older design iteration), "just li
    survival stats → saving per world → building → combat → NPCs → world.
 
 ## Working with the user
+- **Menu open animation (user choice):** everything, text included, fades in together (0.2s) with a tiny grow (UIScale 0.985 -> 1). Roblox snaps text sizes while a UIScale animates, so keep the grow tiny; never delay the text fade.
 - **Script size limit:** the user pastes scripts into an in-game editor that colour-codes them; the coloured text must stay under Roblox's 200,000-char limit (about 2.7x the raw size). Keep each script under ~70,000 chars; split into ModuleScripts when it grows.
 - **IMPORTANT: if anything in a request is unclear, ASK the user before doing it.** Don't guess.
 - **NEVER remove or change a value the user tuned with the UI tuner (HZT lines) without asking first.** Later edits must keep them.

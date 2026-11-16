@@ -1633,12 +1633,12 @@ local function setOpen(open)
 		fadeValue.Value = 0
 		textFadeValue.Value = 0
 		applyFade(0, 0)
-		panelsScale.Scale = 0.95
+		panelsScale.Scale = 0.985
 		panels.Visible = true
 		dim.Visible = true
 		menuTween(panelsScale, 0.26, { Scale = 1 }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 		menuTween(fadeValue, 0.2, { Value = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-		local fadeIn = TweenService:Create(textFadeValue, TweenInfo.new(0.14, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, 0, false, 0.1), { Value = 1 })
+		local fadeIn = TweenService:Create(textFadeValue, TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { Value = 1 })
 		fadeIn:Play()
 		table.insert(menuTweens, fadeIn)
 		menuTween(dim, 0.2, { BackgroundTransparency = CONFIG.DimTransparency }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
