@@ -44,6 +44,7 @@ local CONFIG = {
 	HotbarTouchBoost = 1.3,
 	MenuWidthFraction = 0.878,
 
+	BagIcon = "rbxassetid://79330975561485",
 	EquipmentIcons = {
 		Helmet = "rbxassetid://122411372685446",
 		Chest = "rbxassetid://82728361755910",
@@ -950,33 +951,15 @@ end
 local keyboard = UserInputService.KeyboardEnabled
 local openButton = hotbarBox(hotbarGroup, "OpenInventory", 9, BAG_SLOT)
 do
-	local k = 26 / 28 * (BAG_SLOT / 72)
-	local line = 2.2 * k
-	local origin = BAG_SLOT / 2 - 14 * k
-	local bag = new("Frame", {
+	new("ImageLabel", {
+		Name = "BagIcon",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromOffset(origin + 14 * k, origin + 16.5 * k),
-		Size = UDim2.fromOffset((18 - 2.2) * k, (15 - 2.2) * k),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(BAG_SLOT * 0.58, BAG_SLOT * 0.58),
 		BackgroundTransparency = 1,
+		Image = CONFIG.BagIcon,
+		ScaleType = Enum.ScaleType.Fit,
 	}, openButton)
-	corner(bag, 3.4 * k)
-	stroke(bag, CONFIG.Text, line, 0)
-	local handle = new("Frame", {
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.fromOffset(origin + 14 * k, origin + (9 - 1.1) * k),
-		Size = UDim2.fromOffset((8 - 2.2) * k, (5.5 - 2.2) * k),
-		BackgroundTransparency = 1,
-	}, openButton)
-	corner(handle, 3 * k)
-	stroke(handle, CONFIG.Text, line, 0)
-	local strap = new("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromOffset(origin + 14 * k, origin + 16.5 * k),
-		Size = UDim2.fromOffset(10 * k + line, line),
-		BackgroundColor3 = CONFIG.Text,
-		BorderSizePixel = 0,
-	}, openButton)
-	corner(strap, 1)
 	if keyboard then
 		text(openButton, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, -2), Size = UDim2.fromOffset(40, 14), Text = "TAB", TextSize = 11, TextTransparency = 0.35, TextXAlignment = Enum.TextXAlignment.Center })
 	end
