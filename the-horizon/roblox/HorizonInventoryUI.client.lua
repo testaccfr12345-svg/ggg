@@ -1870,7 +1870,7 @@ local function beginPress(area, index, input)
 	local entry = slotsOf(area)[index]
 	local kind = nil
 	if isOpen then
-		if entry and entry.n >= 2 then
+		if entry and entry.n >= 2 and not pick then
 			kind = "pick"
 		end
 	elseif area == "hb" and entry then
