@@ -889,14 +889,14 @@ local craftButton = textButton(right, {
 })
 corner(craftButton, 12)
 
-local HOTBAR_SLOT, HOTBAR_GAP = 62, 8
+local HOTBAR_SLOT, HOTBAR_GAP = 62, 6
 local BAG_SLOT = HOTBAR_SLOT * 0.8
 local HOTBAR_W = 8 * HOTBAR_SLOT + 8 * HOTBAR_GAP + BAG_SLOT
 
 local hotbarGroup = new("Frame", {
 	Name = "HotbarGroup",
 	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -14),
+	Position = UDim2.new(0.5, 0, 1, -9),
 	Size = UDim2.fromOffset(HOTBAR_W, HOTBAR_SLOT),
 	BackgroundTransparency = 1,
 }, gui)
@@ -1092,8 +1092,8 @@ local function updateScale()
 	local hb = sc * (touchOnly and CONFIG.HotbarTouchBoost or CONFIG.HotbarBoost)
 	hotbarScale.Scale = hb
 	hotNameScale.Scale = sc
-	hotbarGroup.Position = UDim2.new(0.5, 0, 1, -14 * hb)
-	hotName.Position = UDim2.new(0.5, 0, 1, -(14 + HOTBAR_SLOT) * hb - 11 * sc)
+	hotbarGroup.Position = UDim2.new(0.5, 0, 1, -9 * hb)
+	hotName.Position = UDim2.new(0.5, 0, 1, -(9 + HOTBAR_SLOT) * hb - 11 * sc)
 
 	progressHome = UDim2.new(1, -12 * sc, 0, 12 * sc)
 	progressAway = UDim2.new(1, 12 * sc, 0, 12 * sc)
