@@ -14,6 +14,7 @@ designed vs. actually working and the rules for working on this project.
 | Path | What it is |
 | --- | --- |
 | `roblox/HorizonInventoryUI.client.lua` | LocalScript (StarterPlayerScripts). The full inventory/crafting/hotbar UI with a LOCAL demo inventory. **The only script for now — the user wants UI only, no server scripts yet.** |
+| `roblox/HorizonMotion.module.lua` | ModuleScript named `Motion`, INSIDE the HorizonInventoryUI LocalScript (required, the UI waits for it). Flying items, drag ghost, drop pill, landing pop, hit-testing. |
 | `roblox/HorizonUITuner.module.lua` | ModuleScript named `Tuner`, placed INSIDE the HorizonInventoryUI LocalScript. The UI tuner (Pick/Drag/move/size/text/letter spacing, Copy all -> `HZT` line). Loaded only when `CONFIG.Tuner = true`. |
 | `design/InventoryCrafting_preview.html` | **Open this in a browser** to see the approved design working (Tab = open/close, 1–8 = hotbar, Craft/All test the queue). Standalone, matches the latest decisions. |
 | `design/InventoryCrafting.dc.html` | Source of the approved HTML preview (Claude Design canvas format; needs the canvas runtime to render). Live canvas: https://claude.ai/artifact/THsdwNwjTZUf2NXa1FVNbJ |
@@ -108,6 +109,14 @@ The user's target is her reference screenshot (older design iteration), "just li
   `dropPicked` (drop), `throwHotbar` (throw), `tapEquip` (equip / unequip), crafting `removeItem` / `addItem`.
   The server must verify the player owns the items and spawn drops in the world.
 - No armour items exist yet; equipping works as soon as an item has `Wear = "Helmet"` (etc.) in ITEMS.
+
+## Move animation + drag (Motion module)
+- Every move flies the item picture to its new slot (FLY_TIME 0.18, Quint Out, starts at 1.12x). Data changes at once; the destination hides its icon/count (`ui.Hidden`) until landing, stacks keep the old count (`ui.FrozenCount`) until landing.
+- Landing pop is tiny on purpose: the user wants 10% of a normal bounce (`POP_SCALE = 0.1`).
+- Swap = two flyers at once. Equip/unequip fly to/from the armour icon. Unequip with a full backpack shows the "Backpack is full" toast.
+- New move while flying = old flyers snap (`motion:finishAll()`); closing the menu snaps everything and cancels a drag.
+- Drag: move > DRAG_START_PX before the hold bar = drag. Ghost follows the finger (36px above on touch), hover target gets the yellow outline, outside the panels shows the coral "Release to drop" pill. Release: slot = move (ghost drops in), matching armour = equip, world = drop (fade + toast), anything else = ghost flies back.
+- The drop is where the server must spawn the item (listed here instead of a code comment).
 
 ## Next steps
 1. **Server side for the inventory — LATER.** The user said UI only for now (one client script). A first server version

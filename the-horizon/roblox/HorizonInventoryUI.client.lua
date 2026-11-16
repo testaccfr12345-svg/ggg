@@ -126,6 +126,14 @@ local SLIDE_MAX = 30
 local THROW_DELAY = 0.15
 local THROW_TIME = 0.45
 local TAP_GUARD = 0.25
+local FLY_TIME = 0.18
+local FLY_START = 1.12
+local POP_TIME = 0.22
+local POP_SCALE = 0.1
+local DRAG_START_PX = 10
+local DRAG_SCALE = 1.15
+local DRAG_TOUCH_UP = 36
+local DROP_IN_TIME = 0.12
 local HOTBAR_COUNT = 8
 local CORAL = Color3.fromRGB(244, 164, 124)
 
@@ -397,6 +405,20 @@ local gui = new("ScreenGui", {
 
 local craftSound = new("Sound", { Name = "CraftComplete", SoundId = CONFIG.CraftCompleteSound }, gui)
 
+local motion = require(script:WaitForChild("Motion")).new(gui, CONFIG, ITEMS, {
+	FLY_TIME = FLY_TIME,
+	FLY_START = FLY_START,
+	POP_TIME = POP_TIME,
+	POP_SCALE = POP_SCALE,
+	DRAG_SCALE = DRAG_SCALE,
+	DRAG_TOUCH_UP = DRAG_TOUCH_UP,
+}, function()
+	local camera = workspace.CurrentCamera
+	local size = camera and camera.ViewportSize or Vector2.new(CONFIG.DesignWidth, CONFIG.DesignHeight)
+	return math.min(size.X / CONFIG.DesignWidth, size.Y / CONFIG.DesignHeight)
+end)
+local hoverKey = nil
+
 local dim = new("TextButton", {
 	Name = "Dim",
 	Size = UDim2.fromScale(1, 1),
@@ -485,6 +507,9 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Legs", "Boots", "Gloves" }) 
 	local ring = new("Frame", { Position = UDim2.fromOffset(1, 1), Size = UDim2.new(1, -2, 1, -2), BackgroundTransparency = 1 }, slot)
 	corner(ring, 9)
 	stroke(ring, CONFIG.Text, 1, 0.88)
+	local hoverRing = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, slot)
+	corner(hoverRing, 8)
+	local hoverStroke = stroke(hoverRing, CONFIG.Accent, 2, 1)
 	local image = CONFIG.EquipmentIcons[slotName]
 	if image and image ~= "" then
 		faded = new("ImageLabel", {
@@ -498,7 +523,7 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Legs", "Boots", "Gloves" }) 
 	end
 	local wornIcon = itemIcon(slot, layout[1], UDim2.new(0.5, 0, 0, layout[2]))
 	wornIcon.Set(nil)
-	equipSlots[slotName] = { Button = slot, Faded = faded, WornIcon = wornIcon }
+	equipSlots[slotName] = { Button = slot, Faded = faded, WornIcon = wornIcon, HoverStroke = hoverStroke, Pop = new("UIScale", {}, slot) }
 	text(slot, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0, layout[3]),
@@ -897,18 +922,7 @@ local function hotbarBox(parent, name, index, size)
 		BackgroundTransparency = 0.45,
 	})
 	corner(box, 4)
-	local ring = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, box)
-	corner(ring, 2)
-	local ringStroke = stroke(ring, CONFIG.Accent, 2, 1)
-	local current = false
-	local function setBorder(selected)
-		if selected == current then
-			return
-		end
-		current = selected
-		tween(ringStroke, CONFIG.SelectFade, { Transparency = selected and 0 or 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-	end
-	return box, setBorder
+	return box
 end
 
 local hotbarSlots = {}
@@ -1186,7 +1200,10 @@ end
 
 local function renderSlot(ui, area, index)
 	local entry = slotsOf(area)[index]
-	ui.Icon.Set(entry and entry.id or nil)
+	local hidden = (ui.Hidden or 0) > 0
+	local dragging = hold and hold.drag and hold.area == area and hold.i == index
+	ui.Icon.Set((entry and not hidden) and entry.id or nil)
+	ui.Icon.Image.ImageTransparency = (dragging and not hold.dragAmount) and 0.35 or 0
 	local holding = hold and hold.shown and hold.area == area and hold.i == index
 	local picked = pick ~= nil and pick.area == area and pick.i == index
 	local amount = nil
@@ -1195,7 +1212,16 @@ local function renderSlot(ui, area, index)
 	elseif picked and pick.n then
 		amount = pick.n
 	end
-	if entry and amount then
+	if hidden then
+		ui.Count.Text = ""
+	elseif ui.FrozenCount then
+		ui.Count.Text = ui.FrozenCount
+		ui.Count.TextColor3 = CONFIG.Text
+	elseif dragging and hold.dragAmount and entry then
+		local left = entry.n - hold.dragAmount
+		ui.Count.Text = left > 1 and tostring(left) or ""
+		ui.Count.TextColor3 = CONFIG.Text
+	elseif entry and amount then
 		ui.Count.Text = amount .. "/" .. entry.n
 		ui.Count.TextColor3 = CONFIG.Accent
 	else
@@ -1209,7 +1235,7 @@ local function renderSlot(ui, area, index)
 	else
 		setBar(ui.Bar, nil)
 	end
-	local outlined = picked or (holding and hold.kind == "pick")
+	local outlined = picked or (holding and hold.kind == "pick") or hoverKey == area .. index
 	if area == "hb" and selectedHotbar == index and not (isOpen and pick ~= nil) then
 		outlined = true
 	end
@@ -1249,10 +1275,12 @@ local function refreshInventory()
 	usedLabel.Text = used .. " / " .. CONFIG.BackpackSlots
 	for slotName, ui in pairs(equipSlots) do
 		local item = worn[slotName]
-		ui.WornIcon.Set(item and item.id or nil)
+		local hidden = (ui.Hidden or 0) > 0
+		ui.WornIcon.Set((item and not hidden) and item.id or nil)
 		if ui.Faded then
-			ui.Faded.Visible = item == nil
+			ui.Faded.Visible = item == nil or hidden
 		end
+		ui.HoverStroke.Transparency = hoverKey == "eq" .. slotName and 0 or 1
 	end
 	invInfo.Text = headerText()
 end
@@ -1564,6 +1592,12 @@ local function setOpen(open)
 	isOpen = open
 	modal.Visible = open
 	if not open then
+		if hold and hold.drag then
+			motion:ghostCancel()
+		end
+		motion:pillHide()
+		motion:finishAll()
+		hoverKey = nil
 		pick = nil
 		hold = nil
 	end
@@ -1689,7 +1723,7 @@ toastAlpha.Changed:Connect(function(a)
 	toastIcon.SetFaded(false)
 	toastIcon.Image.ImageTransparency = 1 - a
 end)
-local function showToast(id, amount)
+local function showToast(id, message)
 	toastToken += 1
 	local token = toastToken
 	for _, t in ipairs(toastTweens) do
@@ -1697,7 +1731,7 @@ local function showToast(id, amount)
 	end
 	table.clear(toastTweens)
 	toastIcon.Set(id)
-	toastText.Text = "Dropped " .. amount .. " " .. ITEMS[id].Name
+	toastText.Text = message
 	toast.Visible = true
 	table.insert(toastTweens, tween(toastAlpha, 0.15, { Value = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out))
 	task.delay(1.9, function()
@@ -1731,7 +1765,7 @@ local function dropPicked()
 		if entry.n <= 0 then
 			list[pick.i] = nil
 		end
-		showToast(entry.id, amount)
+		showToast(entry.id, "Dropped " .. amount .. " " .. ITEMS[entry.id].Name)
 	end
 	pick = nil
 	afterItemsChanged()
@@ -1743,29 +1777,65 @@ local function throwHotbar(index)
 		return
 	end
 	hb[index] = nil
-	showToast(entry.id, entry.n)
+	showToast(entry.id, "Dropped " .. entry.n .. " " .. ITEMS[entry.id].Name)
 	afterItemsChanged()
 end
 
-local function moveTo(area, index)
+local function slotUi(area, index)
+	return area == "bp" and backpackSlots[index] or hotbarSlots[index]
+end
+
+local function centerOf(object)
+	return object.AbsolutePosition + object.AbsoluteSize / 2
+end
+
+local function flyInto(id, fromAbs, ui, picture, hide, fromGhost)
+	if hide then
+		ui.Hidden = (ui.Hidden or 0) + 1
+	end
+	local function land(snap)
+		if hide then
+			ui.Hidden = math.max(0, (ui.Hidden or 1) - 1)
+		end
+		ui.FrozenCount = nil
+		refreshSlots()
+		if not snap then
+			motion:pop(ui.Pop)
+		end
+	end
+	if fromGhost then
+		motion:ghostTo(centerOf(picture), picture.AbsoluteSize, DROP_IN_TIME, land)
+	else
+		motion:fly(id, fromAbs, centerOf(picture), picture.AbsoluteSize, land)
+	end
+end
+
+local function moveTo(area, index, fromGhost)
+	motion:finishAll()
 	local fromList = slotsOf(pick.area)
 	local from = fromList[pick.i]
 	if not from then
 		pick = nil
 		refreshSlots()
-		return
+		return false
 	end
+	local srcUi, dstUi = slotUi(pick.area, pick.i), slotUi(area, index)
 	local toList = slotsOf(area)
 	local to = toList[index]
+	local id = from.id
+	local fromAbs = centerOf(srcUi.Icon.Image)
+	local swapped = nil
 	if pick.n then
-		if not to then
-			toList[index] = { id = from.id, n = pick.n }
-		elseif to.id == from.id then
-			to.n += pick.n
-		else
+		if to and to.id ~= from.id then
 			pick = nil
 			refreshSlots()
-			return
+			return false
+		end
+		if to then
+			dstUi.FrozenCount = dstUi.Count.Text
+			to.n += pick.n
+		else
+			toList[index] = { id = id, n = pick.n }
 		end
 		from.n -= pick.n
 		if from.n <= 0 then
@@ -1776,15 +1846,22 @@ local function moveTo(area, index)
 			toList[index] = from
 			fromList[pick.i] = nil
 		elseif to.id == from.id then
+			dstUi.FrozenCount = dstUi.Count.Text
 			to.n += from.n
 			fromList[pick.i] = nil
 		else
 			toList[index] = from
 			fromList[pick.i] = to
+			swapped = to
 		end
+	end
+	flyInto(id, fromAbs, dstUi, dstUi.Icon.Image, to == nil or swapped ~= nil, fromGhost)
+	if swapped then
+		flyInto(swapped.id, centerOf(dstUi.Icon.Image), srcUi, srcUi.Icon.Image, true, false)
 	end
 	pick = nil
 	afterItemsChanged()
+	return true
 end
 
 local function tapSlot(area, index)
@@ -1810,43 +1887,160 @@ local function tapSlot(area, index)
 	moveTo(area, index)
 end
 
-local function tapEquip(slotName)
-	if not isOpen or os.clock() < tapGuardUntil then
-		return
+local function tapEquip(slotName, fromGhost)
+	if not isOpen or (not fromGhost and os.clock() < tapGuardUntil) then
+		return false
 	end
+	local ui = equipSlots[slotName]
 	if pick then
 		local list = slotsOf(pick.area)
 		local entry = list[pick.i]
-		if entry and ITEMS[entry.id].Wear == slotName then
-			local old = worn[slotName]
-			worn[slotName] = { id = entry.id, n = 1 }
-			entry.n -= 1
-			if entry.n <= 0 then
-				list[pick.i] = nil
-			end
-			if old then
-				if not list[pick.i] then
-					list[pick.i] = old
-				else
-					addItem(old.id, old.n)
-				end
-			end
-			pick = nil
-			afterItemsChanged()
+		if not (entry and ITEMS[entry.id].Wear == slotName) then
+			return false
 		end
-		return
+		motion:finishAll()
+		local srcUi = slotUi(pick.area, pick.i)
+		local fromAbs = centerOf(srcUi.Icon.Image)
+		local old = worn[slotName]
+		worn[slotName] = { id = entry.id, n = 1 }
+		entry.n -= 1
+		if entry.n <= 0 then
+			list[pick.i] = nil
+		end
+		flyInto(entry.id, fromAbs, ui, ui.WornIcon.Image, true, fromGhost)
+		if old then
+			if not list[pick.i] then
+				list[pick.i] = old
+				flyInto(old.id, centerOf(ui.WornIcon.Image), srcUi, srcUi.Icon.Image, true, false)
+			else
+				addItem(old.id, old.n)
+			end
+		end
+		pick = nil
+		afterItemsChanged()
+		return true
 	end
 	local item = worn[slotName]
-	if item then
-		for index = 1, CONFIG.BackpackSlots do
-			if not bp[index] then
-				bp[index] = item
-				worn[slotName] = nil
-				afterItemsChanged()
-				return
-			end
+	if not item then
+		return false
+	end
+	for index = 1, CONFIG.BackpackSlots do
+		if not bp[index] then
+			motion:finishAll()
+			local fromAbs = centerOf(ui.WornIcon.Image)
+			bp[index] = item
+			worn[slotName] = nil
+			flyInto(item.id, fromAbs, backpackSlots[index], backpackSlots[index].Icon.Image, true, false)
+			afterItemsChanged()
+			return true
 		end
 	end
+	showToast(item.id, "Backpack is full")
+	return false
+end
+
+local slotLookup = {}
+for index, ui in ipairs(backpackSlots) do
+	slotLookup[ui.Button] = { area = "bp", i = index }
+end
+for index, ui in ipairs(hotbarSlots) do
+	slotLookup[ui.Button] = { area = "hb", i = index }
+end
+for slotName, ui in pairs(equipSlots) do
+	slotLookup[ui.Button] = { equip = slotName }
+end
+
+local function overPanels(position)
+	for _, frame in ipairs({ invPanel, craftPanel, hotbarGroup }) do
+		local p, size = frame.AbsolutePosition, frame.AbsoluteSize
+		if position.X >= p.X and position.X <= p.X + size.X and position.Y >= p.Y and position.Y <= p.Y + size.Y then
+			return true
+		end
+	end
+	return false
+end
+
+local function dragHover(h)
+	local entry = slotsOf(h.area)[h.i]
+	if not entry then
+		return
+	end
+	local target = motion:hit(h.lastPos, slotLookup, gui)
+	local key = nil
+	h.target = nil
+	if target then
+		if target.equip then
+			if ITEMS[entry.id].Wear == target.equip then
+				key = "eq" .. target.equip
+				h.target = target
+			end
+		elseif not (target.area == h.area and target.i == h.i) then
+			key = target.area .. target.i
+			h.target = target
+		end
+	end
+	h.world = target == nil and not overPanels(h.lastPos)
+	if h.world then
+		motion:pillShow("Release to drop " .. (h.dragAmount or entry.n) .. " " .. ITEMS[entry.id].Name)
+	else
+		motion:pillHide()
+	end
+	if key ~= hoverKey then
+		hoverKey = key
+		refreshSlots()
+	end
+end
+
+local function startDrag(h, entry, position)
+	local amount = nil
+	if pick and pick.area == h.area and pick.i == h.i and pick.n then
+		amount = pick.n
+	end
+	pick = nil
+	h.drag = true
+	h.dragAmount = amount
+	h.lastPos = position
+	h.touch = h.input.UserInputType == Enum.UserInputType.Touch
+	motion:finishAll()
+	motion:ghostStart(entry.id, slotUi(h.area, h.i).Icon.Image.AbsoluteSize, amount or entry.n)
+	motion:ghostMove(position, h.touch)
+	dragHover(h)
+	refreshSlots()
+end
+
+local function finishDrag(h)
+	hoverKey = nil
+	motion:pillHide()
+	local entry = slotsOf(h.area)[h.i]
+	local srcUi = slotUi(h.area, h.i)
+	if entry then
+		pick = { area = h.area, i = h.i, n = h.dragAmount }
+		if h.target and h.target.equip then
+			if tapEquip(h.target.equip, true) then
+				return
+			end
+		elseif h.target then
+			if moveTo(h.target.area, h.target.i, true) then
+				return
+			end
+		elseif h.world then
+			motion:ghostDrop()
+			dropPicked()
+			return
+		end
+	end
+	pick = nil
+	local whole = h.dragAmount == nil
+	if whole then
+		srcUi.Hidden = (srcUi.Hidden or 0) + 1
+	end
+	motion:ghostTo(centerOf(srcUi.Icon.Image), srcUi.Icon.Image.AbsoluteSize, FLY_TIME, function()
+		if whole then
+			srcUi.Hidden = math.max(0, (srcUi.Hidden or 1) - 1)
+		end
+		refreshSlots()
+	end)
+	refreshSlots()
 end
 
 local function designScale(area)
@@ -1896,10 +2090,20 @@ local function holdMoved(position)
 	if not h or h.cancelled or h.done then
 		return
 	end
+	if h.drag then
+		h.lastPos = position
+		dragHover(h)
+		return
+	end
 	local delta = position - h.start
 	if not h.shown then
-		if delta.Magnitude > 10 then
-			h.cancelled = true
+		if delta.Magnitude > DRAG_START_PX then
+			local entry = slotsOf(h.area)[h.i]
+			if isOpen and entry then
+				startDrag(h, entry, position)
+			else
+				h.cancelled = true
+			end
 		end
 		return
 	end
@@ -1934,6 +2138,11 @@ local function endPress()
 		refreshSlots()
 		return
 	end
+	if h.drag then
+		tapGuardUntil = now + TAP_GUARD
+		finishDrag(h)
+		return
+	end
 	if h.done or h.shown then
 		tapGuardUntil = now + TAP_GUARD
 		if not h.done and h.kind == "pick" then
@@ -1950,6 +2159,10 @@ end
 
 local function updateHold()
 	local h = hold
+	if h and h.drag then
+		motion:ghostMove(h.lastPos, h.touch)
+		return
+	end
 	if not h or h.cancelled or h.done or not h.kind then
 		return
 	end
