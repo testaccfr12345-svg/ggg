@@ -403,7 +403,7 @@ local gui = new("ScreenGui", {
 
 local craftSound = new("Sound", { Name = "CraftComplete", SoundId = CONFIG.CraftCompleteSound }, gui)
 
-local motion = require(script:WaitForChild("Motion")).new(gui, CONFIG, ITEMS, {
+local motion = require(script:WaitForChild("InventoryModule")).new(gui, CONFIG, ITEMS, {
 	FLY_TIME = FLY_TIME,
 	FLY_START = FLY_START,
 	DRAG_SCALE = DRAG_SCALE,

@@ -14,7 +14,7 @@ designed vs. actually working and the rules for working on this project.
 | Path | What it is |
 | --- | --- |
 | `roblox/HorizonInventoryUI.client.lua` | LocalScript (StarterPlayerScripts). The full inventory/crafting/hotbar UI with a LOCAL demo inventory. **The only script for now — the user wants UI only, no server scripts yet.** |
-| `roblox/HorizonMotion.module.lua` | ModuleScript named `Motion`, INSIDE the HorizonInventoryUI LocalScript (required, the UI waits for it). Flying items, drag ghost, drop pill, landing pop, hit-testing. |
+| `roblox/InventoryModule.module.lua` | ModuleScript named `InventoryModule` (was `Motion`), INSIDE the HorizonInventoryUI LocalScript (required, the UI waits for it). Flying items, drag ghost, drop pill, landing pop, hit-testing. |
 | `design/InventoryCrafting_preview.html` | **Open this in a browser** to see the approved design working (Tab = open/close, 1–8 = hotbar, Craft/All test the queue). Standalone, matches the latest decisions. |
 | `design/InventoryCrafting.dc.html` | Source of the approved HTML preview (Claude Design canvas format; needs the canvas runtime to render). Live canvas: https://claude.ai/artifact/THsdwNwjTZUf2NXa1FVNbJ |
 | `design/icons/*.svg` | Placeholder item icons used in the preview only. The Roblox script uses the user's real `rbxassetid` images. |
@@ -96,7 +96,7 @@ The user's target is her reference screenshot (older design iteration), "just li
   Panel children are laid out with scale-relative UDim2s so they follow the panel width.
 
 ## PC controls (Minecraft-style, mouse) - code lives in the Motion module (`Motion:attachPC(api)`)
-- Only one ModuleScript inside the LocalScript: Motion. PC code is in Motion (user did not want a 3rd module).
+- Only one ModuleScript inside the LocalScript: InventoryModule (formerly Motion). PC code is in Motion (user did not want a 3rd module).
 - Menu open, mouse: left click item = it sticks to the cursor; left click slot = place/stack/swap; right click item = half; right click slot while holding = place 1.
   Holding + drag across empty/same slots: left = split evenly, right = 1 each. Click outside (dim) while holding: left = drop all, right = drop 1.
   Q on hovered slot = drop 1, Ctrl+Q = drop stack. Double-click = gather all of that item. Shift+click = equip/unequip armour ONLY.
