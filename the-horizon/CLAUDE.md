@@ -110,6 +110,12 @@ The user's target is her reference screenshot (older design iteration), "just li
   The server must verify the player owns the items and spawn drops in the world.
 - No armour items exist yet; equipping works as soon as an item has `Wear = "Helmet"` (etc.) in ITEMS.
 
+## Hotbar rules while the menu is open (user decision)
+- The selected hotbar slot ALWAYS shows its yellow outline (drawn just OUTSIDE the slot, so it doesn't look smaller).
+- Tapping hotbar slots does nothing while the menu is open; keys 1-8 are ignored too. No hold-to-pick on the hotbar.
+- Moving items between backpack and hotbar is DRAG ONLY (both ways). Tap-to-move works only inside the backpack.
+- Held-item name above the hotbar shows for 2 seconds, a bit higher than before.
+
 ## Move animation + drag (Motion module)
 - Every move flies the item picture to its new slot (FLY_TIME 0.18, Quint Out, starts at 1.12x). Data changes at once; the destination hides its icon/count (`ui.Hidden`) until landing, stacks keep the old count (`ui.FrozenCount`) until landing.
 - NO landing pop and NO pop when crafting finishes (user removed them). The crafted slot keeps only the quick yellow outline flash.

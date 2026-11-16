@@ -414,6 +414,7 @@ local motion = require(script:WaitForChild("Motion")).new(gui, CONFIG, ITEMS, {
 	return math.min(size.X / CONFIG.DesignWidth, size.Y / CONFIG.DesignHeight)
 end)
 local hoverKey = nil
+local snapOutlines = false
 
 local dim = new("TextButton", {
 	Name = "Dim",
@@ -930,8 +931,8 @@ for index = 1, HOTBAR_COUNT do
 	slot.BackgroundColor3 = CONFIG.PanelColor
 	slot.BackgroundTransparency = 0.45
 	corner(slot, 4)
-	local ring = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, slot)
-	corner(ring, 2)
+	local ring = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, slot)
+	corner(ring, 4)
 	local outline = stroke(ring, CONFIG.Accent, 2, 1)
 	local icon = itemIcon(slot, 48 * HOTBAR_SLOT / 72, UDim2.fromScale(0.5, 0.5))
 	local count = text(slot, {
@@ -1017,7 +1018,7 @@ hudScale(toast)
 local hotName = text(gui, {
 	Name = "HeldItemName",
 	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -97),
+	Position = UDim2.new(0.5, 0, 1, -105),
 	Size = UDim2.fromOffset(400, 24),
 	TextSize = 32 / CONFIG.FontScale,
 	TextTransparency = 1,
@@ -1140,7 +1141,7 @@ local function updateScale()
 	hotbarScale.Scale = hb
 	hotNameScale.Scale = sc
 	hotbarGroup.Position = UDim2.new(0.5, 0, 1, -14 * hb)
-	hotName.Position = UDim2.new(0.5, 0, 1, -(14 + HOTBAR_SLOT) * hb - 3 * sc)
+	hotName.Position = UDim2.new(0.5, 0, 1, -(14 + HOTBAR_SLOT) * hb - 11 * sc)
 
 	toast.Position = UDim2.new(0.5, 0, 0, 18 * sc)
 	progressHome = UDim2.new(1, -12 * sc, 0, 12 * sc)
@@ -1246,10 +1247,10 @@ local function renderSlot(ui, area, index)
 	end
 	local hovered = hoverKey == area .. index
 	local outlined = picked or (holding and hold.kind == "pick") or hovered
-	if area == "hb" and selectedHotbar == index and not (isOpen and pick ~= nil) then
+	if area == "hb" and selectedHotbar == index then
 		outlined = true
 	end
-	setOutline(ui, outlined, hovered ~= (ui.Hovered or false) or not isOpen)
+	setOutline(ui, outlined, hovered ~= (ui.Hovered or false) or snapOutlines)
 	ui.Hovered = hovered
 end
 
@@ -1610,7 +1611,9 @@ local function setOpen(open)
 		pick = nil
 		hold = nil
 	end
+	snapOutlines = not open
 	refreshSlots()
+	snapOutlines = false
 	crosshair.Visible = not open
 
 
@@ -1675,7 +1678,7 @@ local function flashHotName()
 	if hb[selectedHotbar] then
 		hotName.TextTransparency = 0
 		hotName.TextStrokeTransparency = 0.7
-		task.delay(1.2, function()
+		task.delay(2, function()
 			if token ~= hotNameToken then
 				return
 			end
@@ -1877,10 +1880,13 @@ local function moveTo(area, index, fromGhost)
 end
 
 local function tapSlot(area, index)
-	if not isOpen then
-		if area == "hb" then
+	if area == "hb" then
+		if not isOpen then
 			selectHotbar(index)
 		end
+		return
+	end
+	if not isOpen then
 		return
 	end
 	local entry = slotsOf(area)[index]
@@ -2067,7 +2073,7 @@ local function beginPress(area, index, input)
 	local entry = slotsOf(area)[index]
 	local kind = nil
 	if isOpen then
-		if entry and entry.n >= 2 and not pick then
+		if entry and entry.n >= 2 and not pick and area == "bp" then
 			kind = "pick"
 		end
 	elseif area == "hb" and entry then
@@ -2285,7 +2291,7 @@ connect(UserInputService.InputBegan, function(input, processed)
 		return
 	end
 	local slot = numberKeys[input.KeyCode]
-	if slot then
+	if slot and not isOpen then
 		selectHotbar(slot)
 	end
 end)
