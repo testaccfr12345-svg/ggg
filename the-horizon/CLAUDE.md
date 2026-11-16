@@ -96,6 +96,11 @@ The user's target is her reference screenshot (older design iteration), "just li
   approaches `MenuWidthFraction` of the screen width. Vertical placement is unchanged apart from the gap for the item name.
   Panel children are laid out with scale-relative UDim2s so they follow the panel width.
 
+## CHECKPOINT: mobile controls finished
+- The user approved the mobile inventory as finished. Saved state = git commit `5155fe0` on branch `claude/new-session-wjmhlh`
+  (files: roblox/HorizonInventoryUI.client.lua + Motion and Tuner modules). Next: PC controls (mouse/keyboard), Minecraft-style.
+- PC controls must NOT change how mobile works.
+
 ## Mobile inventory controls (Bedrock-style, client only)
 - Data: `bp` (24 backpack slots), `hb` (8 hotbar slots), `worn` (armour by slot name). Each slot is nil or `{ id, n }`.
   `pick = { area = "bp"|"hb", i, n }` (n nil = whole stack). `hold` tracks a finger press. Crafting counts items across bp + hb.
