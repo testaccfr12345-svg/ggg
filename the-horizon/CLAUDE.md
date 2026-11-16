@@ -96,6 +96,14 @@ The user's target is her reference screenshot (older design iteration), "just li
   approaches `MenuWidthFraction` of the screen width. Vertical placement is unchanged apart from the gap for the item name.
   Panel children are laid out with scale-relative UDim2s so they follow the panel width.
 
+## PC controls (Minecraft-style, mouse) - code lives in the Motion module (`Motion:attachPC(api)`)
+- Script order inside the LocalScript: Tuner, Motion. PC code is in Motion (user did not want a 3rd module).
+- Menu open, mouse: left click item = it sticks to the cursor; left click slot = place/stack/swap; right click item = half; right click slot while holding = place 1.
+  Holding + drag across empty/same slots: left = split evenly, right = 1 each. Click outside (dim) while holding: left = drop all, right = drop 1.
+  Q on hovered slot = drop 1, Ctrl+Q = drop stack. Double-click = gather all of that item. Shift+click = equip/unequip armour ONLY.
+- Backpack <-> hotbar stays DRAG ONLY on PC too (press and drag, like mobile). Cursor items never go into the hotbar by click.
+- Closing the menu returns the cursor item to the inventory (or drops it if full). Touch/mobile behaviour is unchanged.
+
 ## CHECKPOINT: mobile controls finished
 - The user approved the mobile inventory as finished. Saved state = git commit `5155fe0` on branch `claude/new-session-wjmhlh`
   (files: roblox/HorizonInventoryUI.client.lua + Motion and Tuner modules). Next: PC controls (mouse/keyboard), Minecraft-style.

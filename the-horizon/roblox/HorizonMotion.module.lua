@@ -292,4 +292,313 @@ function Motion:hit(absolute, lookup, root)
 	return nil
 end
 
+function Motion:attachPC(api)
+	local UserInputService = game:GetService("UserInputService")
+	local RunService = game:GetService("RunService")
+	local GuiService = game:GetService("GuiService")
+	local ITEMS = self.ITEMS
+	local motion = self
+	local pc = { marks = {} }
+	local cursor = nil
+	local cursorPic = nil
+	local mousePos = Vector2.zero
+	local spread = nil
+	local lastPick, lastPickId = 0, nil
+
+	local function updateMouse()
+		mousePos = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
+	end
+
+	local function placeCursorPic()
+		if cursorPic then
+			local p = motion:toLocal(mousePos)
+			cursorPic.Position = UDim2.fromOffset(p.X, p.Y)
+		end
+	end
+
+	local function setCursor(id, n)
+		if cursorPic then
+			cursorPic:Destroy()
+			cursorPic = nil
+		end
+		cursor = (id and n and n > 0) and { id = id, n = n } or nil
+		if cursor then
+			cursorPic = motion:picture(cursor.id, api.backpackSlots[1].Icon.Image.AbsoluteSize, 0, cursor.n)
+			placeCursorPic()
+		end
+	end
+
+	local function toast(id, n)
+		api.toast(id, "Dropped " .. n .. " " .. ITEMS[id].Name)
+	end
+
+	local function hoverTarget()
+		return motion:hit(mousePos, api.slotLookup, api.gui)
+	end
+
+	local function placeOne(i, button)
+		local entry = api.bp[i]
+		if button == "left" then
+			if not entry then
+				api.bp[i] = cursor
+				setCursor(nil)
+			elseif entry.id == cursor.id then
+				entry.n += cursor.n
+				setCursor(nil)
+			else
+				api.bp[i] = cursor
+				setCursor(entry.id, entry.n)
+			end
+		else
+			if not entry then
+				api.bp[i] = { id = cursor.id, n = 1 }
+			elseif entry.id == cursor.id then
+				entry.n += 1
+			else
+				return
+			end
+			setCursor(cursor.id, cursor.n - 1)
+		end
+	end
+
+	local function finishSpread()
+		local s = spread
+		spread = nil
+		pc.marks = {}
+		if not cursor then
+			api.changed()
+			return
+		end
+		if #s.slots == 1 then
+			placeOne(s.slots[1], s.button)
+		else
+			local valid = {}
+			for _, i in ipairs(s.slots) do
+				local entry = api.bp[i]
+				if not entry or entry.id == cursor.id then
+					table.insert(valid, i)
+				end
+			end
+			local per = s.button == "left" and math.floor(cursor.n / math.max(#valid, 1)) or 1
+			local left = cursor.n
+			for _, i in ipairs(valid) do
+				if left < per or per < 1 then
+					break
+				end
+				local entry = api.bp[i]
+				if entry then
+					entry.n += per
+				else
+					api.bp[i] = { id = cursor.id, n = per }
+				end
+				left -= per
+			end
+			setCursor(cursor.id, left)
+		end
+		api.changed()
+	end
+
+	local function gather()
+		for i, entry in pairs(api.bp) do
+			if entry and entry.id == cursor.id then
+				cursor.n += entry.n
+				api.bp[i] = nil
+			end
+		end
+		setCursor(cursor.id, cursor.n)
+		api.changed()
+	end
+
+	local function equipClick(slotName, shift)
+		local worn = api.worn[slotName]
+		if shift then
+			if not cursor and worn then
+				api.unequip(slotName)
+			end
+			return true
+		end
+		if cursor then
+			if ITEMS[cursor.id].Wear ~= slotName then
+				return true
+			end
+			if not worn then
+				api.worn[slotName] = { id = cursor.id, n = 1 }
+				setCursor(cursor.id, cursor.n - 1)
+			elseif cursor.n == 1 then
+				api.worn[slotName] = { id = cursor.id, n = 1 }
+				setCursor(worn.id, worn.n)
+			end
+		elseif worn then
+			api.worn[slotName] = nil
+			setCursor(worn.id, worn.n)
+		end
+		api.changed()
+		return true
+	end
+
+	function pc.holding()
+		return cursor ~= nil
+	end
+
+	function pc.press(target, button, input)
+		if not api.isOpen() then
+			return false
+		end
+		updateMouse()
+		local shift = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
+		if target.equip then
+			return equipClick(target.equip, shift)
+		end
+		if target.area == "hb" then
+			return cursor ~= nil or button == "right"
+		end
+		local i = target.i
+		local entry = api.bp[i]
+		if shift and not cursor then
+			if entry and ITEMS[entry.id].Wear then
+				api.equip(i)
+			end
+			return true
+		end
+		if cursor then
+			if button == "left" and lastPickId == cursor.id and os.clock() - lastPick < 0.35 then
+				lastPick = 0
+				gather()
+				return true
+			end
+			spread = { button = button, slots = { i }, set = { [i] = true } }
+			pc.marks = { ["bp" .. i] = true }
+			api.refresh()
+			return true
+		end
+		if button == "right" then
+			if entry then
+				local half = math.ceil(entry.n / 2)
+				entry.n -= half
+				if entry.n <= 0 then
+					api.bp[i] = nil
+				end
+				setCursor(entry.id, half)
+				api.changed()
+			end
+			return true
+		end
+		return false
+	end
+
+	function pc.click(area, i)
+		if area ~= "bp" or cursor then
+			return
+		end
+		local entry = api.bp[i]
+		if not entry then
+			return
+		end
+		updateMouse()
+		api.bp[i] = nil
+		setCursor(entry.id, entry.n)
+		lastPick, lastPickId = os.clock(), entry.id
+		api.changed()
+	end
+
+	function pc.close()
+		spread = nil
+		pc.marks = {}
+		if cursor then
+			local id, n = cursor.id, cursor.n
+			setCursor(nil)
+			if not api.addItem(id, n) then
+				toast(id, n)
+			end
+		end
+	end
+
+	api.dim.InputBegan:Connect(function(input)
+		if not cursor or not api.isOpen() then
+			return
+		end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			local id, n = cursor.id, cursor.n
+			setCursor(nil)
+			toast(id, n)
+			api.changed()
+		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+			local id = cursor.id
+			setCursor(id, cursor.n - 1)
+			toast(id, 1)
+			api.changed()
+		end
+	end)
+
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if input.KeyCode ~= Enum.KeyCode.Q or not api.isOpen() or cursor or UserInputService:GetFocusedTextBox() then
+			return
+		end
+		updateMouse()
+		local target = hoverTarget()
+		if not target or target.equip then
+			return
+		end
+		local list = target.area == "bp" and api.bp or api.hb
+		local entry = list[target.i]
+		if not entry then
+			return
+		end
+		local ctrl = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
+		local n = ctrl and entry.n or 1
+		entry.n -= n
+		if entry.n <= 0 then
+			list[target.i] = nil
+		end
+		toast(entry.id, n)
+		api.changed()
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if not spread then
+			return
+		end
+		local t = input.UserInputType
+		if (spread.button == "left" and t == Enum.UserInputType.MouseButton1) or (spread.button == "right" and t == Enum.UserInputType.MouseButton2) then
+			finishSpread()
+		end
+	end)
+
+	RunService.RenderStepped:Connect(function()
+		if not cursor and not spread then
+			if pc.hovering then
+				pc.hovering = false
+				api.setHover(nil)
+			end
+			return
+		end
+		pc.hovering = true
+		updateMouse()
+		placeCursorPic()
+		local target = hoverTarget()
+		local key = nil
+		if target then
+			if target.equip then
+				if cursor and ITEMS[cursor.id].Wear == target.equip then
+					key = "eq" .. target.equip
+				end
+			elseif target.area == "bp" then
+				key = "bp" .. target.i
+			end
+		end
+		api.setHover(key)
+		if spread and cursor and target and target.area == "bp" and not spread.set[target.i] then
+			local entry = api.bp[target.i]
+			if (not entry or entry.id == cursor.id) and #spread.slots < cursor.n then
+				spread.set[target.i] = true
+				table.insert(spread.slots, target.i)
+				pc.marks["bp" .. target.i] = true
+				api.refresh()
+			end
+		end
+	end)
+
+	return pc
+end
+
 return Motion

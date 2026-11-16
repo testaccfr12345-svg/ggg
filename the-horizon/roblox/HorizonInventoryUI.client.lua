@@ -415,6 +415,7 @@ local motion = require(script:WaitForChild("Motion")).new(gui, CONFIG, ITEMS, {
 	return math.min(size.X / CONFIG.DesignWidth, size.Y / CONFIG.DesignHeight)
 end)
 local hoverKey = nil
+local pc = nil
 local snapOutlines = false
 
 local dim = new("TextButton", {
@@ -1229,7 +1230,7 @@ local function renderSlot(ui, area, index)
 		setBar(ui.Bar, nil)
 	end
 	local hovered = hoverKey == area .. index
-	local outlined = picked or (holding and hold.kind == "pick") or hovered
+	local outlined = picked or (holding and hold.kind == "pick") or hovered or (pc ~= nil and pc.marks[area .. index] == true)
 	if area == "hb" and selectedHotbar == index then
 		outlined = true
 	end
@@ -1590,6 +1591,9 @@ local function setOpen(open)
 		end
 		motion:pillHide()
 		motion:finishAll()
+		if pc then
+			pc.close()
+		end
 		hoverKey = nil
 		pick = nil
 		hold = nil
@@ -1888,8 +1892,8 @@ local function tapSlot(area, index)
 	moveTo(area, index)
 end
 
-local function tapEquip(slotName, fromGhost)
-	if not isOpen or (not fromGhost and os.clock() < tapGuardUntil) then
+local function tapEquip(slotName, fromGhost, force)
+	if not isOpen or (not fromGhost and not force and os.clock() < tapGuardUntil) then
 		return false
 	end
 	local ui = equipSlots[slotName]
@@ -2050,13 +2054,16 @@ local function beginPress(area, index, input)
 	if hold then
 		return
 	end
+	if isOpen and pc and input.UserInputType == Enum.UserInputType.MouseButton1 and pc.press({ area = area, i = index }, "left", input) then
+		return
+	end
 	if area == "bp" and not isOpen then
 		return
 	end
 	local entry = slotsOf(area)[index]
 	local kind = nil
 	if isOpen then
-		if entry and entry.n >= 2 and not pick and area == "bp" then
+		if entry and entry.n >= 2 and not pick and area == "bp" and input.UserInputType == Enum.UserInputType.Touch then
 			kind = "pick"
 		end
 	elseif area == "hb" and entry then
@@ -2146,6 +2153,10 @@ local function endPress()
 	if now < tapGuardUntil then
 		return
 	end
+	if isOpen and pc and h.input.UserInputType == Enum.UserInputType.MouseButton1 then
+		pc.click(h.area, h.i)
+		return
+	end
 	tapSlot(h.area, h.i)
 end
 
@@ -2194,10 +2205,47 @@ local function updateHold()
 	end
 end
 
+pc = motion:attachPC({
+	bp = bp,
+	hb = hb,
+	worn = worn,
+	backpackSlots = backpackSlots,
+	slotLookup = slotLookup,
+	gui = gui,
+	dim = dim,
+	isOpen = function()
+		return isOpen
+	end,
+	changed = afterItemsChanged,
+	refresh = refreshSlots,
+	toast = showToast,
+	addItem = addItem,
+	setHover = function(key)
+		if hoverKey ~= key then
+			hoverKey = key
+			refreshSlots()
+		end
+	end,
+	equip = function(index)
+		local entry = bp[index]
+		if entry and ITEMS[entry.id].Wear then
+			pick = { area = "bp", i = index }
+			tapEquip(ITEMS[entry.id].Wear, false, true)
+			pick = nil
+		end
+	end,
+	unequip = function(slotName)
+		pick = nil
+		tapEquip(slotName, false, true)
+	end,
+})
+
 for index, ui in ipairs(backpackSlots) do
 	connect(ui.Button.InputBegan, function(input)
 		if isPointer(input) then
 			beginPress("bp", index, input)
+		elseif input.UserInputType == Enum.UserInputType.MouseButton2 and pc then
+			pc.press({ area = "bp", i = index }, "right", input)
 		end
 	end)
 end
@@ -2206,12 +2254,17 @@ for index, ui in ipairs(hotbarSlots) do
 	connect(ui.Button.InputBegan, function(input)
 		if isPointer(input) then
 			beginPress("hb", index, input)
+		elseif input.UserInputType == Enum.UserInputType.MouseButton2 and pc then
+			pc.press({ area = "hb", i = index }, "right", input)
 		end
 	end)
 end
 
 for slotName, ui in pairs(equipSlots) do
-	connect(ui.Button.Activated, function()
+	connect(ui.Button.Activated, function(input)
+		if input and input.UserInputType == Enum.UserInputType.MouseButton1 and pc and pc.press({ equip = slotName }, "left", input) then
+			return
+		end
 		tapEquip(slotName)
 	end)
 end
