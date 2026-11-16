@@ -195,17 +195,6 @@ function Motion:fly(id, fromAbs, toAbs, size, onLand)
 	self:animate(holder, to, size, self.S.FLY_TIME, onLand)
 end
 
-function Motion:pop(scale)
-	local k = self.S.POP_SCALE
-	scale.Scale = 1 - 0.14 * k
-	local up = tween(scale, self.S.POP_TIME * 0.5, { Scale = 1 + 0.08 * k }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	up.Completed:Once(function(state)
-		if state == Enum.PlaybackState.Completed then
-			tween(scale, self.S.POP_TIME * 0.5, { Scale = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-		end
-	end)
-end
-
 function Motion:ghostStart(id, size, count)
 	self:ghostCancel()
 	self.ghostSize = size * self.S.DRAG_SCALE

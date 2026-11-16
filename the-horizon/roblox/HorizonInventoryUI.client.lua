@@ -128,8 +128,6 @@ local THROW_TIME = 0.45
 local TAP_GUARD = 0.25
 local FLY_TIME = 0.18
 local FLY_START = 1.12
-local POP_TIME = 0.22
-local POP_SCALE = 0.1
 local DRAG_START_PX = 10
 local DRAG_SCALE = 1.15
 local DRAG_TOUCH_UP = 36
@@ -408,8 +406,6 @@ local craftSound = new("Sound", { Name = "CraftComplete", SoundId = CONFIG.Craft
 local motion = require(script:WaitForChild("Motion")).new(gui, CONFIG, ITEMS, {
 	FLY_TIME = FLY_TIME,
 	FLY_START = FLY_START,
-	POP_TIME = POP_TIME,
-	POP_SCALE = POP_SCALE,
 	DRAG_SCALE = DRAG_SCALE,
 	DRAG_TOUCH_UP = DRAG_TOUCH_UP,
 }, function()
@@ -523,7 +519,7 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Legs", "Boots", "Gloves" }) 
 	end
 	local wornIcon = itemIcon(slot, layout[1], UDim2.new(0.5, 0, 0, layout[2]))
 	wornIcon.Set(nil)
-	equipSlots[slotName] = { Button = slot, Faded = faded, WornIcon = wornIcon, HoverStroke = hoverStroke, Pop = new("UIScale", {}, slot) }
+	equipSlots[slotName] = { Button = slot, Faded = faded, WornIcon = wornIcon, HoverStroke = hoverStroke }
 	text(slot, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0, layout[3]),
@@ -629,8 +625,7 @@ for index = 1, CONFIG.BackpackSlots do
 		ZIndex = 2,
 	})
 	local bar = makeBar(slot)
-	local pop = new("UIScale", {}, slot)
-	backpackSlots[index] = { Holder = holder, Button = slot, Stroke = outline, Icon = icon, Count = count, Bar = bar, Pop = pop }
+	backpackSlots[index] = { Holder = holder, Button = slot, Stroke = outline, Icon = icon, Count = count, Bar = bar }
 end
 
 local craftPanel = panel(panels, "CraftingPanel", INV_W + PANEL_GAP, 0, CRAFT_W, 560)
@@ -948,8 +943,7 @@ for index = 1, HOTBAR_COUNT do
 		ZIndex = 2,
 	})
 	local bar = makeBar(slot)
-	local pop = new("UIScale", {}, slot)
-	hotbarSlots[index] = { Holder = holder, Button = slot, Stroke = outline, Icon = icon, Count = count, Bar = bar, Pop = pop }
+	hotbarSlots[index] = { Holder = holder, Button = slot, Stroke = outline, Icon = icon, Count = count, Bar = bar }
 end
 
 local keyboard = UserInputService.KeyboardEnabled
@@ -1255,7 +1249,7 @@ local function renderSlot(ui, area, index)
 	if area == "hb" and selectedHotbar == index and not (isOpen and pick ~= nil) then
 		outlined = true
 	end
-	setOutline(ui, outlined, hovered ~= (ui.Hovered or false))
+	setOutline(ui, outlined, hovered ~= (ui.Hovered or false) or not isOpen)
 	ui.Hovered = hovered
 end
 
@@ -1481,8 +1475,6 @@ local function flashItem(id)
 		if entry and entry.id == id and not slot.Outlined then
 			slot.Stroke.Transparency = 0
 			tween(slot.Stroke, 0.6, { Transparency = 1 })
-			slot.Pop.Scale = 1.12
-			tween(slot.Pop, 0.2, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 		end
 	end
 end
@@ -1817,7 +1809,6 @@ local function flyInto(id, fromAbs, ui, picture, hide, fromGhost)
 		ui.FrozenCount = nil
 		refreshSlots()
 		if not snap then
-			motion:pop(ui.Pop)
 			if ui.Count and ui.Count.Text ~= "" then
 				ui.Count.TextTransparency = 1
 				tween(ui.Count, 0.2, { TextTransparency = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)

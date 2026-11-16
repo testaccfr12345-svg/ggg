@@ -112,7 +112,7 @@ The user's target is her reference screenshot (older design iteration), "just li
 
 ## Move animation + drag (Motion module)
 - Every move flies the item picture to its new slot (FLY_TIME 0.18, Quint Out, starts at 1.12x). Data changes at once; the destination hides its icon/count (`ui.Hidden`) until landing, stacks keep the old count (`ui.FrozenCount`) until landing.
-- Landing pop is tiny on purpose: the user wants 10% of a normal bounce (`POP_SCALE = 0.1`).
+- NO landing pop and NO pop when crafting finishes (user removed them). The crafted slot keeps only the quick yellow outline flash.
 - Swap = two flyers at once. Equip/unequip fly to/from the armour icon. Unequip with a full backpack shows the "Backpack is full" toast.
 - New move while flying = old flyers snap (`motion:finishAll()`); closing the menu snaps everything and cancels a drag.
 - Drag: move > DRAG_START_PX before the hold bar = drag. Ghost follows the finger (36px above on touch), hover target gets the yellow outline, outside the panels shows the coral "Release to drop" pill. Release: slot = move (ghost drops in), matching armour = equip, world = drop (fade + toast), anything else = ghost flies back.
