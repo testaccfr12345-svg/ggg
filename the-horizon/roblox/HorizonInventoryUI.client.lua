@@ -118,13 +118,35 @@ local CRAFT_TIME = {
 	torch = 2, wooden_shield = 4, map = 3, compass = 3, rope = 1.5, nails = 1,
 }
 
-local inventory = { planks = 12, stone = 9, leaves = 14, rope = 3, fiber = 6, scrap = 2, hide = 3, cup_clean = 1 }
-local inventoryOrder = { "planks", "stone", "leaves", "rope", "fiber", "scrap", "hide", "cup_clean" }
-local hotbarItems = { "stone_axe", "torch", "cup_sea", false, false, false, false, false }
+local HOLD_DELAY = 0.30
+local HOLD_FILL = 1.20
+local SLIDE_PX = 200
+local SLIDE_MIN = 8
+local SLIDE_MAX = 30
+local THROW_DELAY = 0.15
+local THROW_TIME = 0.45
+local TAP_GUARD = 0.25
+local HOTBAR_COUNT = 8
+local CORAL = Color3.fromRGB(244, 164, 124)
+
+local bp = {}
+local hb = {}
+local worn = {}
+do
+	local start = { { "planks", 12 }, { "stone", 9 }, { "leaves", 14 }, { "rope", 3 }, { "fiber", 6 }, { "scrap", 2 }, { "hide", 3 }, { "cup_clean", 1 } }
+	for index, entry in ipairs(start) do
+		bp[index] = { id = entry[1], n = entry[2] }
+	end
+	hb[1] = { id = "stone_axe", n = 1 }
+	hb[2] = { id = "torch", n = 1 }
+	hb[3] = { id = "cup_sea", n = 1 }
+end
 
 local selectedCategory = "Tools"
 local selectedRecipe = "stone_pickaxe"
-local selectedSlot = nil
+local pick = nil
+local hold = nil
+local tapGuardUntil = 0
 local selectedHotbar = 1
 local isOpen = false
 
@@ -314,8 +336,50 @@ local function reserved()
 	return need
 end
 
+local function slotsOf(area)
+	return area == "bp" and bp or hb
+end
+
+local function sizeOf(area)
+	return area == "bp" and CONFIG.BackpackSlots or HOTBAR_COUNT
+end
+
+local function countItem(id)
+	local total = 0
+	for _, area in ipairs({ "bp", "hb" }) do
+		local list = slotsOf(area)
+		for index = 1, sizeOf(area) do
+			local entry = list[index]
+			if entry and entry.id == id then
+				total += entry.n
+			end
+		end
+	end
+	return total
+end
+
+local function removeItem(id, amount)
+	for _, area in ipairs({ "bp", "hb" }) do
+		local list = slotsOf(area)
+		for index = sizeOf(area), 1, -1 do
+			if amount <= 0 then
+				return
+			end
+			local entry = list[index]
+			if entry and entry.id == id then
+				local take = math.min(entry.n, amount)
+				entry.n -= take
+				amount -= take
+				if entry.n <= 0 then
+					list[index] = nil
+				end
+			end
+		end
+	end
+end
+
 local function available(id)
-	return (inventory[id] or 0) - (reserved()[id] or 0)
+	return countItem(id) - (reserved()[id] or 0)
 end
 
 local function maxCraftable(recipe)
@@ -338,13 +402,26 @@ local function canQueue(recipe)
 end
 
 local function addItem(id, amount)
-	if not inventory[id] then
-		inventory[id] = 0
+	for _, area in ipairs({ "bp", "hb" }) do
+		local list = slotsOf(area)
+		for index = 1, sizeOf(area) do
+			local entry = list[index]
+			if entry and entry.id == id then
+				entry.n += amount
+				return true
+			end
+		end
 	end
-	if not table.find(inventoryOrder, id) then
-		table.insert(inventoryOrder, id)
+	for _, area in ipairs({ "bp", "hb" }) do
+		local list = slotsOf(area)
+		for index = 1, sizeOf(area) do
+			if not list[index] then
+				list[index] = { id = id, n = amount }
+				return true
+			end
+		end
 	end
-	inventory[id] += amount
+	return false
 end
 
 local gui = new("ScreenGui", {
@@ -357,12 +434,14 @@ local gui = new("ScreenGui", {
 
 local craftSound = new("Sound", { Name = "CraftComplete", SoundId = CONFIG.CraftCompleteSound }, gui)
 
-local dim = new("Frame", {
+local dim = new("TextButton", {
 	Name = "Dim",
 	Size = UDim2.fromScale(1, 1),
 	BackgroundColor3 = CONFIG.DimColor,
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
+	AutoButtonColor = false,
+	Text = "",
 	Visible = false,
 }, gui)
 
@@ -410,6 +489,7 @@ local function hudScale(parent)
 end
 
 local invPanel = panel(panels, "InventoryPanel", 0, 0, 464, 560)
+invPanel.Active = true
 text(invPanel, { Position = UDim2.fromOffset(20, 11), Size = UDim2.fromOffset(300, 32), Text = "Inventory", TextSize = 44 / CONFIG.FontScale })
 local usedLabel = text(invPanel, {
 	Position = UDim2.fromOffset(20, 10),
@@ -427,8 +507,10 @@ local EQUIP_LAYOUT = {
 	Boots = { 40, 26, 57, 24 },
 	Gloves = { 41, 27, 57, 24 },
 }
+local equipSlots = {}
 for index, slotName in ipairs({ "Helmet", "Chest", "Legs", "Boots", "Gloves" }) do
 	local layout = EQUIP_LAYOUT[slotName]
+	local faded = nil
 	local slot = textButton(invPanel, {
 		Name = slotName .. "Slot",
 		Position = UDim2.new((index - 1) / 5, 20 - (index - 1) * 6.4, 0, 92),
@@ -442,7 +524,7 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Legs", "Boots", "Gloves" }) 
 	stroke(ring, CONFIG.Text, 1, 0.88)
 	local image = CONFIG.EquipmentIcons[slotName]
 	if image and image ~= "" then
-		new("ImageLabel", {
+		faded = new("ImageLabel", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(0.5, 0, 0, layout[2]),
 			Size = UDim2.fromOffset(layout[1], layout[1]),
@@ -451,6 +533,10 @@ for index, slotName in ipairs({ "Helmet", "Chest", "Legs", "Boots", "Gloves" }) 
 			ImageTransparency = 0.45,
 		}, slot)
 	end
+	local wornIcon = itemIcon(slot, layout[1], UDim2.new(0.5, 0, 0, layout[2]))
+	wornIcon.Set(nil)
+	local wornPop = new("UIScale", {}, slot)
+	equipSlots[slotName] = { Button = slot, Faded = faded, WornIcon = wornIcon, Pop = wornPop }
 	text(slot, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0, layout[3]),
@@ -472,18 +558,86 @@ local invInfo = text(invPanel, {
 	Text = "",
 })
 
+local BAR_PICK = ColorSequence.new(Color3.fromRGB(246, 213, 122), Color3.fromRGB(233, 185, 73))
+local BAR_THROW = ColorSequence.new(Color3.fromRGB(248, 196, 168), CORAL)
+
+local function makeBar(button)
+	local track = new("Frame", {
+		Name = "AmountBar",
+		Position = UDim2.fromOffset(5, 4),
+		Size = UDim2.new(1, -10, 0, 5),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.28,
+		BorderSizePixel = 0,
+		Visible = false,
+		ZIndex = 4,
+	}, button)
+	corner(track, 3)
+	stroke(track, CONFIG.Text, 1, 0.88)
+	new("UIPadding", {
+		PaddingTop = UDim.new(0, 1),
+		PaddingBottom = UDim.new(0, 1),
+		PaddingLeft = UDim.new(0, 1),
+		PaddingRight = UDim.new(0, 1),
+	}, track)
+	local fill = new("Frame", {
+		Name = "Fill",
+		Size = UDim2.fromScale(0, 1),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		ZIndex = 5,
+	}, track)
+	corner(fill, 2)
+	local gradient = new("UIGradient", { Rotation = 90, Color = BAR_PICK }, fill)
+	local glow = stroke(fill, CONFIG.Accent, 1.5, 0.6)
+	return { Track = track, Fill = fill, Gradient = gradient, Glow = glow }
+end
+
+local function setBar(bar, kind, fraction)
+	if not kind then
+		bar.Track.Visible = false
+		return
+	end
+	bar.Track.Visible = true
+	bar.Gradient.Color = kind == "throw" and BAR_THROW or BAR_PICK
+	bar.Glow.Color = kind == "throw" and CORAL or CONFIG.Accent
+	bar.Fill.Size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1)
+end
+
+local function makeSlotHolder(parent, name, props, radius)
+	local holder = new("Frame", { Name = name .. "Holder", BackgroundTransparency = 1 }, parent)
+	for key, value in pairs(props) do
+		holder[key] = value
+	end
+	local shadow = new("Frame", {
+		Name = "Shadow",
+		Position = UDim2.fromOffset(0, 3),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+	}, holder)
+	corner(shadow, radius)
+	local shadowStroke = stroke(shadow, Color3.new(0, 0, 0), 3, 1)
+	local button = textButton(holder, {
+		Name = name,
+		Size = UDim2.fromScale(1, 1),
+		BorderSizePixel = 0,
+	})
+	return holder, button, shadow, shadowStroke
+end
+
 local backpackSlots = {}
 local BACKPACK_SLOT_H = (560 - 208 - 3 * 8) / 4
 for index = 1, CONFIG.BackpackSlots do
 	local column = (index - 1) % 6
 	local row = math.floor((index - 1) / 6)
-	local slot = textButton(invPanel, {
-		Name = "Slot" .. index,
+	local holder, slot, shadow, shadowStroke = makeSlotHolder(invPanel, "Slot" .. index, {
 		Position = UDim2.new(column / 6, 20 - column * 16 / 3, 0, 208 + row * (BACKPACK_SLOT_H + 8)),
 		Size = UDim2.new(1 / 6, -40 / 3, 0, BACKPACK_SLOT_H),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.93,
-	})
+	}, 8)
+	slot.BackgroundColor3 = Color3.new(1, 1, 1)
+	slot.BackgroundTransparency = 0.93
 	corner(slot, 8)
 	local ring = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, slot)
 	corner(ring, 6)
@@ -497,11 +651,13 @@ for index = 1, CONFIG.BackpackSlots do
 		TextXAlignment = Enum.TextXAlignment.Right,
 		ZIndex = 2,
 	})
+	local bar = makeBar(slot)
 	local pop = new("UIScale", {}, slot)
-	backpackSlots[index] = { Button = slot, Stroke = outline, Icon = icon, Count = count, Item = nil, Pop = pop }
+	backpackSlots[index] = { Holder = holder, Button = slot, Shadow = shadow, ShadowStroke = shadowStroke, Stroke = outline, Icon = icon, Count = count, Bar = bar, Pop = pop }
 end
 
 local craftPanel = panel(panels, "CraftingPanel", INV_W + PANEL_GAP, 0, CRAFT_W, 560)
+craftPanel.Active = true
 text(craftPanel, { Position = UDim2.fromOffset(19, 7), Size = UDim2.fromOffset(200, 36), Text = "Crafting", TextSize = 30 })
 
 local closeButton = textButton(craftPanel, {
@@ -806,10 +962,30 @@ local function hotbarBox(parent, name, index, size)
 end
 
 local hotbarSlots = {}
-for index = 1, 8 do
-	local slot, setBorder = hotbarBox(hotbar, "Hotbar" .. index, index)
+for index = 1, HOTBAR_COUNT do
+	local holder, slot, shadow, shadowStroke = makeSlotHolder(hotbar, "Hotbar" .. index, {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, (index - 1) * (HOTBAR_SLOT + HOTBAR_GAP), 0.5, 0),
+		Size = UDim2.fromOffset(HOTBAR_SLOT, HOTBAR_SLOT),
+	}, 4)
+	slot.BackgroundColor3 = CONFIG.PanelColor
+	slot.BackgroundTransparency = 0.45
+	corner(slot, 4)
+	local ring = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, slot)
+	corner(ring, 2)
+	local outline = stroke(ring, CONFIG.Accent, 2, 1)
 	local icon = itemIcon(slot, 48 * HOTBAR_SLOT / 72, UDim2.fromScale(0.5, 0.5))
-	hotbarSlots[index] = { Button = slot, SetBorder = setBorder, Icon = icon }
+	local count = text(slot, {
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -5, 1, -3),
+		Size = UDim2.fromOffset(40, 16),
+		TextSize = 22 / CONFIG.FontScale,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		ZIndex = 2,
+	})
+	local bar = makeBar(slot)
+	local pop = new("UIScale", {}, slot)
+	hotbarSlots[index] = { Holder = holder, Button = slot, Shadow = shadow, ShadowStroke = shadowStroke, Stroke = outline, Icon = icon, Count = count, Bar = bar, Pop = pop }
 end
 
 local keyboard = UserInputService.KeyboardEnabled
@@ -846,6 +1022,39 @@ do
 		text(openButton, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, -2), Size = UDim2.fromOffset(40, 14), Text = "TAB", TextSize = 11, TextTransparency = 0.35, TextXAlignment = Enum.TextXAlignment.Center })
 	end
 end
+
+local toast = new("Frame", {
+	Name = "Toast",
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 18),
+	Size = UDim2.fromOffset(0, 34),
+	AutomaticSize = Enum.AutomaticSize.X,
+	BackgroundColor3 = Color3.fromRGB(16, 21, 19),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	Visible = false,
+	ZIndex = 30,
+}, gui)
+corner(toast, 17)
+local toastStroke = stroke(toast, CONFIG.Text, 1, 1)
+new("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 14) }, toast)
+new("UIListLayout", {
+	FillDirection = Enum.FillDirection.Horizontal,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	Padding = UDim.new(0, 8),
+}, toast)
+local toastIconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(24, 24), BackgroundTransparency = 1, ZIndex = 30 }, toast)
+local toastIcon = itemIcon(toastIconHolder, 24, UDim2.fromScale(0.5, 0.5))
+toastIcon.Image.ZIndex = 31
+local toastText = text(toast, {
+	LayoutOrder = 2,
+	Size = UDim2.fromOffset(0, 34),
+	AutomaticSize = Enum.AutomaticSize.X,
+	TextSize = 18,
+	ZIndex = 31,
+})
+hudScale(toast)
 
 local hotName = text(gui, {
 	Name = "HeldItemName",
@@ -950,8 +1159,8 @@ local function applyStretch(k)
 	for index, slot in ipairs(backpackSlots) do
 		local column = (index - 1) % 6
 		local row = math.floor((index - 1) / 6)
-		slot.Button.Position = UDim2.new(column / 6, 20 - column * 16 / 3, 0, 208 + row * (slotSide + 8))
-		slot.Button.Size = UDim2.new(1 / 6, -40 / 3, 0, slotSide)
+		slot.Holder.Position = UDim2.new(column / 6, 20 - column * 16 / 3, 0, 208 + row * (slotSide + 8))
+		slot.Holder.Size = UDim2.new(1 / 6, -40 / 3, 0, slotSide)
 	end
 end
 
@@ -975,6 +1184,7 @@ local function updateScale()
 	hotbarGroup.Position = UDim2.new(0.5, 0, 1, -14 * hb)
 	hotName.Position = UDim2.new(0.5, 0, 1, -(14 + HOTBAR_SLOT) * hb - 3 * sc)
 
+	toast.Position = UDim2.new(0.5, 0, 0, 18 * sc)
 	progressHome = UDim2.new(1, -12 * sc, 0, 12 * sc)
 	progressAway = UDim2.new(1, 12 * sc, 0, 12 * sc)
 	progress.Position = progress.Visible and progressHome or progressAway
@@ -1004,34 +1214,109 @@ end
 watchCamera()
 local cameraWatch = workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
 
-local function visibleInventoryKeys()
-	local keys = {}
-	for _, id in ipairs(inventoryOrder) do
-		if (inventory[id] or 0) > 0 then
-			table.insert(keys, id)
-		end
+local function setOutline(ui, on)
+	if ui.Outlined == on then
+		return
 	end
-	return keys
+	ui.Outlined = on
+	tween(ui.Stroke, CONFIG.SelectFade, { Transparency = on and 0 or 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+end
+
+local function setLift(ui, on)
+	if ui.Lifted == on then
+		return
+	end
+	ui.Lifted = on
+	tween(ui.Button, CONFIG.SelectFade, { Position = UDim2.fromOffset(0, on and -4 or 0) }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	tween(ui.Shadow, CONFIG.SelectFade, { BackgroundTransparency = on and 0.55 or 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	tween(ui.ShadowStroke, CONFIG.SelectFade, { Transparency = on and 0.8 or 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+end
+
+local function validatePick()
+	if not pick then
+		return
+	end
+	local entry = slotsOf(pick.area)[pick.i]
+	if not entry then
+		pick = nil
+	elseif pick.n and pick.n >= entry.n then
+		pick.n = nil
+	end
+end
+
+local function renderSlot(ui, area, index)
+	local entry = slotsOf(area)[index]
+	ui.Icon.Set(entry and entry.id or nil)
+	local holding = hold and hold.shown and hold.area == area and hold.i == index
+	local picked = pick ~= nil and pick.area == area and pick.i == index
+	local amount = nil
+	if holding and hold.kind == "pick" then
+		amount = hold.amount
+	elseif picked and pick.n then
+		amount = pick.n
+	end
+	if entry and amount then
+		ui.Count.Text = amount .. "/" .. entry.n
+		ui.Count.TextColor3 = CONFIG.Accent
+	else
+		ui.Count.Text = (entry and entry.n > 1) and tostring(entry.n) or ""
+		ui.Count.TextColor3 = CONFIG.Text
+	end
+	if holding and hold.kind == "throw" then
+		setBar(ui.Bar, "throw", hold.progress)
+	elseif entry and amount then
+		setBar(ui.Bar, "pick", amount / entry.n)
+	else
+		setBar(ui.Bar, nil)
+	end
+	local lifted = picked or (holding and hold.kind == "pick")
+	local outlined = lifted
+	if area == "hb" and selectedHotbar == index and not (isOpen and pick ~= nil) then
+		outlined = true
+	end
+	setOutline(ui, outlined)
+	setLift(ui, lifted)
+end
+
+local function headerText()
+	local area, index, amount
+	if hold and hold.shown and hold.kind == "pick" then
+		area, index, amount = hold.area, hold.i, hold.amount
+	elseif pick then
+		area, index, amount = pick.area, pick.i, pick.n
+	end
+	if not area then
+		return ""
+	end
+	local entry = slotsOf(area)[index]
+	if not entry then
+		return ""
+	end
+	local name = ITEMS[entry.id].Name
+	if amount then
+		return name .. "  " .. amount .. " / " .. entry.n
+	end
+	return name .. "  x" .. entry.n
 end
 
 local function refreshInventory()
-	local keys = visibleInventoryKeys()
-	usedLabel.Text = #keys .. " / " .. CONFIG.BackpackSlots
-	for index, slot in ipairs(backpackSlots) do
-		local id = keys[index]
-		slot.Item = id
-		slot.Icon.Set(id)
-		local amount = id and inventory[id] or 0
-		slot.Count.Text = amount > 1 and tostring(amount) or ""
-		local selected = selectedSlot == index and id ~= nil
-		slot.Stroke.Color = CONFIG.Accent
-		if slot.Selected ~= selected then
-			slot.Selected = selected
-			tween(slot.Stroke, CONFIG.SelectFade, { Transparency = selected and 0 or 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	validatePick()
+	local used = 0
+	for index, ui in ipairs(backpackSlots) do
+		if bp[index] then
+			used += 1
+		end
+		renderSlot(ui, "bp", index)
+	end
+	usedLabel.Text = used .. " / " .. CONFIG.BackpackSlots
+	for slotName, ui in pairs(equipSlots) do
+		local item = worn[slotName]
+		ui.WornIcon.Set(item and item.id or nil)
+		if ui.Faded then
+			ui.Faded.Visible = item == nil
 		end
 	end
-	local selectedId = selectedSlot and keys[selectedSlot]
-	invInfo.Text = selectedId and (ITEMS[selectedId].Name .. " x" .. inventory[selectedId]) or ""
+	invInfo.Text = headerText()
 end
 
 local function queuedCount(id)
@@ -1110,14 +1395,18 @@ local function refreshCrafting()
 end
 
 local function refreshHotbar()
-	for index, slot in ipairs(hotbarSlots) do
-		local id = hotbarItems[index]
-		slot.Icon.Set(id or nil)
-		local on = selectedHotbar == index and not (isOpen and selectedSlot ~= nil)
-		slot.SetBorder(on)
+	validatePick()
+	for index, ui in ipairs(hotbarSlots) do
+		renderSlot(ui, "hb", index)
 	end
-	local held = hotbarItems[selectedHotbar]
-	hotName.Text = held and ITEMS[held].Name or ""
+	local held = hb[selectedHotbar]
+	hotName.Text = held and ITEMS[held.id].Name or ""
+	invInfo.Text = headerText()
+end
+
+local function refreshSlots()
+	refreshInventory()
+	refreshHotbar()
 end
 
 local progressState = "hidden"
@@ -1205,8 +1494,8 @@ end
 
 local function flashItem(id)
 	for index, slot in ipairs(backpackSlots) do
-		if slot.Item == id and selectedSlot ~= index then
-			slot.Stroke.Color = CONFIG.Accent
+		local entry = bp[index]
+		if entry and entry.id == id and not slot.Outlined then
 			slot.Stroke.Transparency = 0
 			tween(slot.Stroke, 0.6, { Transparency = 1 })
 			slot.Pop.Scale = 1.12
@@ -1236,9 +1525,8 @@ local function requestCraft(recipe, amount)
 		draining = true
 	end
 	finishing = nil
-	selectedSlot = nil
 	showProgress()
-	refreshInventory()
+	refreshSlots()
 	refreshCrafting()
 end
 
@@ -1337,11 +1625,11 @@ local function setOpen(open)
 	menuLockUntil = os.clock() + (open and 0.26 or 0.16) + 0.1
 	isOpen = open
 	modal.Visible = open
-	if not open and selectedSlot ~= nil then
-		selectedSlot = nil
-		refreshInventory()
+	if not open then
+		pick = nil
+		hold = nil
 	end
-	refreshHotbar()
+	refreshSlots()
 	crosshair.Visible = not open
 
 
@@ -1358,7 +1646,7 @@ local function setOpen(open)
 	stopMenuTweens()
 	if open then
 		updateScale()
-		refreshInventory()
+		refreshSlots()
 		refreshCrafting()
 		invPanel.Position = INV_HOME
 		craftPanel.Position = CRAFT_HOME
@@ -1403,7 +1691,7 @@ local function flashHotName()
 		t:Cancel()
 	end
 	table.clear(hotNameTweens)
-	if hotbarItems[selectedHotbar] then
+	if hb[selectedHotbar] then
 		hotName.TextTransparency = 0
 		hotName.TextStrokeTransparency = 0.7
 		task.delay(1.2, function()
@@ -1421,10 +1709,6 @@ end
 
 local function selectHotbar(index)
 	selectedHotbar = index
-	if selectedSlot ~= nil then
-		selectedSlot = nil
-		refreshInventory()
-	end
 	refreshHotbar()
 	flashHotName()
 
@@ -1457,19 +1741,381 @@ for id, tile in pairs(recipeTiles) do
 	end)
 end
 
-for index, slot in ipairs(backpackSlots) do
-	connect(slot.Button.Activated, function()
-		selectedSlot = slot.Item and index or nil
-		refreshInventory()
-		refreshHotbar()
+local function popSlot(ui)
+	ui.Pop.Scale = 0.86
+	local up = tween(ui.Pop, 0.11, { Scale = 1.08 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	up.Completed:Once(function(state)
+		if state == Enum.PlaybackState.Completed then
+			tween(ui.Pop, 0.11, { Scale = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+		end
 	end)
 end
 
-for index, slot in ipairs(hotbarSlots) do
-	connect(slot.Button.Activated, function()
-		selectHotbar(index)
+local function slotUi(area, index)
+	return area == "bp" and backpackSlots[index] or hotbarSlots[index]
+end
+
+local toastToken = 0
+local toastTweens = {}
+local toastAlpha = new("NumberValue", { Name = "ToastAlpha", Value = 0 }, gui)
+toastAlpha.Changed:Connect(function(a)
+	toast.BackgroundTransparency = 1 - 0.9 * a
+	toastStroke.Transparency = 1 - 0.14 * a
+	toastText.TextTransparency = 1 - a
+	toastIcon.SetFaded(false)
+	toastIcon.Image.ImageTransparency = 1 - a
+end)
+local function showToast(id, amount)
+	toastToken += 1
+	local token = toastToken
+	for _, t in ipairs(toastTweens) do
+		t:Cancel()
+	end
+	table.clear(toastTweens)
+	toastIcon.Set(id)
+	toastText.Text = "Dropped " .. amount .. " " .. ITEMS[id].Name
+	toast.Visible = true
+	table.insert(toastTweens, tween(toastAlpha, 0.15, { Value = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out))
+	task.delay(1.9, function()
+		if token ~= toastToken then
+			return
+		end
+		local out = tween(toastAlpha, 0.3, { Value = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+		table.insert(toastTweens, out)
+		out.Completed:Once(function(state)
+			if state == Enum.PlaybackState.Completed and token == toastToken then
+				toast.Visible = false
+			end
+		end)
 	end)
 end
+
+local function afterItemsChanged()
+	refreshSlots()
+	refreshCrafting()
+end
+
+local function dropPicked()
+	if not pick then
+		return
+	end
+	local list = slotsOf(pick.area)
+	local entry = list[pick.i]
+	if entry then
+		local amount = pick.n or entry.n
+		entry.n -= amount
+		if entry.n <= 0 then
+			list[pick.i] = nil
+		end
+		showToast(entry.id, amount)
+	end
+	pick = nil
+	afterItemsChanged()
+end
+
+local function throwHotbar(index)
+	local entry = hb[index]
+	if not entry then
+		return
+	end
+	hb[index] = nil
+	showToast(entry.id, entry.n)
+	afterItemsChanged()
+end
+
+local function moveTo(area, index)
+	local fromList = slotsOf(pick.area)
+	local from = fromList[pick.i]
+	if not from then
+		pick = nil
+		refreshSlots()
+		return
+	end
+	local toList = slotsOf(area)
+	local to = toList[index]
+	if pick.n then
+		if not to then
+			toList[index] = { id = from.id, n = pick.n }
+		elseif to.id == from.id then
+			to.n += pick.n
+		else
+			pick = nil
+			refreshSlots()
+			return
+		end
+		from.n -= pick.n
+		if from.n <= 0 then
+			fromList[pick.i] = nil
+		end
+	else
+		if not to then
+			toList[index] = from
+			fromList[pick.i] = nil
+		elseif to.id == from.id then
+			to.n += from.n
+			fromList[pick.i] = nil
+		else
+			toList[index] = from
+			fromList[pick.i] = to
+		end
+	end
+	pick = nil
+	afterItemsChanged()
+	popSlot(slotUi(area, index))
+end
+
+local function tapSlot(area, index)
+	if not isOpen then
+		if area == "hb" then
+			selectHotbar(index)
+		end
+		return
+	end
+	local entry = slotsOf(area)[index]
+	if not pick then
+		if entry then
+			pick = { area = area, i = index }
+			refreshSlots()
+		end
+		return
+	end
+	if pick.area == area and pick.i == index then
+		pick = nil
+		refreshSlots()
+		return
+	end
+	moveTo(area, index)
+end
+
+local function tapEquip(slotName)
+	if not isOpen or os.clock() < tapGuardUntil then
+		return
+	end
+	local ui = equipSlots[slotName]
+	if pick then
+		local list = slotsOf(pick.area)
+		local entry = list[pick.i]
+		if entry and ITEMS[entry.id].Wear == slotName then
+			local old = worn[slotName]
+			worn[slotName] = { id = entry.id, n = 1 }
+			entry.n -= 1
+			if entry.n <= 0 then
+				list[pick.i] = nil
+			end
+			if old then
+				if not list[pick.i] then
+					list[pick.i] = old
+				else
+					addItem(old.id, old.n)
+				end
+			end
+			pick = nil
+			afterItemsChanged()
+			popSlot(ui)
+		end
+		return
+	end
+	local item = worn[slotName]
+	if item then
+		for index = 1, CONFIG.BackpackSlots do
+			if not bp[index] then
+				bp[index] = item
+				worn[slotName] = nil
+				afterItemsChanged()
+				popSlot(backpackSlots[index])
+				return
+			end
+		end
+	end
+end
+
+local function designScale(area)
+	if area == "hb" then
+		return hotbarScale.Scale
+	end
+	return canvasScale.Scale * panelsScale.Scale
+end
+
+local function isPointer(input)
+	return input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1
+end
+
+local function beginPress(area, index, input)
+	if hold then
+		return
+	end
+	if area == "bp" and not isOpen then
+		return
+	end
+	local entry = slotsOf(area)[index]
+	local kind = nil
+	if isOpen then
+		if entry and entry.n >= 2 then
+			kind = "pick"
+		end
+	elseif area == "hb" and entry then
+		kind = "throw"
+	end
+	hold = {
+		area = area,
+		i = index,
+		input = input,
+		start = Vector2.new(input.Position.X, input.Position.Y),
+		t0 = os.clock(),
+		kind = kind,
+		total = entry and entry.n or 0,
+		amount = 1,
+		progress = 0,
+		shown = false,
+		mode = "pending",
+	}
+end
+
+local function holdMoved(position)
+	local h = hold
+	if not h or h.cancelled or h.done then
+		return
+	end
+	local delta = position - h.start
+	if not h.shown then
+		if delta.Magnitude > 10 then
+			h.cancelled = true
+		end
+		return
+	end
+	if h.kind ~= "pick" then
+		return
+	end
+	if h.mode == "auto" and math.abs(delta.X) > 6 then
+		h.mode = "slide"
+		h.slideX = position.X
+		h.slideAmount = h.amount
+	end
+	if h.mode == "slide" then
+		local perItem = math.clamp(SLIDE_PX / h.total, SLIDE_MIN, SLIDE_MAX)
+		local moved = (position.X - h.slideX) / math.max(designScale(h.area), 0.01) / perItem
+		local steps = moved >= 0 and math.floor(moved) or math.ceil(moved)
+		local amount = math.clamp(h.slideAmount + steps, 1, h.total)
+		if amount ~= h.amount then
+			h.amount = amount
+			refreshSlots()
+		end
+	end
+end
+
+local function endPress()
+	local h = hold
+	hold = nil
+	if not h then
+		return
+	end
+	local now = os.clock()
+	if h.cancelled then
+		refreshSlots()
+		return
+	end
+	if h.done or h.shown then
+		tapGuardUntil = now + TAP_GUARD
+		if not h.done and h.kind == "pick" then
+			pick = { area = h.area, i = h.i, n = h.amount < h.total and h.amount or nil }
+		end
+		refreshSlots()
+		return
+	end
+	if now < tapGuardUntil then
+		return
+	end
+	tapSlot(h.area, h.i)
+end
+
+local function updateHold()
+	local h = hold
+	if not h or h.cancelled or h.done or not h.kind then
+		return
+	end
+	local now = os.clock()
+	if h.kind == "pick" then
+		if not h.shown then
+			if now - h.t0 >= HOLD_DELAY then
+				h.shown = true
+				h.mode = "auto"
+				h.amount = 1
+				h.stepAt = now
+				refreshSlots()
+			end
+		elseif h.mode == "auto" and h.amount < h.total then
+			local step = math.clamp(HOLD_FILL / h.total, 0.06, 0.25)
+			local changed = false
+			while h.amount < h.total and now - h.stepAt >= step do
+				h.amount += 1
+				h.stepAt += step
+				changed = true
+			end
+			if changed then
+				refreshSlots()
+			end
+		end
+	elseif h.kind == "throw" then
+		local elapsed = now - h.t0
+		if elapsed >= THROW_DELAY then
+			h.shown = true
+			h.progress = math.clamp((elapsed - THROW_DELAY) / THROW_TIME, 0, 1)
+			renderSlot(hotbarSlots[h.i], "hb", h.i)
+			if h.progress >= 1 then
+				h.done = true
+				throwHotbar(h.i)
+			end
+		end
+	end
+end
+
+for index, ui in ipairs(backpackSlots) do
+	connect(ui.Button.InputBegan, function(input)
+		if isPointer(input) then
+			beginPress("bp", index, input)
+		end
+	end)
+end
+
+for index, ui in ipairs(hotbarSlots) do
+	connect(ui.Button.InputBegan, function(input)
+		if isPointer(input) then
+			beginPress("hb", index, input)
+		end
+	end)
+end
+
+for slotName, ui in pairs(equipSlots) do
+	connect(ui.Button.Activated, function()
+		tapEquip(slotName)
+	end)
+end
+
+connect(dim.Activated, function()
+	if isOpen and pick and os.clock() >= tapGuardUntil then
+		dropPicked()
+	end
+end)
+
+connect(UserInputService.InputChanged, function(input)
+	if not hold then
+		return
+	end
+	if input == hold.input or (input.UserInputType == Enum.UserInputType.MouseMovement and hold.input.UserInputType == Enum.UserInputType.MouseButton1) then
+		holdMoved(Vector2.new(input.Position.X, input.Position.Y))
+	end
+end)
+
+connect(UserInputService.InputEnded, function(input)
+	if not hold then
+		return
+	end
+	if input == hold.input or (input.UserInputType == Enum.UserInputType.MouseButton1 and hold.input.UserInputType == Enum.UserInputType.MouseButton1) then
+		endPress()
+	end
+end)
+
+connect(RunService.RenderStepped, updateHold)
 
 connect(craftButton.Activated, function()
 	local recipe = currentRecipe()
@@ -1515,21 +2161,21 @@ connect(RunService.Heartbeat, function(dt)
 
 			local ok = true
 			for _, mat in ipairs(job.mats) do
-				if (inventory[mat[1]] or 0) < mat[2] then
+				if countItem(mat[1]) < mat[2] then
 					ok = false
 					break
 				end
 			end
 			if ok then
 				for _, mat in ipairs(job.mats) do
-					inventory[mat[1]] -= mat[2]
+					removeItem(mat[1], mat[2])
 				end
 				unitStarted = true
 				unitElapsed = 0
 			else
 				table.remove(queue, 1)
 			end
-			refreshInventory()
+			refreshSlots()
 			refreshCrafting()
 			if #queue == 0 and progressState == "showing" then
 				hideProgress()
@@ -1553,7 +2199,7 @@ connect(RunService.Heartbeat, function(dt)
 					displayedFill = 1
 					finishProgress(job)
 				end
-				refreshInventory()
+				refreshSlots()
 				refreshCrafting()
 				flashItem(job.id)
 			end
@@ -1596,7 +2242,7 @@ gui.Destroying:Connect(function()
 	end
 end)
 
-refreshInventory()
+refreshSlots()
 refreshCrafting()
 refreshHotbar()
 isOpen = true

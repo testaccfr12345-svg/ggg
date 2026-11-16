@@ -94,6 +94,20 @@ The user's target is her reference screenshot (older design iteration), "just li
   approaches `MenuWidthFraction` of the screen width. Vertical placement is unchanged apart from the gap for the item name.
   Panel children are laid out with scale-relative UDim2s so they follow the panel width.
 
+## Mobile inventory controls (Bedrock-style, client only)
+- Data: `bp` (24 backpack slots), `hb` (8 hotbar slots), `worn` (armour by slot name). Each slot is nil or `{ id, n }`.
+  `pick = { area = "bp"|"hb", i, n }` (n nil = whole stack). `hold` tracks a finger press. Crafting counts items across bp + hb.
+- Menu open: tap = pick whole stack (yellow outline, lift 4px, shadow); tap another slot = move / stack / swap; tap same = unpick.
+  Hold 0.3s on a stack of 2+ = amount bar (auto counts up, slide sideways to adjust); release keeps the partial pick.
+  Partial pick onto empty = new stack, onto same item = add, onto different item = cancelled.
+  Tap the dim background = drop the pick (toast "Dropped N Item"). Armour: tap slot with a wearable picked (ITEMS[id].Wear == slot name) = equip; tap worn slot = unequip.
+- Menu closed: tap hotbar = select; hold hotbar 0.15s + 0.45s coral bar = throw whole stack.
+- Settings at top of script: HOLD_DELAY, HOLD_FILL, SLIDE_PX, SLIDE_MIN, SLIDE_MAX, THROW_DELAY, THROW_TIME, TAP_GUARD.
+- **Server hook spots** (no comments allowed in the script, so they are listed here): `moveTo` (move / stack / swap / move part of a stack),
+  `dropPicked` (drop), `throwHotbar` (throw), `tapEquip` (equip / unequip), crafting `removeItem` / `addItem`.
+  The server must verify the player owns the items and spawn drops in the world.
+- No armour items exist yet; equipping works as soon as an item has `Wear = "Helmet"` (etc.) in ITEMS.
+
 ## Next steps
 1. **Server side for the inventory — LATER.** The user said UI only for now (one client script). A first server version
    (shared items module, server-owned queue, RemoteEvents) exists in git history (commit 9ddf0dc) if wanted later.
