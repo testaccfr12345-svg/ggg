@@ -87,6 +87,7 @@ function Motion:picture(id, size, transparency, count)
 	}, self.layer)
 	if item and item.Image ~= "" then
 		new("ImageLabel", {
+			Name = "Shadow",
 			Position = UDim2.new(0, 0, 0, 4),
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
@@ -97,6 +98,7 @@ function Motion:picture(id, size, transparency, count)
 			ZIndex = 110,
 		}, holder)
 		new("ImageLabel", {
+			Name = "Picture",
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 			Image = item.Image,
@@ -117,6 +119,7 @@ function Motion:picture(id, size, transparency, count)
 	end
 	if count and count > 1 then
 		new("TextLabel", {
+			Name = "Count",
 			AnchorPoint = Vector2.new(1, 1),
 			Position = UDim2.fromScale(1, 1),
 			Size = UDim2.fromScale(0.6, 0.35),
@@ -138,6 +141,15 @@ function Motion:animate(holder, toCenter, toSize, duration, onLand, extra)
 	local props = { Position = UDim2.fromOffset(toCenter.X, toCenter.Y), Size = UDim2.fromOffset(toSize.X, toSize.Y) }
 	entry.tween = tween(holder, duration, props)
 	entry.extra = extra
+	entry.fades = {}
+	local shadow = holder:FindFirstChild("Shadow")
+	if shadow then
+		table.insert(entry.fades, tween(shadow, duration * 0.8, { ImageTransparency = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out))
+	end
+	local count = holder:FindFirstChild("Count")
+	if count then
+		table.insert(entry.fades, tween(count, duration * 0.6, { TextTransparency = 1, TextStrokeTransparency = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out))
+	end
 	table.insert(self.flyers, entry)
 	entry.tween.Completed:Once(function(state)
 		if state == Enum.PlaybackState.Completed then
@@ -153,6 +165,9 @@ function Motion:land(entry, snap)
 	end
 	entry.done = true
 	entry.tween:Cancel()
+	for _, t in ipairs(entry.fades) do
+		t:Cancel()
+	end
 	if entry.extra then
 		entry.extra:Cancel()
 	end
@@ -195,6 +210,18 @@ function Motion:ghostStart(id, size, count)
 	self:ghostCancel()
 	self.ghostSize = size * self.S.DRAG_SCALE
 	self.ghost = self:picture(id, self.ghostSize, 0.1, count)
+	for _, child in ipairs(self.ghost:GetChildren()) do
+		if child:IsA("ImageLabel") then
+			local target = child.ImageTransparency
+			child.ImageTransparency = 1
+			tween(child, 0.12, { ImageTransparency = target }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+		elseif child:IsA("TextLabel") then
+			local target, strokeTarget = child.TextTransparency, child.TextStrokeTransparency
+			child.TextTransparency = 1
+			child.TextStrokeTransparency = 1
+			tween(child, 0.12, { TextTransparency = target, TextStrokeTransparency = strokeTarget }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+		end
+	end
 end
 
 function Motion:ghostMove(absolute, touch)

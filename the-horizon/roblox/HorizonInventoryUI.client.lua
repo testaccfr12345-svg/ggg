@@ -1818,6 +1818,10 @@ local function flyInto(id, fromAbs, ui, picture, hide, fromGhost)
 		refreshSlots()
 		if not snap then
 			motion:pop(ui.Pop)
+			if ui.Count and ui.Count.Text ~= "" then
+				ui.Count.TextTransparency = 1
+				tween(ui.Count, 0.2, { TextTransparency = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+			end
 		end
 	end
 	if fromGhost then
