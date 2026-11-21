@@ -270,14 +270,16 @@ end
 local gDied = newGroup()
 building = gDied
 local diedRoot = frame(cv, { Name = "YouDied", Size = UDim2.fromScale(1, 1), Visible = false })
-local diedW = math.ceil(textW("YOU DIED", 100)) + 24
+local diedW0 = math.ceil(textW("YOU DIED", 100)) + 24
+local diedW = diedW0 + 7 * 3
+local DIED_TEXT = 'Y<font size="15"> </font>O<font size="15"> </font>U<font size="15"> </font> <font size="15"> </font>D<font size="15"> </font>I<font size="15"> </font>E<font size="15"> </font>D'
 building = nil
 local diedBox = frame(diedRoot, { Name = "Holder", AnchorPoint = V2(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 345), Size = UDim2.fromOffset(diedW, 120) })
 local diedCG = new("CanvasGroup", { Parent = diedBox, Name = "Text", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, GroupTransparency = 1 })
-local diedL = text(diedCG, "YOU DIED", 100, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(diedW - 12, 110), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE })
-new("UIStroke", { Parent = diedL, Color = WHITE, Thickness = 2, Transparency = 0, LineJoinMode = Enum.LineJoinMode.Round })
+local diedL = text(diedCG, DIED_TEXT, 100, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(diedW - 12, 110), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE, RichText = true })
+new("UIStroke", { Parent = diedL, Color = WHITE, Thickness = 1, Transparency = 0, LineJoinMode = Enum.LineJoinMode.Round })
 local diedScale = Instance.new("UIScale")
-local DIED_SCALE = 544 / diedW
+local DIED_SCALE = 544 / diedW0
 diedScale.Scale = DIED_SCALE
 diedScale.Parent = diedBox
 local diedTw
@@ -891,6 +893,32 @@ local function onDied()
 		end)
 	end)
 end
+local function muteDied(sd)
+	if sd:IsA("Sound") and sd.Name == "Died" then
+		sd.Volume = 0
+		sd:GetPropertyChangedSignal("Volume"):Connect(function()
+			if sd.Volume ~= 0 then
+				sd.Volume = 0
+			end
+		end)
+	end
+end
+local function muteChar(char)
+	for _, d in ipairs(char:GetDescendants()) do
+		muteDied(d)
+	end
+	char.DescendantAdded:Connect(muteDied)
+end
+local function mutePlayer(p)
+	if p.Character then
+		muteChar(p.Character)
+	end
+	p.CharacterAdded:Connect(muteChar)
+end
+for _, p in ipairs(Players:GetPlayers()) do
+	mutePlayer(p)
+end
+Players.PlayerAdded:Connect(mutePlayer)
 local function hookCharacter(char)
 	local hum = char:WaitForChild("Humanoid", 10)
 	if hum then
