@@ -29,6 +29,7 @@ local CFG = {
 		youDied = "rbxassetid://131110407134601",
 	},
 	PanelAlpha = 0.68,
+	ShowTuner = true,
 }
 
 local ACCENT = Color3.fromHex("E9B949")
@@ -812,7 +813,7 @@ local function clearFx()
 	table.clear(lightFx)
 end
 
-local function openMenu(ft)
+local function openMenu(ft, still)
 	ft = ft or 0.5
 	state.screen = "menu"
 	local hasBed = player:GetAttribute("HasBed") == true
@@ -824,7 +825,7 @@ local function openMenu(ft)
 	TweenService:Create(lobbyBg, TweenInfo.new(ft, QUAD, OUT), { ImageTransparency = 0, BackgroundTransparency = 0 }):Play()
 	TweenService:Create(lobbyShade, TweenInfo.new(ft, QUAD, OUT), { BackgroundTransparency = 0.65 }):Play()
 	setShade(1, ft)
-	showGroup(gMenu, menu, true, true)
+	showGroup(gMenu, menu, true, not still)
 end
 
 local function onDied()
@@ -856,7 +857,7 @@ local function onDied()
 			local bc
 			bc = RunService.RenderStepped:Connect(function()
 				local t = os.clock() - b0
-				if my ~= state.seq or t > 2.5 then
+				if my ~= state.seq or t > 3 then
 					bc:Disconnect()
 					return
 				end
@@ -864,19 +865,19 @@ local function onDied()
 			end)
 			diedRoot.Visible = true
 			fadeTo(gDied, 1, 0)
-			task.delay(2, function()
+			task.delay(2.5, function()
 				if my ~= state.seq then
 					return
 				end
 				diedTw = TweenService:Create(diedCG, TweenInfo.new(0.45, QUAD, IN), { GroupTransparency = 1 })
 				diedTw:Play()
 			end)
-			task.delay(2.75, function()
+			task.delay(3.25, function()
 				if my ~= state.seq then
 					return
 				end
 				diedRoot.Visible = false
-				openMenu(0.4)
+				openMenu(0.4, true)
 			end)
 		end
 		wc = RunService.Heartbeat:Connect(function()
@@ -1135,3 +1136,94 @@ onTap(lobbyB, function()
 		end)
 	end)
 end)
+task.spawn(function()
+	local seen, list = {}, {}
+	local function add(id)
+		if type(id) == "string" and id ~= "" and not seen[id] then
+			seen[id] = true
+			table.insert(list, id)
+		end
+	end
+	for _, id in pairs(CFG.Icons) do
+		add(id)
+	end
+	for _, d in pairs(CFG.Sounds) do
+		if d[1] ~= 0 then
+			add("rbxassetid://" .. d[1])
+		end
+	end
+	for _, a in pairs(ASSETS) do
+		add("rbxassetid://" .. a.Id)
+	end
+	for _, rootObj in ipairs({ playerGui, SoundService }) do
+		for _, d in ipairs(rootObj:GetDescendants()) do
+			if d:IsA("ImageLabel") or d:IsA("ImageButton") then
+				add(d.Image)
+			elseif d:IsA("Sound") then
+				add(d.SoundId)
+			end
+		end
+	end
+	for _ = 1, 3 do
+		local failed = {}
+		pcall(ContentProvider.PreloadAsync, ContentProvider, list, function(id, status)
+			if status ~= Enum.AssetFetchStatus.Success then
+				table.insert(failed, id)
+			end
+		end)
+		if #failed == 0 then
+			break
+		end
+		list = failed
+		task.wait(2)
+	end
+end)
+if CFG.ShowTuner and script:FindFirstChild("Tuner") then
+	local function hideAll()
+		state.screen = "none"
+		diedRoot.Visible = false
+		diedCG.GroupTransparency = 1
+		menu.Visible = false
+		spec.Visible = false
+		lobbyBg.Visible = false
+		setShade(1)
+		shade.Visible = false
+	end
+	task.spawn(require(script.Tuner).start, gui, {
+		EquipmentIcons = {},
+		Preview = {
+			died = function()
+				local on = not diedRoot.Visible
+				hideAll()
+				if on then
+					setShade(0)
+					newStains()
+					paintBlood(1.6)
+					diedCG.GroupTransparency = 0
+					diedRoot.Visible = true
+					fadeTo(gDied, 1, 0)
+				end
+			end,
+			menu = function()
+				local on = not menu.Visible
+				hideAll()
+				if on then
+					openMenu(0, true)
+				end
+			end,
+			spectate = function()
+				local on = not spec.Visible
+				hideAll()
+				if on then
+					spec.Visible = true
+					fadeTo(gSpec, 1, 0)
+					fadeTo(gWho, 1, 0)
+				end
+			end,
+			hide = hideAll,
+			notify = function()
+				notify("Back on your feet")
+			end,
+		},
+	}, {})
+end
