@@ -17,7 +17,7 @@ local CFG = {
 		wake = { 107350614991623, 0.7 },
 	},
 	Icons = {
-		respawn = "rbxassetid://84195781992190",
+		respawn = "rbxassetid://74439274240651",
 		spectate = "rbxassetid://118090942879672",
 		lobby = "rbxassetid://89417626626034",
 		back = "rbxassetid://111560708284255",
@@ -207,10 +207,8 @@ local lids = new("Frame", { Parent = backGui, Name = "Eyelids", Size = UDim2.fro
 local function lidLayer(name, color, z)
 	return new("Frame", { Parent = lids, Name = name, Size = UDim2.fromScale(1, 1), BackgroundColor3 = color, BackgroundTransparency = 1, ZIndex = z })
 end
-local lidHaze = lidLayer("Haze", Color3.fromRGB(231, 235, 239), 2)
 local lidTop = lidLayer("Top", BLACK, 3)
 local lidBottom = lidLayer("Bottom", BLACK, 3)
-local lidDark = lidLayer("Dark", BLACK, 4)
 local LID_SOFT = NumberSequence.new({
 	NumberSequenceKeypoint.new(0, 0),
 	NumberSequenceKeypoint.new(0.16, 0.03),
@@ -742,46 +740,37 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
-local EYE = {
-	{ 0, 0, 42, 1, 0 },
-	{ 0.65, 0.13, 36, 0.36, 0.07 },
-	{ 1, 0.012, 42, 0.72, 0.01 },
-	{ 1.1, 0.012, 12, 0.58, 0.01 },
-	{ 2.05, 1, 8, 0, 0 },
-	{ 3.15, 1, 0, 0, 0 },
+local EYE_OPEN = {
+	{ 0, 0 }, { 0.03, 0.003 }, { 0.1, 0.008 }, { 0.163, 0.025 }, { 0.23, 0.046 }, { 0.297, 0.077 }, { 0.363, 0.107 },
+	{ 0.43, 0.136 }, { 0.497, 0.157 }, { 0.563, 0.175 }, { 0.63, 0.187 }, { 0.697, 0.196 }, { 0.763, 0.202 }, { 0.83, 0.206 },
+	{ 0.897, 0.208 }, { 1.03, 0.211 }, { 1.097, 0.221 }, { 1.163, 0.237 }, { 1.23, 0.26 }, { 1.297, 0.284 }, { 1.363, 0.329 },
+	{ 1.43, 0.39 }, { 1.497, 0.468 }, { 1.563, 0.56 }, { 1.63, 0.68 }, { 1.7, 0.8 },
 }
-local EYE_END = 3.15
-local function eyeAt(t)
-	for i = 2, #EYE do
-		local b = EYE[i]
+local LIDS_END, NOTE_AT, WAKE_END = 1.7, 3, 3.4
+local function eyeOpen(t)
+	if t <= 0 then
+		return 0
+	end
+	for i = 2, #EYE_OPEN do
+		local b = EYE_OPEN[i]
 		if t <= b[1] then
-			local a = EYE[i - 1]
-			local x = math.clamp((t - a[1]) / (b[1] - a[1]), 0, 1)
-			x = x * x * x * (x * (x * 6 - 15) + 10)
-			return a[2] + (b[2] - a[2]) * x, a[3] + (b[3] - a[3]) * x, a[4] + (b[4] - a[4]) * x, a[5] + (b[5] - a[5]) * x
+			local a = EYE_OPEN[i - 1]
+			return a[2] + (b[2] - a[2]) * (t - a[1]) / (b[1] - a[1])
 		end
 	end
-	return 1, 0, 0, 0
+	return EYE_OPEN[#EYE_OPEN][2]
 end
 local lidW, lidH, lidPanel = -1, -1, 1
 local function lidLayout(t)
-	local open, blurSize, dark, haze = eyeAt(t)
-	local lower = eyeAt(math.max(0, t - 0.065))
-	local effort = 4 * open * (1 - open)
-	local tremble = (math.sin(t * 11.3) + math.sin(t * 17.1) * 0.35) * 0.0018 * effort
-	local center = 0.5 + math.sin(t * 1.45) * 0.007 * effort
-	local tilt = math.sin(t * 0.8 + 0.3) * 0.012 * effort
-	local upSpan = 0.78 + open * 0.96
-	local lowSpan = 0.78 + lower * 0.96
-	local upLift = math.max(0, open * 0.98 + tremble)
-	local lowLift = math.max(0, lower ^ 1.25 * 0.76 - tremble * 0.4)
+	local lift = eyeOpen(t)
+	local span = 1.8
 	local w = math.max(1, lids.AbsoluteSize.X)
 	local h = math.max(1, lids.AbsoluteSize.Y)
 	if w ~= lidW or h ~= lidH then
 		lidW, lidH = w, h
 		local diag = math.sqrt(w * w + h * h)
 		lidPanel = diag * 2
-		local feather = math.max(24, h * 0.085)
+		local feather = math.max(30, h * 0.12)
 		for _, sg in ipairs(lidSegs) do
 			sg.top.Size = UDim2.fromOffset(diag * 4, lidPanel)
 			sg.bottom.Size = UDim2.fromOffset(diag * 4, lidPanel)
@@ -792,57 +781,30 @@ local function lidLayout(t)
 	local half = lidPanel * 0.5
 	local slope = 2 * h / w
 	for _, sg in ipairs(lidSegs) do
-		local ux = sg.cx * upSpan
-		local lx = sg.cx * lowSpan
-		local uy = center + tilt * ux - upLift * sg.cy
-		local ly = center + tilt * lx + lowLift * sg.cy
-		local ua = math.atan((tilt + upLift * sg.cx / (upSpan * sg.cy)) * slope)
-		local la = math.atan((tilt - lowLift * sg.cx / (lowSpan * sg.cy)) * slope)
+		local x = sg.cx * span
+		local ua = math.atan(lift * sg.cx / (span * sg.cy) * slope)
+		local uy = 0.5 - lift * sg.cy
+		local ly = 0.5 + lift * sg.cy
 		sg.top.Rotation = math.deg(ua)
-		sg.top.Position = UDim2.fromOffset((ux + 1) * w * 0.5 + math.sin(ua) * half, uy * h - math.cos(ua) * half)
-		sg.bottom.Rotation = math.deg(la)
-		sg.bottom.Position = UDim2.fromOffset((lx + 1) * w * 0.5 - math.sin(la) * half, ly * h + math.cos(la) * half)
+		sg.top.Position = UDim2.fromOffset((x + 1) * w * 0.5 + math.sin(ua) * half, uy * h - math.cos(ua) * half)
+		sg.bottom.Rotation = -math.deg(ua)
+		sg.bottom.Position = UDim2.fromOffset((x + 1) * w * 0.5 + math.sin(ua) * half, ly * h + math.cos(ua) * half)
 	end
-	if lightFx.blur then
-		lightFx.blur.Size = blurSize
-	end
-	lidDark.BackgroundTransparency = 1 - dark
-	lidHaze.BackgroundTransparency = 1 - haze
 end
-local camBase, camApplied, camOn, camT0 = nil, nil, false, 0
-local function camReset()
-	local cam = workspace.CurrentCamera
-	if cam and camApplied and cam.CFrame == camApplied then
-		cam.CFrame = camBase
-	end
-	camBase, camApplied = nil, nil
+local function easeOut(x)
+	return 1 - (1 - x) * (1 - x)
 end
-local function camApply()
-	if not camOn then
-		return
+local function wakeLook(t)
+	local blur, bright
+	if t < WAKE_END / 2 then
+		local e = easeOut(t / (WAKE_END / 2))
+		blur, bright = 24 - 13 * e, 0.5 + 0.3 * e
+	else
+		local e = easeOut(math.clamp((t - WAKE_END / 2) / (WAKE_END / 2), 0, 1))
+		blur, bright = 11 * (1 - e), 0.8 + 0.2 * e
 	end
-	local t = os.clock() - camT0
-	local cam = workspace.CurrentCamera
-	if not cam or t >= EYE_END then
-		return
-	end
-	local p = math.clamp(t / EYE_END, 0, 1)
-	local lift = p * p * p * (p * (p * 6 - 15) + 10)
-	camBase = cam.CFrame
-	cam.CFrame = camBase * CFrame.Angles(math.rad(-4.5 * (1 - lift)), math.rad(0.9 * math.sin(math.pi * p) ^ 2), 0)
-	camApplied = cam.CFrame
-end
-local function wakeCam(on)
-	if on and not camOn then
-		camOn, camT0 = true, os.clock()
-		RunService:BindToRenderStep("HorizonWakeReset", Enum.RenderPriority.Camera.Value - 1, camReset)
-		RunService:BindToRenderStep("HorizonWakeApply", Enum.RenderPriority.Camera.Value + 1, camApply)
-	elseif not on and camOn then
-		camOn = false
-		RunService:UnbindFromRenderStep("HorizonWakeReset")
-		RunService:UnbindFromRenderStep("HorizonWakeApply")
-		camReset()
-	end
+	lightFx.blur.Size = blur
+	lightFx.cc.TintColor = Color3.new(bright, bright, bright)
 end
 local function clearFx()
 	for _, f in pairs(lightFx) do
@@ -958,8 +920,11 @@ onTap(respawnB, function()
 		clearFx()
 		lightFx.blur = Instance.new("BlurEffect")
 		lightFx.blur.Name = "HorizonWakeBlur"
-		lightFx.blur.Size = 42
 		lightFx.blur.Parent = Lighting
+		lightFx.cc = Instance.new("ColorCorrectionEffect")
+		lightFx.cc.Name = "HorizonWakeTint"
+		lightFx.cc.Parent = Lighting
+		wakeLook(0)
 		lidLayout(0)
 		lids.Visible = true
 		shade.Visible = false
@@ -967,23 +932,29 @@ onTap(respawnB, function()
 		hideOwnHud(false)
 		play("wake")
 		local t0 = os.clock()
-		wakeCam(true)
+		local noted = false
 		local step
 		step = RunService.RenderStepped:Connect(function()
 			local t = os.clock() - t0
 			if my ~= state.seq then
 				step:Disconnect()
-				wakeCam(false)
 				lids.Visible = false
 				clearFx()
 				return
 			end
-			lidLayout(t)
-			if t >= EYE_END then
-				step:Disconnect()
-				wakeCam(false)
+			if t < LIDS_END then
+				lidLayout(t)
+			elseif lids.Visible then
 				lids.Visible = false
+			end
+			wakeLook(math.min(t, WAKE_END))
+			if t >= NOTE_AT and not noted then
+				noted = true
 				notify("Back on your feet")
+			end
+			if t >= WAKE_END then
+				step:Disconnect()
+				lids.Visible = false
 				clearFx()
 				state.screen = "none"
 				state.dead = false
