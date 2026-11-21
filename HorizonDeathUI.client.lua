@@ -401,7 +401,7 @@ local titleScale = Instance.new("UIScale")
 titleScale.Scale = 1.22
 titleScale.Parent = title
 shadow(title, 0.75)
-local cause = shadow(text(menu, "", 38, { Name = "Cause", Position = UDim2.fromOffset(40, 181.4), Size = UDim2.fromOffset(900, 38), TextTransparency = 0.1 }), 0.55)
+local cause = shadow(text(menu, "", 38, { Name = "Cause", AnchorPoint = V2(0.5, 0), Position = UDim2.fromOffset(40 + textW("You Died", 100) * 1.22 / 2, 181.4), Size = UDim2.fromOffset(900, 38), TextXAlignment = Enum.TextXAlignment.Center, TextTransparency = 0.1 }), 0.55)
 local tip = frame(menu, { Name = "Tip", AnchorPoint = V2(0, 1), Position = fromBottom(40, 654), Size = UDim2.fromOffset(580, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 })
 local tp = Instance.new("UIPadding")
 tp.PaddingLeft, tp.PaddingRight, tp.PaddingTop, tp.PaddingBottom = UDim.new(0, 0), UDim.new(0, 0), UDim.new(0, 0), UDim.new(0, 0)
