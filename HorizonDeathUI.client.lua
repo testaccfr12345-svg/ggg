@@ -26,7 +26,6 @@ local CFG = {
 		lungFill = "rbxassetid://117299378249299",
 		joinBg = "rbxassetid://140078431096703",
 		lobbyBg = "rbxassetid://109346762822915",
-		youDied = "",
 	},
 	PanelAlpha = 0.68,
 }
@@ -277,17 +276,15 @@ local diedW = math.ceil(textW("YOU DIED", 100)) + 24
 building = nil
 local diedBox = frame(diedRoot, { Name = "Holder", AnchorPoint = V2(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 345), Size = UDim2.fromOffset(diedW, 120) })
 local diedCG = new("CanvasGroup", { Parent = diedBox, Name = "Text", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, GroupTransparency = 1 })
-local diedImg = new("ImageLabel", { Parent = diedBox, Name = "Image", AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(256.1, 59.8), BackgroundTransparency = 1, Image = CFG.Icons.youDied, ImageTransparency = 1, Visible = CFG.Icons.youDied ~= "" })
-diedCG.Visible = CFG.Icons.youDied == ""
 local diedL = text(diedCG, "YOU DIED", 100, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(diedW - 12, 110), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE })
 new("UIStroke", { Parent = diedL, Color = WHITE, Thickness = 2, Transparency = 0, LineJoinMode = Enum.LineJoinMode.Round })
 local diedScale = Instance.new("UIScale")
 local DIED_SCALE = 544 / diedW
 diedScale.Scale = DIED_SCALE
 diedScale.Parent = diedBox
-local diedTw, diedGrow
+local diedTw
 local bloodG = {}
-for i, parent in ipairs({ diedImg, diedL, diedL:FindFirstChildOfClass("UIStroke") }) do
+for i, parent in ipairs({ diedL, diedL:FindFirstChildOfClass("UIStroke") }) do
 	local g = Instance.new("UIGradient")
 	g.Parent = parent
 	bloodG[i] = g
@@ -887,12 +884,7 @@ local function onDied()
 		if diedTw then
 			diedTw:Cancel()
 		end
-		if diedGrow then
-			diedGrow:Cancel()
-		end
-		diedScale.Scale = DIED_SCALE
 		diedCG.GroupTransparency = 0
-		diedImg.ImageTransparency = 0
 		newStains()
 		paintBlood(0)
 		local b0 = os.clock()
@@ -907,20 +899,12 @@ local function onDied()
 		end)
 		diedRoot.Visible = true
 		fadeTo(gDied, 1, 0)
-		task.delay(0.2, function()
-			if my ~= state.seq then
-				return
-			end
-			diedGrow = TweenService:Create(diedScale, TweenInfo.new(2.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Scale = DIED_SCALE * 1.035 })
-			diedGrow:Play()
-		end)
 		task.delay(2, function()
 			if my ~= state.seq then
 				return
 			end
 			diedTw = TweenService:Create(diedCG, TweenInfo.new(0.45, QUAD, IN), { GroupTransparency = 1 })
 			diedTw:Play()
-			TweenService:Create(diedImg, TweenInfo.new(0.45, QUAD, IN), { ImageTransparency = 1 }):Play()
 		end)
 		task.delay(2.75, function()
 			if my ~= state.seq then
