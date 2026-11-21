@@ -451,6 +451,85 @@ new("UIStroke", { Parent = specBack, Color = CREAM, Thickness = 1, Transparency 
 icon(specBack, CFG.Icons.back, 17, CREAM, { AnchorPoint = V2(0, 0.5), Position = UDim2.new(0, 12, 0.5, 0) })
 text(specBack, "Back", 27, { Position = UDim2.fromOffset(35, 0), Size = UDim2.new(1, -35, 1, 0) })
 
+local TRAIT_COLORS = { "CFC5B4", "9CCB86", "7DB3E0", "B79AE6", "E9B949", "F2706A" }
+local TRAITS = {
+	deep_breath = { "Deep Breath", 1, "rbxassetid://134703443523875" },
+	quick_recovery = { "Quick Recovery", 2, "rbxassetid://114308483878858" },
+	power_swim = { "Power Swim", 3, "rbxassetid://84312041849462" },
+	night_eye = { "Night Eyes", 4, "rbxassetid://77761035149012" },
+	snap_reflex = { "Snap Reflex", 4, "rbxassetid://98463663692815" },
+	primal_cry = { "Primal Cry", 5, "rbxassetid://101734345778856" },
+	iron_lunge = { "Iron Lungs", 5, "rbxassetid://128252861673544" },
+	adrenaline_surge = { "Adrenaline Surge", 6, "rbxassetid://83510710583566" },
+}
+local function findTrait(v)
+	if type(v) ~= "string" or v == "" then
+		return nil
+	end
+	if TRAITS[v] then
+		return TRAITS[v]
+	end
+	local lv = v:lower()
+	for k, t in pairs(TRAITS) do
+		if t[1]:lower() == lv or k == (lv:gsub(" ", "_")) then
+			return t
+		end
+	end
+	return nil
+end
+local traitRow = frame(spec, { Name = "Traits", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 560 - 720), Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X })
+local trl = Instance.new("UIListLayout")
+trl.FillDirection = Enum.FillDirection.Horizontal
+trl.HorizontalAlignment = Enum.HorizontalAlignment.Center
+trl.VerticalAlignment = Enum.VerticalAlignment.Center
+trl.SortOrder = Enum.SortOrder.LayoutOrder
+trl.Padding = UDim.new(0, 10)
+trl.Parent = traitRow
+local pills = {}
+for i = 1, 2 do
+	local pf = frame(traitRow, { Name = "Trait" .. i, Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X, BackgroundColor3 = PANEL, BackgroundTransparency = PANEL_T, LayoutOrder = i, Visible = false })
+	round(pf, 10)
+	local st = new("UIStroke", { Parent = pf, Color = CREAM, Thickness = 1, Transparency = 0.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+	local pp = Instance.new("UIPadding")
+	pp.PaddingLeft, pp.PaddingRight = UDim.new(0, 10), UDim.new(0, 14)
+	pp.Parent = pf
+	local pl = Instance.new("UIListLayout")
+	pl.FillDirection = Enum.FillDirection.Horizontal
+	pl.VerticalAlignment = Enum.VerticalAlignment.Center
+	pl.SortOrder = Enum.SortOrder.LayoutOrder
+	pl.Padding = UDim.new(0, 8)
+	pl.Parent = pf
+	local ic = icon(pf, "", 26, CREAM, { Name = "Icon", LayoutOrder = 1 })
+	local tx = text(pf, "", 27, { Name = "Name", Size = UDim2.fromOffset(0, 27), AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = 2 })
+	pills[i] = { f = pf, st = st, ic = ic, tx = tx }
+end
+local traitKey = nil
+local function setTraits(a, b)
+	local key = tostring(a) .. "|" .. tostring(b)
+	if key == traitKey then
+		return
+	end
+	traitKey = key
+	local n = 0
+	for _, v in ipairs({ a, b }) do
+		local t = findTrait(v)
+		if t then
+			n += 1
+			local pl = pills[n]
+			local c = Color3.fromHex(TRAIT_COLORS[t[2]])
+			pl.tx.Text = t[1]
+			pl.tx.TextColor3 = c
+			pl.ic.Image = t[3]
+			pl.ic.ImageColor3 = c
+			pl.st.Color = c
+			pl.f.Visible = true
+		end
+	end
+	for i = n + 1, 2 do
+		pills[i].f.Visible = false
+	end
+end
+
 local gNote = newGroup()
 building = gNote
 local note = text(cv, "", 45, { Name = "Notification", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 0, 18), Size = UDim2.fromOffset(0, 37.4), AutomaticSize = Enum.AutomaticSize.X, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE, Visible = false, ZIndex = 20 })
@@ -685,16 +764,20 @@ local function numAttr(p, n, fallback)
 	end
 	return fallback
 end
+local function layoutWho(name)
+	whoName.Text = name
+	local w = math.max(220, textW(name, 49))
+	whoRow.Size = UDim2.fromOffset(w, 44)
+	prevB.Position = UDim2.new(0.5, -(w / 2 + 42), 1, 612 - 720)
+	nextB.Position = UDim2.new(0.5, w / 2 + 42, 1, 612 - 720)
+end
 local function paintWho(instant)
 	local p = state.watching
 	if not p then
 		return
 	end
-	whoName.Text = p.DisplayName
-	local w = math.max(220, textW(p.DisplayName, 49))
-	whoRow.Size = UDim2.fromOffset(w, 44)
-	prevB.Position = UDim2.new(0.5, -(w / 2 + 42), 1, 612 - 720)
-	nextB.Position = UDim2.new(0.5, w / 2 + 42, 1, 612 - 720)
+	layoutWho(p.DisplayName)
+	setTraits(p:GetAttribute("Trait1"), p:GetAttribute("Trait2"))
 	local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
 	local mh = hum and hum.MaxHealth or 100
 	local h = hum and math.max(0, hum.Health) or 0
@@ -1155,6 +1238,9 @@ task.spawn(function()
 	for _, a in pairs(ASSETS) do
 		add("rbxassetid://" .. a.Id)
 	end
+	for _, t in pairs(TRAITS) do
+		add(t[3])
+	end
 	for _, rootObj in ipairs({ playerGui, SoundService }) do
 		for _, d in ipairs(rootObj:GetDescendants()) do
 			if d:IsA("ImageLabel") or d:IsA("ImageButton") then
@@ -1185,6 +1271,7 @@ if CFG.ShowTuner and script:FindFirstChild("Tuner") then
 		diedCG.GroupTransparency = 1
 		menu.Visible = false
 		spec.Visible = false
+		hudGui.Enabled = false
 		lobbyBg.Visible = false
 		setShade(1)
 		shade.Visible = false
@@ -1212,13 +1299,30 @@ if CFG.ShowTuner and script:FindFirstChild("Tuner") then
 				end
 			end,
 			spectate = function()
-				local on = not spec.Visible
 				hideAll()
-				if on then
-					spec.Visible = true
-					fadeTo(gSpec, 1, 0)
-					fadeTo(gWho, 1, 0)
+				local names = { "kai_builds", "mira_exe", "sunnycove22", "TideRunner", "orca_skipped", "palm.tree.pro" }
+				local keys = {}
+				for k in pairs(TRAITS) do
+					table.insert(keys, k)
 				end
+				local k1 = keys[math.random(#keys)]
+				local k2 = keys[math.random(#keys)]
+				while k2 == k1 do
+					k2 = keys[math.random(#keys)]
+				end
+				local count = math.random(0, 2)
+				layoutWho(names[math.random(#names)])
+				setTraits(count >= 1 and k1 or nil, count >= 2 and k2 or nil)
+				setBar("Health", math.random(5, 100), math.random(), true)
+				local hu, th = math.random(0, 100), math.random(0, 100)
+				setBar("Hunger", hu, hu / 100, true)
+				setBar("Thirst", th, th / 100, true)
+				setLung(math.random())
+				hudGui.Enabled = true
+				spec.Visible = true
+				whoRow.Visible = true
+				fadeTo(gSpec, 1, 0)
+				fadeTo(gWho, 1, 0)
 			end,
 			hide = hideAll,
 			notify = function()
