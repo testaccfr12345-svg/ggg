@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local ContentProvider = game:GetService("ContentProvider")
+local StarterGui = game:GetService("StarterGui")
 
 local CFG = {
 	Sounds = {
@@ -25,6 +26,7 @@ local CFG = {
 		lungFill = "rbxassetid://117299378249299",
 		joinBg = "rbxassetid://140078431096703",
 		lobbyBg = "rbxassetid://109346762822915",
+		youDied = "",
 	},
 	PanelAlpha = 0.68,
 }
@@ -67,6 +69,14 @@ for _, id in pairs(CFG.Icons) do
 	end
 end
 task.spawn(pcall, ContentProvider.PreloadAsync, ContentProvider, preload)
+task.spawn(function()
+	for _ = 1, 20 do
+		if pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.Health, false) then
+			break
+		end
+		task.wait(0.5)
+	end
+end)
 local function play(n)
 	local s = snd[n]
 	if s and s.SoundId ~= "" then
@@ -194,17 +204,37 @@ backGui.Parent = playerGui
 local lobbyBg = new("ImageLabel", { Parent = backGui, Name = "LobbyBackground", Image = CFG.Icons.lobbyBg, ScaleType = Enum.ScaleType.Crop, Size = UDim2.fromScale(1, 1), BackgroundTransparency = 0, BackgroundColor3 = BLACK, Visible = false })
 local lobbyShade = new("Frame", { Parent = lobbyBg, Name = "Shade", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 0.65, BackgroundColor3 = BLACK })
 local shade = new("Frame", { Parent = backGui, Name = "Shade", Size = UDim2.fromScale(1, 1), BackgroundColor3 = BLACK, BackgroundTransparency = 1, Visible = false })
-local lids = new("Frame", { Parent = backGui, Name = "Eyelids", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ClipsDescendants = true, Visible = false })
-local lidParts = {}
-for i, side in ipairs({ -1, 1 }) do
-	local holder = new("Frame", { Parent = lids, Name = side < 0 and "Top" or "Bottom", AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(0, 0), BackgroundTransparency = 1 })
-	local rings = {}
-	for k, q in ipairs({ { 0, 0 }, { 14, 0.45 }, { 30, 0.72 }, { 48, 0.88 } }) do
-		local c = new("Frame", { Parent = holder, AnchorPoint = V2(0.5, 0.5), BackgroundColor3 = BLACK, BackgroundTransparency = q[2], ZIndex = 5 - k })
-		round(c, UDim.new(0.5, 0))
-		rings[k] = { f = c, grow = q[1] }
-	end
-	lidParts[i] = { holder = holder, rings = rings, side = side }
+local lids = new("Frame", { Parent = backGui, Name = "Eyelids", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Active = true, Visible = false })
+local function lidLayer(name, color, z)
+	return new("Frame", { Parent = lids, Name = name, Size = UDim2.fromScale(1, 1), BackgroundColor3 = color, BackgroundTransparency = 1, ZIndex = z })
+end
+local lidHaze = lidLayer("Haze", Color3.fromRGB(231, 235, 239), 2)
+local lidTop = lidLayer("Top", BLACK, 3)
+local lidBottom = lidLayer("Bottom", BLACK, 3)
+local lidDark = lidLayer("Dark", BLACK, 4)
+local LID_SOFT = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 0),
+	NumberSequenceKeypoint.new(0.16, 0.03),
+	NumberSequenceKeypoint.new(0.38, 0.28),
+	NumberSequenceKeypoint.new(0.62, 0.7),
+	NumberSequenceKeypoint.new(0.84, 0.95),
+	NumberSequenceKeypoint.new(1, 1),
+})
+local function lidSegment(parent, isTop)
+	local seg = new("Frame", { Parent = parent, AnchorPoint = V2(0.5, 0.5), BackgroundColor3 = BLACK, BackgroundTransparency = 0, ZIndex = 3 })
+	local edge = new("Frame", { Parent = seg, Name = "SoftEdge", AnchorPoint = V2(0, isTop and 0 or 1), Position = UDim2.new(0, 0, isTop and 1 or 0, isTop and -1 or 1), BackgroundColor3 = BLACK, BackgroundTransparency = 0, ZIndex = 3 })
+	local g = Instance.new("UIGradient")
+	g.Rotation = isTop and 90 or 270
+	g.Transparency = LID_SOFT
+	g.Parent = edge
+	return seg, edge
+end
+local lidSegs = {}
+for i = 1, 17 do
+	local ang = math.rad(-80 + (i - 1) * 160 / 16)
+	local top, topEdge = lidSegment(lidTop, true)
+	local bottom, bottomEdge = lidSegment(lidBottom, false)
+	lidSegs[i] = { cx = math.sin(ang), cy = math.cos(ang), top = top, bottom = bottom, topEdge = topEdge, bottomEdge = bottomEdge }
 end
 
 local gui = Instance.new("ScreenGui")
@@ -245,13 +275,16 @@ building = gDied
 local diedRoot = frame(cv, { Name = "YouDied", Size = UDim2.fromScale(1, 1), Visible = false })
 local diedW = math.ceil(textW("YOU DIED", 100)) + 24
 building = nil
-local diedCG = new("CanvasGroup", { Parent = diedRoot, Name = "Text", AnchorPoint = V2(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 345), Size = UDim2.fromOffset(diedW, 120), BackgroundTransparency = 1, GroupTransparency = 1 })
+local diedBox = frame(diedRoot, { Name = "Holder", AnchorPoint = V2(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 345), Size = UDim2.fromOffset(diedW, 120) })
+local diedCG = new("CanvasGroup", { Parent = diedBox, Name = "Text", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, GroupTransparency = 1 })
+local diedImg = new("ImageLabel", { Parent = diedBox, Name = "Image", AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(256.1, 59.8), BackgroundTransparency = 1, Image = CFG.Icons.youDied, ImageTransparency = 1, Visible = CFG.Icons.youDied ~= "" })
+diedCG.Visible = CFG.Icons.youDied == ""
 local diedL = text(diedCG, "YOU DIED", 100, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(diedW - 12, 110), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE })
 new("UIStroke", { Parent = diedL, Color = WHITE, Thickness = 2, Transparency = 0, LineJoinMode = Enum.LineJoinMode.Round })
 local diedScale = Instance.new("UIScale")
-local DIED_SCALE = 640 / diedW
+local DIED_SCALE = 544 / diedW
 diedScale.Scale = DIED_SCALE
-diedScale.Parent = diedCG
+diedScale.Parent = diedBox
 local diedTw, diedGrow
 
 local gMenu = newGroup()
@@ -314,7 +347,8 @@ text(specBack, "Back", 27, { Position = UDim2.fromOffset(35, 0), Size = UDim2.ne
 
 local gNote = newGroup()
 building = gNote
-local note = shadow(text(cv, "", 43, { Name = "Notification", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 0, 26), Size = UDim2.fromOffset(1000, 47), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE, Visible = false }), 0.4)
+local note = text(cv, "", 45, { Name = "Notification", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 0, 18), Size = UDim2.fromOffset(0, 37.4), AutomaticSize = Enum.AutomaticSize.X, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE, Visible = false, ZIndex = 20 })
+new("UIStroke", { Parent = note, Color = BLACK, Thickness = 1.5, Transparency = 0.4 })
 building = nil
 
 local hudGui = Instance.new("ScreenGui")
@@ -500,23 +534,27 @@ local function showGroup(g, root, on, slide)
 	end
 end
 local noteSeq = 0
-local function notify(str, bad)
+local noteText, noteUntil = nil, 0
+local function notify(str)
+	if noteText == str and os.clock() < noteUntil then
+		return
+	end
 	noteSeq += 1
 	local my = noteSeq
+	noteText, noteUntil = str, os.clock() + 2.6
 	note.Text = str
-	note.TextColor3 = bad and CORAL or WHITE
 	note.Visible = true
-	note.Position = UDim2.new(0.5, 0, 0, -2)
+	note.Position = UDim2.new(0.5, 0, 0, -10)
 	fadeTo(gNote, 0, 0)
 	fadeTo(gNote, 1, 0.4, QUINT, OUT)
-	TweenService:Create(note, TweenInfo.new(0.4, QUINT, OUT), { Position = UDim2.new(0.5, 0, 0, 26) }):Play()
-	task.delay(bad and 4.9 or 3.9, function()
+	TweenService:Create(note, TweenInfo.new(0.4, QUINT, OUT), { Position = UDim2.new(0.5, 0, 0, 18) }):Play()
+	task.delay(2.4, function()
 		if my ~= noteSeq then
 			return
 		end
-		fadeTo(gNote, 0, 0.16, QUAD, IN)
-		TweenService:Create(note, TweenInfo.new(0.16, QUAD, IN), { Position = UDim2.new(0.5, 0, 0, 12) }):Play()
-		task.delay(0.17, function()
+		fadeTo(gNote, 0, 0.2, QUAD, IN)
+		TweenService:Create(note, TweenInfo.new(0.2, QUAD, IN), { Position = UDim2.new(0.5, 0, 0, 4) }):Play()
+		task.delay(0.21, function()
 			if my == noteSeq then
 				note.Visible = false
 			end
@@ -596,53 +634,107 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
-local function lidLayout(progress)
-	local a = backGui.AbsoluteSize
-	if a.X <= 0 then
+local EYE = {
+	{ 0, 0, 42, 1, 0 },
+	{ 0.65, 0.13, 36, 0.36, 0.07 },
+	{ 1, 0.012, 42, 0.72, 0.01 },
+	{ 1.1, 0.012, 12, 0.58, 0.01 },
+	{ 2.05, 1, 8, 0, 0 },
+	{ 3.15, 1, 0, 0, 0 },
+}
+local EYE_END = 3.15
+local function eyeAt(t)
+	for i = 2, #EYE do
+		local b = EYE[i]
+		if t <= b[1] then
+			local a = EYE[i - 1]
+			local x = math.clamp((t - a[1]) / (b[1] - a[1]), 0, 1)
+			x = x * x * x * (x * (x * 6 - 15) + 10)
+			return a[2] + (b[2] - a[2]) * x, a[3] + (b[3] - a[3]) * x, a[4] + (b[4] - a[4]) * x, a[5] + (b[5] - a[5]) * x
+		end
+	end
+	return 1, 0, 0, 0
+end
+local lidW, lidH, lidPanel = -1, -1, 1
+local function lidLayout(t)
+	local open, blurSize, dark, haze = eyeAt(t)
+	local lower = eyeAt(math.max(0, t - 0.065))
+	local effort = 4 * open * (1 - open)
+	local tremble = (math.sin(t * 11.3) + math.sin(t * 17.1) * 0.35) * 0.0018 * effort
+	local center = 0.5 + math.sin(t * 1.45) * 0.007 * effort
+	local tilt = math.sin(t * 0.8 + 0.3) * 0.012 * effort
+	local upSpan = 0.78 + open * 0.96
+	local lowSpan = 0.78 + lower * 0.96
+	local upLift = math.max(0, open * 0.98 + tremble)
+	local lowLift = math.max(0, lower ^ 1.25 * 0.76 - tremble * 0.4)
+	local w = math.max(1, lids.AbsoluteSize.X)
+	local h = math.max(1, lids.AbsoluteSize.Y)
+	if w ~= lidW or h ~= lidH then
+		lidW, lidH = w, h
+		local diag = math.sqrt(w * w + h * h)
+		lidPanel = diag * 2
+		local feather = math.max(24, h * 0.085)
+		for _, sg in ipairs(lidSegs) do
+			sg.top.Size = UDim2.fromOffset(diag * 4, lidPanel)
+			sg.bottom.Size = UDim2.fromOffset(diag * 4, lidPanel)
+			sg.topEdge.Size = UDim2.new(1, 0, 0, feather + 1)
+			sg.bottomEdge.Size = UDim2.new(1, 0, 0, feather + 1)
+		end
+	end
+	local half = lidPanel * 0.5
+	local slope = 2 * h / w
+	for _, sg in ipairs(lidSegs) do
+		local ux = sg.cx * upSpan
+		local lx = sg.cx * lowSpan
+		local uy = center + tilt * ux - upLift * sg.cy
+		local ly = center + tilt * lx + lowLift * sg.cy
+		local ua = math.atan((tilt + upLift * sg.cx / (upSpan * sg.cy)) * slope)
+		local la = math.atan((tilt - lowLift * sg.cx / (lowSpan * sg.cy)) * slope)
+		sg.top.Rotation = math.deg(ua)
+		sg.top.Position = UDim2.fromOffset((ux + 1) * w * 0.5 + math.sin(ua) * half, uy * h - math.cos(ua) * half)
+		sg.bottom.Rotation = math.deg(la)
+		sg.bottom.Position = UDim2.fromOffset((lx + 1) * w * 0.5 - math.sin(la) * half, ly * h + math.cos(la) * half)
+	end
+	if lightFx.blur then
+		lightFx.blur.Size = blurSize
+	end
+	lidDark.BackgroundTransparency = 1 - dark
+	lidHaze.BackgroundTransparency = 1 - haze
+end
+local camBase, camApplied, camOn, camT0 = nil, nil, false, 0
+local function camReset()
+	local cam = workspace.CurrentCamera
+	if cam and camApplied and cam.CFrame == camApplied then
+		cam.CFrame = camBase
+	end
+	camBase, camApplied = nil, nil
+end
+local function camApply()
+	if not camOn then
 		return
 	end
-	local s = a.Y / 759
-	local R = 3081 * s
-	for _, l in ipairs(lidParts) do
-		local edge = (l.side < 0 and 380 or 360) * s
-		local move = 520 * s * progress
-		local cy = l.side < 0 and (edge - R - move) or (edge + R + move)
-		l.holder.Position = UDim2.new(0.5, 0, 0, cy)
-		for _, r in ipairs(l.rings) do
-			local d = (R + r.grow * s) * 2
-			r.f.Size = UDim2.fromOffset(d, d)
-		end
+	local t = os.clock() - camT0
+	local cam = workspace.CurrentCamera
+	if not cam or t >= EYE_END then
+		return
 	end
+	local p = math.clamp(t / EYE_END, 0, 1)
+	local lift = p * p * p * (p * (p * 6 - 15) + 10)
+	camBase = cam.CFrame
+	cam.CFrame = camBase * CFrame.Angles(math.rad(-4.5 * (1 - lift)), math.rad(0.9 * math.sin(math.pi * p) ^ 2), 0)
+	camApplied = cam.CFrame
 end
-local function lidEase(x)
-	x = math.clamp(x, 0, 1)
-	local t = x
-	for _ = 1, 8 do
-		local u = 1 - t
-		local bx = 3 * u * u * t * 0.5 + 3 * u * t * t * 0.25 + t * t * t - x
-		local d = 3 * u * u * 0.5 + 6 * u * t * (0.25 - 0.5) + 3 * t * t * 0.75
-		if math.abs(bx) < 1e-6 or d == 0 then
-			break
-		end
-		t = math.clamp(t - bx / d, 0, 1)
+local function wakeCam(on)
+	if on and not camOn then
+		camOn, camT0 = true, os.clock()
+		RunService:BindToRenderStep("HorizonWakeReset", Enum.RenderPriority.Camera.Value - 1, camReset)
+		RunService:BindToRenderStep("HorizonWakeApply", Enum.RenderPriority.Camera.Value + 1, camApply)
+	elseif not on and camOn then
+		camOn = false
+		RunService:UnbindFromRenderStep("HorizonWakeReset")
+		RunService:UnbindFromRenderStep("HorizonWakeApply")
+		camReset()
 	end
-	local u = 1 - t
-	return 3 * u * u * t * 0 + 3 * u * t * t * 1 + t * t * t
-end
-local function easeOut(x)
-	return 1 - (1 - x) * (1 - x)
-end
-local function wakeLook(t)
-	local blur, bright
-	if t < 1.7 then
-		local e = easeOut(t / 1.7)
-		blur, bright = 24 - 13 * e, 0.5 + 0.3 * e
-	else
-		local e = easeOut(math.clamp((t - 1.7) / 1.7, 0, 1))
-		blur, bright = 11 * (1 - e), 0.8 + 0.2 * e
-	end
-	lightFx.blur.Size = blur
-	lightFx.cc.TintColor = Color3.new(bright, bright, bright)
 end
 local function clearFx()
 	for _, f in pairs(lightFx) do
@@ -689,13 +781,14 @@ local function onDied()
 		end
 		diedScale.Scale = DIED_SCALE
 		diedCG.GroupTransparency = 0
+		diedImg.ImageTransparency = 0
 		diedRoot.Visible = true
 		fadeTo(gDied, 1, 0)
 		task.delay(0.2, function()
 			if my ~= state.seq then
 				return
 			end
-			diedGrow = TweenService:Create(diedScale, TweenInfo.new(2.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Scale = DIED_SCALE * 1.1 })
+			diedGrow = TweenService:Create(diedScale, TweenInfo.new(2.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Scale = DIED_SCALE * 1.035 })
 			diedGrow:Play()
 		end)
 		task.delay(2, function()
@@ -704,6 +797,7 @@ local function onDied()
 			end
 			diedTw = TweenService:Create(diedCG, TweenInfo.new(0.45, QUAD, IN), { GroupTransparency = 1 })
 			diedTw:Play()
+			TweenService:Create(diedImg, TweenInfo.new(0.45, QUAD, IN), { ImageTransparency = 1 }):Play()
 		end)
 		task.delay(2.75, function()
 			if my ~= state.seq then
@@ -757,11 +851,8 @@ onTap(respawnB, function()
 		clearFx()
 		lightFx.blur = Instance.new("BlurEffect")
 		lightFx.blur.Name = "HorizonWakeBlur"
+		lightFx.blur.Size = 42
 		lightFx.blur.Parent = Lighting
-		lightFx.cc = Instance.new("ColorCorrectionEffect")
-		lightFx.cc.Name = "HorizonWakeTint"
-		lightFx.cc.Parent = Lighting
-		wakeLook(0)
 		lidLayout(0)
 		lids.Visible = true
 		shade.Visible = false
@@ -769,19 +860,23 @@ onTap(respawnB, function()
 		hideOwnHud(false)
 		play("wake")
 		local t0 = os.clock()
-		local noted = false
+		wakeCam(true)
 		local step
 		step = RunService.RenderStepped:Connect(function()
 			local t = os.clock() - t0
-			lidLayout(lidEase(t / 3))
-			wakeLook(t)
-			if t >= 3 and not noted then
-				noted = true
+			if my ~= state.seq then
+				step:Disconnect()
+				wakeCam(false)
+				lids.Visible = false
+				clearFx()
+				return
+			end
+			lidLayout(t)
+			if t >= EYE_END then
+				step:Disconnect()
+				wakeCam(false)
 				lids.Visible = false
 				notify("Back on your feet")
-			end
-			if t >= 3.4 then
-				step:Disconnect()
 				clearFx()
 				state.screen = "none"
 				state.dead = false
@@ -798,7 +893,7 @@ onTap(spectateB, function()
 	local l = watchList()
 	if #l == 0 then
 		sfx("error")
-		notify("No one to spectate", true)
+		notify("No one to spectate")
 		return
 	end
 	state.screen = "spec"
