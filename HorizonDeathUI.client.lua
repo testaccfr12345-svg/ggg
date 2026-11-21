@@ -280,16 +280,17 @@ local diedScale = Instance.new("UIScale")
 local DIED_SCALE = 544 / diedW
 diedScale.Scale = DIED_SCALE
 diedScale.Parent = diedBox
-local diedTw
+local diedCause = text(diedRoot, "", 40, { Name = "Cause", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 0, 345 + 30 * DIED_SCALE + 30), Size = UDim2.fromOffset(1000, 40), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = CREAM, TextTransparency = 1 })
+local diedTw, causeTw
 local bloodG = {}
 for i, parent in ipairs({ diedL, diedL:FindFirstChildOfClass("UIStroke") }) do
 	local g = Instance.new("UIGradient")
 	g.Parent = parent
 	bloodG[i] = g
 end
-local B_LIGHT = Color3.fromRGB(255, 156, 163)
-local B_MID = Color3.fromRGB(196, 38, 58)
-local B_DEEP = Color3.fromRGB(118, 10, 28)
+local B_LIGHT = Color3.fromRGB(255, 190, 194)
+local B_MID = Color3.fromRGB(214, 96, 110)
+local B_DEEP = Color3.fromRGB(166, 52, 68)
 local B_STOPS = { -1, -0.62, -0.24, 0.24, 0.62, 1 }
 local patches = {}
 local rng = Random.new()
@@ -345,10 +346,10 @@ local function sampleBlood(x)
 	end
 	local cov = 1 - clear
 	local red = B_LIGHT:Lerp(B_MID, math.clamp(cov * 1.15, 0, 1) * math.max(0.35, dark))
-	return WHITE:Lerp(red:Lerp(B_DEEP, dark * dark * 0.85), cov)
+	return WHITE:Lerp(red:Lerp(B_DEEP, dark * dark * 0.6), cov * 0.85)
 end
 local function paintBlood(t)
-	local age0 = (t - 0.2) / 0.45
+	local age0 = (t - 0.2) / 0.75
 	local xs = { 0, 1 }
 	for _, p in ipairs(patches) do
 		local age = math.max(0, age0 - p.delay)
@@ -402,10 +403,9 @@ titleScale.Scale = 1.22
 titleScale.Parent = title
 shadow(title, 0.75)
 local cause = shadow(text(menu, "", 38, { Name = "Cause", Position = UDim2.fromOffset(40, 181.4), Size = UDim2.fromOffset(900, 38), TextTransparency = 0.1 }), 0.55)
-local tip = frame(menu, { Name = "Tip", AnchorPoint = V2(0, 1), Position = fromBottom(40, 654), Size = UDim2.fromOffset(580, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = PANEL_T, BackgroundColor3 = PANEL })
-round(tip, 16)
+local tip = frame(menu, { Name = "Tip", AnchorPoint = V2(0, 1), Position = fromBottom(40, 654), Size = UDim2.fromOffset(580, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 })
 local tp = Instance.new("UIPadding")
-tp.PaddingLeft, tp.PaddingRight, tp.PaddingTop, tp.PaddingBottom = UDim.new(0, 24), UDim.new(0, 24), UDim.new(0, 20), UDim.new(0, 20)
+tp.PaddingLeft, tp.PaddingRight, tp.PaddingTop, tp.PaddingBottom = UDim.new(0, 0), UDim.new(0, 0), UDim.new(0, 0), UDim.new(0, 0)
 tp.Parent = tip
 local tl = Instance.new("UIListLayout")
 tl.SortOrder = Enum.SortOrder.LayoutOrder
@@ -413,8 +413,8 @@ tl.Padding = UDim.new(0, 6)
 tl.Parent = tip
 local tipHead = frame(tip, { Name = "Head", Size = UDim2.new(1, 0, 0, 34), LayoutOrder = 1 })
 round(frame(tipHead, { AnchorPoint = V2(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.fromOffset(12, 12), BackgroundTransparency = 0, BackgroundColor3 = ACCENT }), 3)
-text(tipHead, "Tip", 34, { Position = UDim2.fromOffset(22, 0), Size = UDim2.fromOffset(200, 34), TextColor3 = ACCENT })
-local tipText = text(tip, "", 36, { Name = "Text", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true, LineHeight = 0.886, LayoutOrder = 2 })
+shadow(text(tipHead, "Tip", 34, { Position = UDim2.fromOffset(22, 0), Size = UDim2.fromOffset(200, 34), TextColor3 = ACCENT }), 0.55)
+local tipText = shadow(text(tip, "", 36, { Name = "Text", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true, LineHeight = 0.886, LayoutOrder = 2 }), 0.55)
 
 local function menuButton(name, label, ico, i, main)
 	local b = new("TextButton", { Parent = menu, Name = name, Text = "", AutoButtonColor = false, AnchorPoint = V2(1, 0), Position = UDim2.new(1, -35, 0, 466 + (i - 1) * 66), Size = UDim2.fromOffset(340, 56), BackgroundColor3 = main and ACCENT or PANEL, BackgroundTransparency = main and 0 or PANEL_T })
@@ -847,6 +847,12 @@ local function onDied()
 			diedTw:Cancel()
 		end
 		diedCG.GroupTransparency = 0
+		if causeTw then
+			causeTw:Cancel()
+		end
+		local dc = player:GetAttribute("DeathCause")
+		diedCause.Text = type(dc) == "string" and dc ~= "" and dc or "Killed by a Tiger"
+		diedCause.TextTransparency = 0.1
 		newStains()
 		paintBlood(0)
 		local b0 = os.clock()
@@ -867,6 +873,8 @@ local function onDied()
 			end
 			diedTw = TweenService:Create(diedCG, TweenInfo.new(0.45, QUAD, IN), { GroupTransparency = 1 })
 			diedTw:Play()
+			causeTw = TweenService:Create(diedCause, TweenInfo.new(0.45, QUAD, IN), { TextTransparency = 1 })
+			causeTw:Play()
 		end)
 		task.delay(2.75, function()
 			if my ~= state.seq then
