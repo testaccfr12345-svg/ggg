@@ -26,6 +26,7 @@ local CFG = {
 		lungFill = "rbxassetid://117299378249299",
 		joinBg = "rbxassetid://140078431096703",
 		lobbyBg = "rbxassetid://109346762822915",
+		youDied = "rbxassetid://131110407134601",
 	},
 	PanelAlpha = 0.68,
 }
@@ -271,20 +272,17 @@ local gDied = newGroup()
 building = gDied
 local diedRoot = frame(cv, { Name = "YouDied", Size = UDim2.fromScale(1, 1), Visible = false })
 local diedW0 = math.ceil(textW("YOU DIED", 100)) + 24
-local diedW = diedW0 + 7 * 3
-local DIED_TEXT = 'Y<font size="15"> </font>O<font size="15"> </font>U<font size="15"> </font> <font size="15"> </font>D<font size="15"> </font>I<font size="15"> </font>E<font size="15"> </font>D'
 building = nil
-local diedBox = frame(diedRoot, { Name = "Holder", AnchorPoint = V2(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 345), Size = UDim2.fromOffset(diedW, 120) })
+local diedBox = frame(diedRoot, { Name = "Holder", AnchorPoint = V2(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 345), Size = UDim2.fromOffset(275.9, 58.6) })
 local diedCG = new("CanvasGroup", { Parent = diedBox, Name = "Text", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, GroupTransparency = 1 })
-local diedL = text(diedCG, DIED_TEXT, 100, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(diedW - 12, 110), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE, RichText = true })
-new("UIStroke", { Parent = diedL, Color = WHITE, Thickness = 1, Transparency = 0, LineJoinMode = Enum.LineJoinMode.Round })
+local diedImg = new("ImageLabel", { Parent = diedCG, Name = "Image", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Image = CFG.Icons.youDied, ImageColor3 = WHITE, ScaleType = Enum.ScaleType.Stretch })
 local diedScale = Instance.new("UIScale")
 local DIED_SCALE = 544 / diedW0
 diedScale.Scale = DIED_SCALE
 diedScale.Parent = diedBox
 local diedTw
 local bloodG = {}
-for i, parent in ipairs({ diedL, diedL:FindFirstChildOfClass("UIStroke") }) do
+for i, parent in ipairs({ diedImg }) do
 	local g = Instance.new("UIGradient")
 	g.Parent = parent
 	bloodG[i] = g
