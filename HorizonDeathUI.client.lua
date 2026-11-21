@@ -280,8 +280,7 @@ local diedScale = Instance.new("UIScale")
 local DIED_SCALE = 544 / diedW
 diedScale.Scale = DIED_SCALE
 diedScale.Parent = diedBox
-local diedCause = text(diedRoot, "", 40, { Name = "Cause", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 0, 345 + 30 * DIED_SCALE + 30), Size = UDim2.fromOffset(1000, 40), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = CREAM, TextTransparency = 1 })
-local diedTw, causeTw
+local diedTw
 local bloodG = {}
 for i, parent in ipairs({ diedL, diedL:FindFirstChildOfClass("UIStroke") }) do
 	local g = Instance.new("UIGradient")
@@ -818,7 +817,7 @@ local function openMenu(ft)
 	state.screen = "menu"
 	local hasBed = player:GetAttribute("HasBed") == true
 	local c = player:GetAttribute("DeathCause")
-	cause.Text = type(c) == "string" and c or ""
+	cause.Text = type(c) == "string" and c ~= "" and c or "Killed by a Tiger"
 	respawnL.Text = hasBed and "Respawn at bed" or "Respawn"
 	tipText.Text = hasBed and "Sleep in a different bed to move your respawn point." or "Make a bed to set your respawn point."
 	lobbyBg.Visible = true
@@ -843,45 +842,52 @@ local function onDied()
 			return
 		end
 		play("death")
-		if diedTw then
-			diedTw:Cancel()
+		local ds = snd.death
+		local w0 = os.clock()
+		local wc
+		local function showDied()
+			if diedTw then
+				diedTw:Cancel()
+			end
+			diedCG.GroupTransparency = 0
+			newStains()
+			paintBlood(0)
+			local b0 = os.clock()
+			local bc
+			bc = RunService.RenderStepped:Connect(function()
+				local t = os.clock() - b0
+				if my ~= state.seq or t > 2.5 then
+					bc:Disconnect()
+					return
+				end
+				paintBlood(t)
+			end)
+			diedRoot.Visible = true
+			fadeTo(gDied, 1, 0)
+			task.delay(2, function()
+				if my ~= state.seq then
+					return
+				end
+				diedTw = TweenService:Create(diedCG, TweenInfo.new(0.45, QUAD, IN), { GroupTransparency = 1 })
+				diedTw:Play()
+			end)
+			task.delay(2.75, function()
+				if my ~= state.seq then
+					return
+				end
+				diedRoot.Visible = false
+				openMenu(0.4)
+			end)
 		end
-		diedCG.GroupTransparency = 0
-		if causeTw then
-			causeTw:Cancel()
-		end
-		local dc = player:GetAttribute("DeathCause")
-		diedCause.Text = type(dc) == "string" and dc ~= "" and dc or "Killed by a Tiger"
-		diedCause.TextTransparency = 0.1
-		newStains()
-		paintBlood(0)
-		local b0 = os.clock()
-		local bc
-		bc = RunService.RenderStepped:Connect(function()
-			local t = os.clock() - b0
-			if my ~= state.seq or t > 2.5 then
-				bc:Disconnect()
-				return
-			end
-			paintBlood(t)
-		end)
-		diedRoot.Visible = true
-		fadeTo(gDied, 1, 0)
-		task.delay(2, function()
+		wc = RunService.Heartbeat:Connect(function()
 			if my ~= state.seq then
+				wc:Disconnect()
 				return
 			end
-			diedTw = TweenService:Create(diedCG, TweenInfo.new(0.45, QUAD, IN), { GroupTransparency = 1 })
-			diedTw:Play()
-			causeTw = TweenService:Create(diedCause, TweenInfo.new(0.45, QUAD, IN), { TextTransparency = 1 })
-			causeTw:Play()
-		end)
-		task.delay(2.75, function()
-			if my ~= state.seq then
-				return
+			if ds.TimePosition >= 0.03 or os.clock() - w0 > 0.35 then
+				wc:Disconnect()
+				showDied()
 			end
-			diedRoot.Visible = false
-			openMenu(0.4)
 		end)
 	end)
 end
