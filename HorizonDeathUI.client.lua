@@ -262,19 +262,19 @@ titleScale.Scale = 1.22
 titleScale.Parent = title
 shadow(title, 0.75)
 local cause = shadow(text(menu, "", 38, { Name = "Cause", Position = UDim2.fromOffset(40, 181.4), Size = UDim2.fromOffset(900, 38), TextTransparency = 0.1 }), 0.55)
-local tip = frame(menu, { Name = "Tip", AnchorPoint = V2(0, 1), Position = fromBottom(40, 654), Size = UDim2.fromOffset(420, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = PANEL_T, BackgroundColor3 = PANEL })
-round(tip, 14)
+local tip = frame(menu, { Name = "Tip", AnchorPoint = V2(0, 1), Position = fromBottom(40, 654), Size = UDim2.fromOffset(580, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = PANEL_T, BackgroundColor3 = PANEL })
+round(tip, 16)
 local tp = Instance.new("UIPadding")
-tp.PaddingLeft, tp.PaddingRight, tp.PaddingTop, tp.PaddingBottom = UDim.new(0, 20), UDim.new(0, 20), UDim.new(0, 18), UDim.new(0, 18)
+tp.PaddingLeft, tp.PaddingRight, tp.PaddingTop, tp.PaddingBottom = UDim.new(0, 24), UDim.new(0, 24), UDim.new(0, 20), UDim.new(0, 20)
 tp.Parent = tip
 local tl = Instance.new("UIListLayout")
 tl.SortOrder = Enum.SortOrder.LayoutOrder
-tl.Padding = UDim.new(0, 4)
+tl.Padding = UDim.new(0, 6)
 tl.Parent = tip
-local tipHead = frame(tip, { Name = "Head", Size = UDim2.new(1, 0, 0, 23), LayoutOrder = 1 })
-round(frame(tipHead, { Position = UDim2.fromOffset(0, 7.5), Size = UDim2.fromOffset(8, 8), BackgroundTransparency = 0, BackgroundColor3 = ACCENT }), 2)
-text(tipHead, "Tip", 23, { Position = UDim2.fromOffset(16, 0), Size = UDim2.fromOffset(200, 23), TextColor3 = ACCENT })
-local tipText = text(tip, "", 30, { Name = "Text", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true, LineHeight = 0.886, LayoutOrder = 2 })
+local tipHead = frame(tip, { Name = "Head", Size = UDim2.new(1, 0, 0, 34), LayoutOrder = 1 })
+round(frame(tipHead, { AnchorPoint = V2(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.fromOffset(12, 12), BackgroundTransparency = 0, BackgroundColor3 = ACCENT }), 3)
+text(tipHead, "Tip", 34, { Position = UDim2.fromOffset(22, 0), Size = UDim2.fromOffset(200, 34), TextColor3 = ACCENT })
+local tipText = text(tip, "", 36, { Name = "Text", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true, LineHeight = 0.886, LayoutOrder = 2 })
 
 local function menuButton(name, label, ico, i, main)
 	local b = new("TextButton", { Parent = menu, Name = name, Text = "", AutoButtonColor = false, AnchorPoint = V2(1, 0), Position = UDim2.new(1, -35, 0, 466 + (i - 1) * 66), Size = UDim2.fromOffset(340, 56), BackgroundColor3 = main and ACCENT or PANEL, BackgroundTransparency = main and 0 or PANEL_T })
