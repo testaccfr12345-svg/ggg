@@ -249,9 +249,10 @@ local diedCG = new("CanvasGroup", { Parent = diedRoot, Name = "Text", AnchorPoin
 local diedL = text(diedCG, "YOU DIED", 100, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(diedW - 12, 110), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE })
 new("UIStroke", { Parent = diedL, Color = WHITE, Thickness = 2, Transparency = 0, LineJoinMode = Enum.LineJoinMode.Round })
 local diedScale = Instance.new("UIScale")
-diedScale.Scale = 640 / diedW
+local DIED_SCALE = 640 / diedW
+diedScale.Scale = DIED_SCALE
 diedScale.Parent = diedCG
-local diedTw
+local diedTw, diedGrow
 
 local gMenu = newGroup()
 building = gMenu
@@ -650,7 +651,8 @@ local function clearFx()
 	table.clear(lightFx)
 end
 
-local function openMenu()
+local function openMenu(ft)
+	ft = ft or 0.5
 	state.screen = "menu"
 	local hasBed = player:GetAttribute("HasBed") == true
 	local c = player:GetAttribute("DeathCause")
@@ -658,9 +660,9 @@ local function openMenu()
 	respawnL.Text = hasBed and "Respawn at bed" or "Respawn"
 	tipText.Text = hasBed and "Sleep in a different bed to move your respawn point." or "Make a bed to set your respawn point."
 	lobbyBg.Visible = true
-	TweenService:Create(lobbyBg, TweenInfo.new(0.5, QUAD, OUT), { ImageTransparency = 0, BackgroundTransparency = 0 }):Play()
-	TweenService:Create(lobbyShade, TweenInfo.new(0.5, QUAD, OUT), { BackgroundTransparency = 0.65 }):Play()
-	setShade(1, 0.5)
+	TweenService:Create(lobbyBg, TweenInfo.new(ft, QUAD, OUT), { ImageTransparency = 0, BackgroundTransparency = 0 }):Play()
+	TweenService:Create(lobbyShade, TweenInfo.new(ft, QUAD, OUT), { BackgroundTransparency = 0.65 }):Play()
+	setShade(1, ft)
 	showGroup(gMenu, menu, true, true)
 end
 
@@ -674,7 +676,7 @@ local function onDied()
 	hideOwnHud(true)
 	setShade(0)
 	diedRoot.Visible = false
-	task.delay(2, function()
+	task.delay(1.8, function()
 		if my ~= state.seq then
 			return
 		end
@@ -682,22 +684,33 @@ local function onDied()
 		if diedTw then
 			diedTw:Cancel()
 		end
+		if diedGrow then
+			diedGrow:Cancel()
+		end
+		diedScale.Scale = DIED_SCALE
 		diedCG.GroupTransparency = 0
 		diedRoot.Visible = true
 		fadeTo(gDied, 1, 0)
-		task.delay(5.2, function()
+		task.delay(0.2, function()
 			if my ~= state.seq then
 				return
 			end
-			diedTw = TweenService:Create(diedCG, TweenInfo.new(0.2, QUAD, IN), { GroupTransparency = 1 })
+			diedGrow = TweenService:Create(diedScale, TweenInfo.new(2.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Scale = DIED_SCALE * 1.1 })
+			diedGrow:Play()
+		end)
+		task.delay(2, function()
+			if my ~= state.seq then
+				return
+			end
+			diedTw = TweenService:Create(diedCG, TweenInfo.new(0.45, QUAD, IN), { GroupTransparency = 1 })
 			diedTw:Play()
 		end)
-		task.delay(8.5, function()
+		task.delay(2.75, function()
 			if my ~= state.seq then
 				return
 			end
 			diedRoot.Visible = false
-			openMenu()
+			openMenu(0.4)
 		end)
 	end)
 end
