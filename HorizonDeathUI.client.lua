@@ -244,122 +244,14 @@ local gDied = newGroup()
 building = gDied
 local diedRoot = frame(cv, { Name = "YouDied", Size = UDim2.fromScale(1, 1), Visible = false })
 local diedW = math.ceil(textW("YOU DIED", 100)) + 24
-local diedL = text(diedRoot, "YOU DIED", 100, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 345), Size = UDim2.fromOffset(diedW, 110), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE })
-local diedStroke = new("UIStroke", { Parent = diedL, Color = WHITE, Thickness = 2, Transparency = 0, LineJoinMode = Enum.LineJoinMode.Round })
+building = nil
+local diedCG = new("CanvasGroup", { Parent = diedRoot, Name = "Text", AnchorPoint = V2(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 345), Size = UDim2.fromOffset(diedW, 120), BackgroundTransparency = 1, GroupTransparency = 1 })
+local diedL = text(diedCG, "YOU DIED", 100, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(diedW - 12, 110), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE })
+new("UIStroke", { Parent = diedL, Color = WHITE, Thickness = 2, Transparency = 0, LineJoinMode = Enum.LineJoinMode.Round })
 local diedScale = Instance.new("UIScale")
-diedScale.Scale = 900 / diedW
-diedScale.Parent = diedL
-local bloodG = {}
-for i, parent in ipairs({ diedL, diedStroke }) do
-	local g = Instance.new("UIGradient")
-	g.Parent = parent
-	bloodG[i] = g
-end
-local B_LIGHT = Color3.fromRGB(255, 156, 163)
-local B_MID = Color3.fromRGB(196, 38, 58)
-local B_DEEP = Color3.fromRGB(118, 10, 28)
-local B_STOPS = { -1, -0.62, -0.24, 0.24, 0.62, 1 }
-local patches = {}
-local rng = Random.new()
-local function smooth(x)
-	x = math.clamp(x, 0, 1)
-	return x * x * x * (x * (x * 6 - 15) + 10)
-end
-local function newStains()
-	table.clear(patches)
-	local left = rng:NextNumber(0.09, 0.35)
-	local right = rng:NextNumber(0.6, 0.91)
-	local centers = { left, right }
-	if rng:NextInteger(0, 1) == 1 then
-		centers[1], centers[2] = right, left
-	end
-	local third, best = 0.38, -1
-	for _, c in ipairs({ 0.07, 0.23, 0.38, 0.57, 0.76, 0.93 }) do
-		local sc = math.min(math.abs(c - left), math.abs(c - right)) + rng:NextNumber(0, 0.055)
-		if sc > best then
-			best, third = sc, c
-		end
-	end
-	centers[3] = third + rng:NextNumber(-0.012, 0.012)
-	local delays = { 0, rng:NextNumber(0.36, 0.58), rng:NextNumber(0.84, 1.04) }
-	for i, c in ipairs(centers) do
-		patches[i] = {
-			c = c,
-			delay = delays[i],
-			reach = rng:NextNumber(0.17, 0.215),
-			depth = rng:NextNumber(0.74, 1),
-			kl = rng:NextNumber(0.78, 1.22),
-			kr = rng:NextNumber(0.78, 1.22),
-			ph = rng:NextNumber(0, math.pi * 2),
-			r = 0, op = 0, dk = 0,
-		}
-	end
-	local rot = rng:NextNumber(-9, 9)
-	for _, g in ipairs(bloodG) do
-		g.Rotation = rot
-	end
-end
-local function sampleBlood(x)
-	local clear, dark = 1, 0
-	for _, p in ipairs(patches) do
-		if p.op > 0 then
-			local r = p.r * (x < p.c and p.kl or p.kr)
-			local d = math.abs(x - p.c)
-			local a = smooth((r - d) / (r * 0.85)) * p.op
-			clear *= 1 - a
-			local core = smooth((r * 0.7 - d) / (r * 0.7)) * p.dk
-			dark = math.max(dark, core * a)
-		end
-	end
-	local cov = 1 - clear
-	local red = B_LIGHT:Lerp(B_MID, math.clamp(cov * 1.15, 0, 1) * math.max(0.35, dark))
-	return WHITE:Lerp(red:Lerp(B_DEEP, dark * dark * 0.85), cov)
-end
-local function paintBlood(t)
-	local age0 = t - 0.2
-	local xs = { 0, 1 }
-	for _, p in ipairs(patches) do
-		local age = math.max(0, age0 - p.delay)
-		local g = math.clamp(age / 5.4, 0, 1)
-		p.r = 0.008 + p.reach * (1 - (1 - g) ^ 1.6) + math.sin(age * 1.7 + p.ph) * 0.003 * g
-		p.op = smooth(age / 0.96)
-		p.dk = smooth(age / 2.6) * p.depth
-		if p.op > 0 then
-			for _, o in ipairs(B_STOPS) do
-				local x = p.c + p.r * o * (o < 0 and p.kl or p.kr)
-				if x > 0.001 and x < 0.999 then
-					table.insert(xs, x)
-				end
-			end
-		end
-	end
-	table.sort(xs)
-	local u = { 0 }
-	for i = 2, #xs do
-		if xs[i] - u[#u] > 0.002 then
-			table.insert(u, xs[i])
-		end
-	end
-	u[#u] = 1
-	while #u > 20 do
-		local bi, bg = 2, math.huge
-		for i = 2, #u - 1 do
-			local gap = u[i + 1] - u[i - 1]
-			if gap < bg then
-				bi, bg = i, gap
-			end
-		end
-		table.remove(u, bi)
-	end
-	local kps = {}
-	for i, x in ipairs(u) do
-		kps[i] = ColorSequenceKeypoint.new(x, sampleBlood(x))
-	end
-	local seq = ColorSequence.new(kps)
-	for _, g in ipairs(bloodG) do
-		g.Color = seq
-	end
-end
+diedScale.Scale = 640 / diedW
+diedScale.Parent = diedCG
+local diedTw
 
 local gMenu = newGroup()
 building = gMenu
@@ -370,7 +262,7 @@ titleScale.Scale = 1.22
 titleScale.Parent = title
 shadow(title, 0.75)
 local cause = shadow(text(menu, "", 38, { Name = "Cause", Position = UDim2.fromOffset(40, 181.4), Size = UDim2.fromOffset(900, 38), TextTransparency = 0.1 }), 0.55)
-local tip = frame(menu, { Name = "Tip", AnchorPoint = V2(0, 1), Position = fromBottom(40, 664), Size = UDim2.fromOffset(420, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = PANEL_T, BackgroundColor3 = PANEL })
+local tip = frame(menu, { Name = "Tip", AnchorPoint = V2(0, 1), Position = fromBottom(40, 654), Size = UDim2.fromOffset(420, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = PANEL_T, BackgroundColor3 = PANEL })
 round(tip, 14)
 local tp = Instance.new("UIPadding")
 tp.PaddingLeft, tp.PaddingRight, tp.PaddingTop, tp.PaddingBottom = UDim.new(0, 20), UDim.new(0, 20), UDim.new(0, 18), UDim.new(0, 18)
@@ -787,25 +679,18 @@ local function onDied()
 			return
 		end
 		play("death")
-		newStains()
-		paintBlood(0)
+		if diedTw then
+			diedTw:Cancel()
+		end
+		diedCG.GroupTransparency = 0
 		diedRoot.Visible = true
 		fadeTo(gDied, 1, 0)
-		local b0 = os.clock()
-		local bc
-		bc = RunService.RenderStepped:Connect(function()
-			local t = os.clock() - b0
-			if my ~= state.seq or t > 5.6 then
-				bc:Disconnect()
-				return
-			end
-			paintBlood(t)
-		end)
 		task.delay(5.2, function()
 			if my ~= state.seq then
 				return
 			end
-			fadeTo(gDied, 0, 0.3, QUAD, IN)
+			diedTw = TweenService:Create(diedCG, TweenInfo.new(0.2, QUAD, IN), { GroupTransparency = 1 })
+			diedTw:Play()
 		end)
 		task.delay(8.5, function()
 			if my ~= state.seq then
