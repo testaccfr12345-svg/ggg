@@ -438,7 +438,7 @@ round(frame(specTag, { Position = UDim2.fromOffset(0, 9), Size = UDim2.fromOffse
 shadow(text(specTag, "SPECTATING", 30, { Position = UDim2.fromOffset(24, 0), Size = UDim2.fromOffset(specW, 30), TextTransparency = 0.1 }))
 local gWho = newGroup()
 building = gWho
-local whoRow = frame(spec, { Name = "Player", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 612 - 720), Size = UDim2.fromOffset(400, 44) })
+local whoRow = frame(spec, { Name = "Player", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 562 - 720), Size = UDim2.fromOffset(400, 44) })
 local whoName = shadow(text(whoRow, "", 49, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(600, 49), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE }))
 building = gSpec
 local prevB = new("TextButton", { Parent = spec, Name = "Previous", Text = "", AutoButtonColor = false, AnchorPoint = V2(0.5, 0), Size = UDim2.fromOffset(44, 44), BackgroundTransparency = 1 })
@@ -446,7 +446,7 @@ icon(prevB, CFG.Icons.chevron, 26, CREAM, { AnchorPoint = V2(0.5, 0.5), Position
 local nextB = new("TextButton", { Parent = spec, Name = "Next", Text = "", AutoButtonColor = false, AnchorPoint = V2(0.5, 0), Size = UDim2.fromOffset(44, 44), BackgroundTransparency = 1 })
 icon(nextB, CFG.Icons.chevron, 26, CREAM, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
 local backW = 12 + 17 + 6 + math.ceil(textW("Back", 27)) + 18
-local specBack = new("TextButton", { Parent = spec, Name = "BackButton", Text = "", AutoButtonColor = false, AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 664 - 720), Size = UDim2.fromOffset(backW, 42), BackgroundColor3 = PANEL, BackgroundTransparency = PANEL_T })
+local specBack = new("TextButton", { Parent = spec, Name = "BackButton", Text = "", AutoButtonColor = false, AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 614 - 720), Size = UDim2.fromOffset(backW, 42), BackgroundColor3 = PANEL, BackgroundTransparency = PANEL_T })
 round(specBack, 10)
 new("UIStroke", { Parent = specBack, Color = CREAM, Thickness = 1, Transparency = 0.86, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 icon(specBack, CFG.Icons.back, 17, CREAM, { AnchorPoint = V2(0, 0.5), Position = UDim2.new(0, 12, 0.5, 0) })
@@ -478,7 +478,7 @@ local function findTrait(v)
 	end
 	return nil
 end
-local traitRow = frame(spec, { Name = "Traits", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 560 - 720), Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X })
+local traitRow = frame(spec, { Name = "Traits", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 510 - 720), Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X })
 local trl = Instance.new("UIListLayout")
 trl.FillDirection = Enum.FillDirection.Horizontal
 trl.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -657,7 +657,7 @@ local function hudResize()
 		bottom = math.round(math.clamp(vp.Y * 0.31, 76, 156))
 	end
 	local base = math.min(target, math.max(1, vp.X - left - 12) / 1000, math.max(1, vp.Y - bottom - 12) / HUD_H)
-	hudScale.Scale = math.min(base * 0.7, (vp.X - 24) / TUNE.Health.Width, (vp.Y - 24) / HUD_H)
+	hudScale.Scale = math.min(base * 1.05, (vp.X - 24) / TUNE.Health.Width, (vp.Y - 24) / HUD_H)
 	hud.Position = UDim2.fromScale((left - 16.3) / vp.X, (vp.Y - bottom + 102) / vp.Y)
 end
 hudGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(hudResize)
@@ -784,8 +784,8 @@ local function layoutWho(name)
 	whoName.Text = name
 	local w = math.max(220, textW(name, 49))
 	whoRow.Size = UDim2.fromOffset(w, 44)
-	prevB.Position = UDim2.new(0.5, -(w / 2 + 42), 1, 612 - 720)
-	nextB.Position = UDim2.new(0.5, w / 2 + 42, 1, 612 - 720)
+	prevB.Position = UDim2.new(0.5, -(w / 2 + 42), 1, 562 - 720)
+	nextB.Position = UDim2.new(0.5, w / 2 + 42, 1, 562 - 720)
 end
 local function paintDemo()
 	local n, a, b = demoWho()
