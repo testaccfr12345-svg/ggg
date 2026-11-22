@@ -30,6 +30,7 @@ local CFG = {
 	},
 	PanelAlpha = 0.68,
 	ShowTuner = true,
+	DemoSpectate = true,
 }
 
 local ACCENT = Color3.fromHex("E9B949")
@@ -677,6 +678,20 @@ local function setBar(name, value, frac, instant)
 	end
 end
 
+local function demoWho()
+	local names = { "kai_builds", "mira_exe", "sunnycove22", "TideRunner", "orca_skipped", "palm.tree.pro" }
+	local keys = {}
+	for k in pairs(TRAITS) do
+		table.insert(keys, k)
+	end
+	local k1 = keys[math.random(#keys)]
+	local k2 = keys[math.random(#keys)]
+	while k2 == k1 do
+		k2 = keys[math.random(#keys)]
+	end
+	local count = math.random(0, 2)
+	return names[math.random(#names)], count >= 1 and k1 or nil, count >= 2 and k2 or nil
+end
 local state = { dead = false, screen = "none", seq = 0, watching = nil, list = {}, busy = false }
 local lightFx = {}
 local function hideOwnHud(hide)
@@ -771,6 +786,16 @@ local function layoutWho(name)
 	whoRow.Size = UDim2.fromOffset(w, 44)
 	prevB.Position = UDim2.new(0.5, -(w / 2 + 42), 1, 612 - 720)
 	nextB.Position = UDim2.new(0.5, w / 2 + 42, 1, 612 - 720)
+end
+local function paintDemo()
+	local n, a, b = demoWho()
+	layoutWho(n)
+	setTraits(a, b)
+	setBar("Health", math.random(5, 100), math.random(), true)
+	local hu, th = math.random(0, 100), math.random(0, 100)
+	setBar("Hunger", hu, hu / 100, true)
+	setBar("Thirst", th, th / 100, true)
+	setLung(math.random())
 end
 local function paintWho(instant)
 	local p = state.watching
@@ -1094,7 +1119,7 @@ onTap(spectateB, function()
 		return
 	end
 	local l = watchList()
-	if #l == 0 then
+	if #l == 0 and not CFG.DemoSpectate then
 		sfx("error")
 		notify("No one to spectate")
 		return
@@ -1104,7 +1129,12 @@ onTap(spectateB, function()
 	setShade(0.9, 0.4)
 	TweenService:Create(lobbyBg, TweenInfo.new(0.4, QUAD, OUT), { ImageTransparency = 1, BackgroundTransparency = 1 }):Play()
 	TweenService:Create(lobbyShade, TweenInfo.new(0.4, QUAD, OUT), { BackgroundTransparency = 1 }):Play()
-	watch(l[1])
+	if #l > 0 then
+		watch(l[1])
+	else
+		state.watching = nil
+		paintDemo()
+	end
 	hudGui.Enabled = true
 	showGroup(gSpec, spec, true, true)
 	showGroup(gWho, whoRow, true, true)
@@ -1115,6 +1145,10 @@ local function cycle(d)
 	end
 	local l = watchList()
 	if #l == 0 then
+		if CFG.DemoSpectate then
+			paintDemo()
+			showGroup(gWho, whoRow, true, true)
+		end
 		return
 	end
 	local i = table.find(l, state.watching) or 0
@@ -1301,24 +1335,7 @@ if CFG.ShowTuner and script:FindFirstChild("Tuner") then
 			end,
 			spectate = function()
 				hideAll()
-				local names = { "kai_builds", "mira_exe", "sunnycove22", "TideRunner", "orca_skipped", "palm.tree.pro" }
-				local keys = {}
-				for k in pairs(TRAITS) do
-					table.insert(keys, k)
-				end
-				local k1 = keys[math.random(#keys)]
-				local k2 = keys[math.random(#keys)]
-				while k2 == k1 do
-					k2 = keys[math.random(#keys)]
-				end
-				local count = math.random(0, 2)
-				layoutWho(names[math.random(#names)])
-				setTraits(count >= 1 and k1 or nil, count >= 2 and k2 or nil)
-				setBar("Health", math.random(5, 100), math.random(), true)
-				local hu, th = math.random(0, 100), math.random(0, 100)
-				setBar("Hunger", hu, hu / 100, true)
-				setBar("Thirst", th, th / 100, true)
-				setLung(math.random())
+				paintDemo()
 				hudGui.Enabled = true
 				spec.Visible = true
 				whoRow.Visible = true
