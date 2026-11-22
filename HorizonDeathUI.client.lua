@@ -551,15 +551,16 @@ local ASSETS = {
 	Thirst = { Id = "107037349047540", Canvas = 720, X = 168, Y = 146, Width = 388, Height = 428 },
 }
 local TUNE = {
-	Health = { Height = 89, IconHeight = 52, IconWidth = 52, IconX = 58, IconY = 44.5, TextHeight = 89, TextSize = 52, TextWidth = 180, TextX = 112, TextY = -0.865801, Width = 826.839831, X = 0, Y = 0 },
-	Hunger = { Height = 89, IconHeight = 54, IconWidth = 35, IconX = 58, IconY = 44.5, TextHeight = 89, TextSize = 52, TextWidth = 180, TextX = 112, TextY = -1.298701, Width = 403.419916, X = 0, Y = 108 },
-	Thirst = { Height = 89, IconHeight = 54, IconWidth = 49, IconX = 58, IconY = 44.5, TextHeight = 89, TextSize = 52, TextWidth = 180, TextX = 112, TextY = -1.731602, Width = 403.419916, X = 423.419916, Y = 108 },
+	Health = { Height = 60, IconHeight = 36, IconWidth = 36, IconX = 38, IconY = 30, TextHeight = 60, TextSize = 36, TextWidth = 130, TextX = 74, TextY = -0.6, Width = 826.839831, X = 0, Y = 0 },
+	Hunger = { Height = 60, IconHeight = 37, IconWidth = 24, IconX = 38, IconY = 30, TextHeight = 60, TextSize = 36, TextWidth = 130, TextX = 74, TextY = -0.9, Width = 403.419916, X = 0, Y = 72 },
+	Thirst = { Height = 60, IconHeight = 37, IconWidth = 33, IconX = 38, IconY = 30, TextHeight = 60, TextSize = 36, TextWidth = 130, TextX = 74, TextY = -1.2, Width = 403.419916, X = 423.419916, Y = 72 },
 }
+local HUD_H = 132
 local HUD_TEXT = Color3.fromRGB(241, 237, 230)
 local hud = Instance.new("Frame")
 hud.Name = "SurvivalStats"
 hud.AnchorPoint = V2(0, 1)
-hud.Size = UDim2.fromOffset(1000, 197)
+hud.Size = UDim2.fromOffset(1000, HUD_H)
 hud.BackgroundTransparency = 1
 hud.Parent = hudGui
 local hudScale = Instance.new("UIScale")
@@ -575,8 +576,8 @@ for name, col in pairs({ Health = Color3.fromRGB(174, 87, 80), Hunger = Color3.f
 	local t = TUNE[name]
 	local bar = Instance.new("Frame")
 	bar.Name = name
-	bar.Position = UDim2.fromScale(t.X / 1000, t.Y / 197)
-	bar.Size = UDim2.fromScale(t.Width / 1000, t.Height / 197)
+	bar.Position = UDim2.fromScale(t.X / 1000, t.Y / HUD_H)
+	bar.Size = UDim2.fromScale(t.Width / 1000, t.Height / HUD_H)
 	bar.BackgroundColor3 = Color3.fromRGB(52, 53, 55)
 	bar.BackgroundTransparency = 0.5
 	bar.BorderSizePixel = 0
@@ -610,8 +611,8 @@ for name, col in pairs({ Health = Color3.fromRGB(174, 87, 80), Hunger = Color3.f
 end
 local lung = Instance.new("Frame")
 lung.Name = "Stamina"
-lung.Position = UDim2.fromScale(731 / TUNE.Health.Width, 0.5 / 89)
-lung.Size = UDim2.fromScale(88 / TUNE.Health.Width, 88 / 89)
+lung.Position = UDim2.fromScale(764 / TUNE.Health.Width, 0.5 / 60)
+lung.Size = UDim2.fromScale(59 / TUNE.Health.Width, 59 / 60)
 lung.BackgroundTransparency = 1
 lung.ZIndex = 4
 lung.Parent = bars.Health.bar
@@ -654,8 +655,8 @@ local function hudResize()
 	if UserInputService.TouchEnabled then
 		bottom = math.round(math.clamp(vp.Y * 0.31, 76, 156))
 	end
-	local base = math.min(target, math.max(1, vp.X - left - 12) / 1000, math.max(1, vp.Y - bottom - 12) / 197)
-	hudScale.Scale = math.min(base * 0.95, (vp.X - 24) / TUNE.Health.Width, (vp.Y - 24) / 197)
+	local base = math.min(target, math.max(1, vp.X - left - 12) / 1000, math.max(1, vp.Y - bottom - 12) / HUD_H)
+	hudScale.Scale = math.min(base * 0.7, (vp.X - 24) / TUNE.Health.Width, (vp.Y - 24) / HUD_H)
 	hud.Position = UDim2.fromScale((left - 16.3) / vp.X, (vp.Y - bottom + 102) / vp.Y)
 end
 hudGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(hudResize)
