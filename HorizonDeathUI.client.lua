@@ -546,9 +546,9 @@ pcall(function()
 end)
 hudGui.Parent = playerGui
 local ASSETS = {
-	Health = { Id = "83496106777704", Canvas = 1024, X = 160, Y = 160, Width = 704, Height = 704 },
-	Hunger = { Id = "92015841820092", Canvas = 720, X = 250, Y = 126, Width = 290, Height = 452 },
-	Thirst = { Id = "107037349047540", Canvas = 720, X = 168, Y = 146, Width = 388, Height = 428 },
+	Health = { Id = "131508582817817", Canvas = 1024, X = 160, Y = 160, Width = 704, Height = 704 },
+	Hunger = { Id = "131397258308866", Canvas = 720, X = 250, Y = 126, Width = 290, Height = 452 },
+	Thirst = { Id = "91631003184743", Canvas = 720, X = 168, Y = 146, Width = 388, Height = 428 },
 }
 local HUD_TEXT = Color3.fromRGB(241, 237, 230)
 local HUD_LOW = Color3.fromRGB(240, 160, 96)
@@ -593,15 +593,15 @@ for name, col in pairs({ Health = Color3.fromRGB(196, 82, 76), Hunger = Color3.f
 	ic.ImageColor3 = HUD_TEXT
 	ic.ScaleType = Enum.ScaleType.Fit
 	ic.AnchorPoint = V2(0, 0.5)
-	ic.Position = UDim2.new(0, 5, 0.5, 0)
-	ic.Size = UDim2.fromOffset(11, 11)
+	ic.Position = UDim2.new(0, 6, 0.5, 0)
+	ic.Size = UDim2.fromOffset(10, 10)
 	ic.ZIndex = 3
 	ic.Parent = bar
 	local val = Instance.new("TextLabel")
 	val.Name = "Value"
 	val.BackgroundTransparency = 1
-	val.Position = UDim2.fromOffset(20, 0)
-	val.Size = UDim2.new(1, -20, 1, 0)
+	val.Position = UDim2.fromOffset(21, 0)
+	val.Size = UDim2.new(1, -21, 1, 0)
 	val.Font = FONT
 	val.TextColor3 = HUD_TEXT
 	val.TextSize = 16
