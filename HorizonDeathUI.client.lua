@@ -4,7 +4,6 @@ local TweenService = game:GetService("TweenService")
 local TextService = game:GetService("TextService")
 local SoundService = game:GetService("SoundService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local ContentProvider = game:GetService("ContentProvider")
 local StarterGui = game:GetService("StarterGui")
@@ -551,38 +550,32 @@ local ASSETS = {
 	Hunger = { Id = "92015841820092", Canvas = 720, X = 250, Y = 126, Width = 290, Height = 452 },
 	Thirst = { Id = "107037349047540", Canvas = 720, X = 168, Y = 146, Width = 388, Height = 428 },
 }
-local TUNE = {
-	Health = { Height = 60, IconHeight = 36, IconWidth = 36, IconX = 38, IconY = 30, TextHeight = 60, TextSize = 36, TextWidth = 130, TextX = 74, TextY = -0.6, Width = 826.839831, X = 0, Y = 0 },
-	Hunger = { Height = 60, IconHeight = 37, IconWidth = 24, IconX = 38, IconY = 30, TextHeight = 60, TextSize = 36, TextWidth = 130, TextX = 74, TextY = -0.9, Width = 403.419916, X = 0, Y = 72 },
-	Thirst = { Height = 60, IconHeight = 37, IconWidth = 33, IconX = 38, IconY = 30, TextHeight = 60, TextSize = 36, TextWidth = 130, TextX = 74, TextY = -1.2, Width = 403.419916, X = 423.419916, Y = 72 },
-}
-local HUD_H = 132
 local HUD_TEXT = Color3.fromRGB(241, 237, 230)
+local HUD_LOW = Color3.fromRGB(240, 160, 96)
 local hud = Instance.new("Frame")
 hud.Name = "SurvivalStats"
-hud.AnchorPoint = V2(0, 1)
-hud.Size = UDim2.fromOffset(1000, HUD_H)
+hud.Position = UDim2.fromOffset(8, 2)
+hud.Size = UDim2.fromOffset(114, 38)
 hud.BackgroundTransparency = 1
 hud.Parent = hudGui
 local hudScale = Instance.new("UIScale")
 hudScale.Parent = hud
-local function placeImage(image, asset, cx, cy, w, h, pw, ph)
-	local fx, fy = w / asset.Width, h / asset.Height
-	image.Image = "rbxassetid://" .. asset.Id
-	image.Size = UDim2.fromScale(asset.Canvas * fx / pw, asset.Canvas * fy / ph)
-	image.Position = UDim2.fromScale((cx - (asset.X + asset.Width / 2) * fx) / pw, (cy - (asset.Y + asset.Height / 2) * fy) / ph)
-end
 local bars = {}
-for name, col in pairs({ Health = Color3.fromRGB(174, 87, 80), Hunger = Color3.fromRGB(133, 157, 99), Thirst = Color3.fromRGB(104, 150, 174) }) do
-	local t = TUNE[name]
+local LAYOUT = { Health = { 0, 0, 114 }, Hunger = { 0, 20.5, 55 }, Thirst = { 59, 20.5, 55 } }
+for name, col in pairs({ Health = Color3.fromRGB(196, 82, 76), Hunger = Color3.fromRGB(133, 157, 99), Thirst = Color3.fromRGB(104, 150, 174) }) do
+	local l = LAYOUT[name]
 	local bar = Instance.new("Frame")
 	bar.Name = name
-	bar.Position = UDim2.fromScale(t.X / 1000, t.Y / HUD_H)
-	bar.Size = UDim2.fromScale(t.Width / 1000, t.Height / HUD_H)
-	bar.BackgroundColor3 = Color3.fromRGB(52, 53, 55)
-	bar.BackgroundTransparency = 0.5
+	bar.Position = UDim2.fromOffset(l[1], l[2])
+	bar.Size = UDim2.fromOffset(l[3], 17.5)
+	bar.BackgroundColor3 = BLACK
+	bar.BackgroundTransparency = 0.55
 	bar.BorderSizePixel = 0
+	bar.ClipsDescendants = true
 	bar.Parent = hud
+	local c1 = Instance.new("UICorner")
+	c1.CornerRadius = UDim.new(0, 3)
+	c1.Parent = bar
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.Size = UDim2.fromScale(0, 1)
@@ -590,75 +583,40 @@ for name, col in pairs({ Health = Color3.fromRGB(174, 87, 80), Hunger = Color3.f
 	fill.BorderSizePixel = 0
 	fill.ZIndex = 2
 	fill.Parent = bar
+	local c2 = Instance.new("UICorner")
+	c2.CornerRadius = UDim.new(0, 3)
+	c2.Parent = fill
 	local ic = Instance.new("ImageLabel")
 	ic.Name = "Icon"
 	ic.BackgroundTransparency = 1
-	ic.ImageColor3 = name == "Health" and Color3.fromRGB(248, 244, 239) or HUD_TEXT
+	ic.Image = "rbxassetid://" .. ASSETS[name].Id
+	ic.ImageColor3 = HUD_TEXT
+	ic.ScaleType = Enum.ScaleType.Fit
+	ic.AnchorPoint = V2(0, 0.5)
+	ic.Position = UDim2.new(0, 5, 0.5, 0)
+	ic.Size = UDim2.fromOffset(11, 11)
 	ic.ZIndex = 3
 	ic.Parent = bar
-	placeImage(ic, ASSETS[name], t.IconX, t.IconY, t.IconWidth, t.IconHeight, t.Width, t.Height)
 	local val = Instance.new("TextLabel")
 	val.Name = "Value"
 	val.BackgroundTransparency = 1
-	val.Position = UDim2.fromScale(t.TextX / t.Width, t.TextY / t.Height)
-	val.Size = UDim2.fromScale(t.TextWidth / t.Width, t.TextHeight / t.Height)
-	val.Font = Enum.Font.GothamBold
+	val.Position = UDim2.fromOffset(20, 0)
+	val.Size = UDim2.new(1, -20, 1, 0)
+	val.Font = FONT
 	val.TextColor3 = HUD_TEXT
-	val.TextSize = t.TextSize
+	val.TextSize = 16
 	val.TextXAlignment = Enum.TextXAlignment.Left
 	val.ZIndex = 3
 	val.Parent = bar
 	bars[name] = { bar = bar, fill = fill, val = val }
 end
-local lung = Instance.new("Frame")
-lung.Name = "Stamina"
-lung.Position = UDim2.fromScale(764 / TUNE.Health.Width, 0.5 / 60)
-lung.Size = UDim2.fromScale(59 / TUNE.Health.Width, 59 / 60)
-lung.BackgroundTransparency = 1
-lung.ZIndex = 4
-lung.Parent = bars.Health.bar
-local LUNG = Color3.fromHex("FCE6C6")
-local lungOutline = Instance.new("ImageLabel")
-lungOutline.Size = UDim2.fromScale(1, 1)
-lungOutline.BackgroundTransparency = 1
-lungOutline.Image = CFG.Icons.lungOutline
-lungOutline.ImageColor3 = LUNG
-lungOutline.ScaleType = Enum.ScaleType.Fit
-lungOutline.ZIndex = 5
-lungOutline.Parent = lung
-local lungClip = Instance.new("Frame")
-lungClip.BackgroundTransparency = 1
-lungClip.ClipsDescendants = true
-lungClip.ZIndex = 4
-lungClip.Parent = lung
-local lungFill = Instance.new("ImageLabel")
-lungFill.BackgroundTransparency = 1
-lungFill.Image = CFG.Icons.lungFill
-lungFill.ImageColor3 = LUNG
-lungFill.ScaleType = Enum.ScaleType.Fit
-lungFill.ZIndex = 4
-lungFill.Parent = lungClip
-local function setLung(r)
-	local top = 346 / 420 - (346 - 83) / 420 * math.clamp(r, 0, 1)
-	lungClip.Position = UDim2.fromScale(0, top)
-	lungClip.Size = UDim2.fromScale(1, 1 - top)
-	lungFill.Position = UDim2.fromScale(0, -top / (1 - top))
-	lungFill.Size = UDim2.fromScale(1, 1 / (1 - top))
-end
+local function setLung() end
 local function hudResize()
 	local vp = hudGui.AbsoluteSize
 	if vp.X <= 0 or vp.Y <= 0 then
 		return
 	end
-	local left = math.round(math.clamp(vp.X * 52 / 1536, 12, 52))
-	local bottom = math.round(math.clamp(vp.Y * 66 / 864, 16, 66))
-	local target = 350 / 1000 * math.clamp(math.min(vp.X / 1536, vp.Y / 864), 0.66, 1.35)
-	if UserInputService.TouchEnabled then
-		bottom = math.round(math.clamp(vp.Y * 0.31, 76, 156))
-	end
-	local base = math.min(target, math.max(1, vp.X - left - 12) / 1000, math.max(1, vp.Y - bottom - 12) / HUD_H)
-	hudScale.Scale = math.min(base * 1.05, (vp.X - 24) / TUNE.Health.Width, (vp.Y - 24) / HUD_H)
-	hud.Position = UDim2.fromScale((left - 16.3) / vp.X, (vp.Y - bottom + 102) / vp.Y)
+	hudScale.Scale = math.clamp(vp.Y / 414, 0.8, 1.8)
 end
 hudGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(hudResize)
 hudResize()
@@ -666,6 +624,7 @@ local hudTweens = {}
 local function setBar(name, value, frac, instant)
 	local b = bars[name]
 	b.val.Text = tostring(math.round(value))
+	b.val.TextColor3 = frac < 0.25 and HUD_LOW or HUD_TEXT
 	if hudTweens[name] then
 		hudTweens[name]:Cancel()
 	end
