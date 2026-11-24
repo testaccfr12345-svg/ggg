@@ -548,7 +548,7 @@ hudGui.Parent = playerGui
 local ASSETS = {
 	Health = { Id = "131508582817817", Canvas = 1024, X = 160, Y = 160, Width = 704, Height = 704 },
 	Hunger = { Id = "131397258308866", Canvas = 720, X = 250, Y = 126, Width = 290, Height = 452 },
-	Thirst = { Id = "91631003184743", Canvas = 720, X = 168, Y = 146, Width = 388, Height = 428 },
+	Thirst = { Id = "101658142884052", Canvas = 720, X = 168, Y = 146, Width = 388, Height = 428 },
 }
 local HUD_TEXT = Color3.fromRGB(241, 237, 230)
 local HUD_LOW = Color3.fromRGB(240, 160, 96)
