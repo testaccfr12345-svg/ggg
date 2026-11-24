@@ -617,8 +617,21 @@ local function hudResize()
 		return
 	end
 	hudScale.Scale = math.clamp(vp.Y / 414, 0.8, 1.8)
+	local gs = game:GetService("GuiService")
+	local okT, tb = pcall(function()
+		return gs.TopbarInset
+	end)
+	local bottom = okT and tb and tb.Max.Y or 0
+	if bottom <= 0 then
+		bottom = gs:GetGuiInset().Y + 8
+	end
+	hud.Position = UDim2.fromOffset(8, math.max(2, bottom - hudGui.AbsolutePosition.Y + 4))
 end
 hudGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(hudResize)
+hudGui:GetPropertyChangedSignal("AbsolutePosition"):Connect(hudResize)
+pcall(function()
+	game:GetService("GuiService"):GetPropertyChangedSignal("TopbarInset"):Connect(hudResize)
+end)
 hudResize()
 local hudTweens = {}
 local function setBar(name, value, frac, instant)
