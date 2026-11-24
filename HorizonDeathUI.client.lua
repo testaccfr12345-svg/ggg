@@ -554,27 +554,27 @@ local HUD_TEXT = Color3.fromRGB(241, 237, 230)
 local HUD_LOW = Color3.fromRGB(240, 160, 96)
 local hud = Instance.new("Frame")
 hud.Name = "SurvivalStats"
-hud.Position = UDim2.fromOffset(8, 4)
-hud.Size = UDim2.fromOffset(114, 38)
+hud.Position = UDim2.fromOffset(8, 6)
+hud.Size = UDim2.fromOffset(150, 44)
 hud.BackgroundTransparency = 1
 hud.Parent = hudGui
 local hudScale = Instance.new("UIScale")
 hudScale.Parent = hud
 local bars = {}
-local LAYOUT = { Health = { 0, 0, 114 }, Hunger = { 0, 20.5, 55 }, Thirst = { 59, 20.5, 55 } }
+local LAYOUT = { Health = { 0, 0, 1 }, Hunger = { 0, 24 / 44, 73 / 150 }, Thirst = { 77 / 150, 24 / 44, 73 / 150 } }
 for name, col in pairs({ Health = Color3.fromRGB(196, 82, 76), Hunger = Color3.fromRGB(133, 157, 99), Thirst = Color3.fromRGB(104, 150, 174) }) do
 	local l = LAYOUT[name]
 	local bar = Instance.new("Frame")
 	bar.Name = name
-	bar.Position = UDim2.fromOffset(l[1], l[2])
-	bar.Size = UDim2.fromOffset(l[3], 17.5)
+	bar.Position = UDim2.fromScale(l[1], l[2])
+	bar.Size = UDim2.fromScale(l[3], 20 / 44)
 	bar.BackgroundColor3 = BLACK
 	bar.BackgroundTransparency = 0.55
 	bar.BorderSizePixel = 0
 	bar.ClipsDescendants = true
 	bar.Parent = hud
 	local c1 = Instance.new("UICorner")
-	c1.CornerRadius = UDim.new(0, 3)
+	c1.CornerRadius = UDim.new(0.18, 0)
 	c1.Parent = bar
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
@@ -584,31 +584,45 @@ for name, col in pairs({ Health = Color3.fromRGB(196, 82, 76), Hunger = Color3.f
 	fill.ZIndex = 2
 	fill.Parent = bar
 	local c2 = Instance.new("UICorner")
-	c2.CornerRadius = UDim.new(0, 3)
+	c2.CornerRadius = UDim.new(0.18, 0)
 	c2.Parent = fill
+	local content = Instance.new("Frame")
+	content.Name = "Content"
+	content.Size = UDim2.fromScale(1, 1)
+	content.BackgroundTransparency = 1
+	content.ZIndex = 3
+	content.Parent = bar
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, 4)
+	pad.Parent = content
+	local ll = Instance.new("UIListLayout")
+	ll.FillDirection = Enum.FillDirection.Horizontal
+	ll.VerticalAlignment = Enum.VerticalAlignment.Center
+	ll.SortOrder = Enum.SortOrder.LayoutOrder
+	ll.Padding = UDim.new(0, 5)
+	ll.Parent = content
 	local ic = Instance.new("ImageLabel")
 	ic.Name = "Icon"
 	ic.BackgroundTransparency = 1
 	ic.Image = "rbxassetid://" .. ASSETS[name].Id
 	ic.ImageColor3 = WHITE
 	ic.ScaleType = Enum.ScaleType.Fit
-	ic.AnchorPoint = V2(0, 0.5)
-	ic.Position = UDim2.new(0, 3, 0.5, 0)
-	ic.Size = UDim2.fromOffset(15, 15)
-	ic.ResampleMode = Enum.ResamplerMode.Default
+	ic.SizeConstraint = Enum.SizeConstraint.RelativeYY
+	ic.Size = UDim2.fromScale(0.8, 0.8)
+	ic.LayoutOrder = 1
 	ic.ZIndex = 3
-	ic.Parent = bar
+	ic.Parent = content
 	local val = Instance.new("TextLabel")
 	val.Name = "Value"
 	val.BackgroundTransparency = 1
-	val.Position = UDim2.fromOffset(21, 0)
-	val.Size = UDim2.new(1, -21, 1, 0)
+	val.Size = UDim2.fromScale(0.6, 0.95)
 	val.Font = FONT
 	val.TextColor3 = HUD_TEXT
-	val.TextSize = 16
+	val.TextScaled = true
 	val.TextXAlignment = Enum.TextXAlignment.Left
+	val.LayoutOrder = 2
 	val.ZIndex = 3
-	val.Parent = bar
+	val.Parent = content
 	bars[name] = { bar = bar, fill = fill, val = val }
 end
 local function setLung() end
@@ -617,7 +631,7 @@ local function hudResize()
 	if vp.X <= 0 or vp.Y <= 0 then
 		return
 	end
-	hudScale.Scale = math.clamp(vp.Y / 414, 0.8, 1.8)
+	hudScale.Scale = math.clamp(vp.Y / 335, 0.9, 1.8)
 end
 hudGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(hudResize)
 hudResize()
