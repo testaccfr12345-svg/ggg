@@ -554,7 +554,7 @@ local HUD_TEXT = Color3.fromRGB(241, 237, 230)
 local HUD_LOW = Color3.fromRGB(240, 160, 96)
 local hud = Instance.new("Frame")
 hud.Name = "SurvivalStats"
-hud.Position = UDim2.fromOffset(8, 2)
+hud.Position = UDim2.fromOffset(8, 4)
 hud.Size = UDim2.fromOffset(114, 38)
 hud.BackgroundTransparency = 1
 hud.Parent = hudGui
@@ -590,11 +590,11 @@ for name, col in pairs({ Health = Color3.fromRGB(196, 82, 76), Hunger = Color3.f
 	ic.Name = "Icon"
 	ic.BackgroundTransparency = 1
 	ic.Image = "rbxassetid://" .. ASSETS[name].Id
-	ic.ImageColor3 = HUD_TEXT
+	ic.ImageColor3 = WHITE
 	ic.ScaleType = Enum.ScaleType.Fit
 	ic.AnchorPoint = V2(0, 0.5)
-	ic.Position = UDim2.new(0, 6, 0.5, 0)
-	ic.Size = UDim2.fromOffset(10, 10)
+	ic.Position = UDim2.new(0, 4, 0.5, 0)
+	ic.Size = UDim2.fromOffset(13, 13)
 	ic.ZIndex = 3
 	ic.Parent = bar
 	local val = Instance.new("TextLabel")
@@ -617,21 +617,8 @@ local function hudResize()
 		return
 	end
 	hudScale.Scale = math.clamp(vp.Y / 414, 0.8, 1.8)
-	local gs = game:GetService("GuiService")
-	local okT, tb = pcall(function()
-		return gs.TopbarInset
-	end)
-	local bottom = okT and tb and tb.Max.Y or 0
-	if bottom <= 0 then
-		bottom = gs:GetGuiInset().Y + 8
-	end
-	hud.Position = UDim2.fromOffset(8, math.max(2, bottom - hudGui.AbsolutePosition.Y + 4))
 end
 hudGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(hudResize)
-hudGui:GetPropertyChangedSignal("AbsolutePosition"):Connect(hudResize)
-pcall(function()
-	game:GetService("GuiService"):GetPropertyChangedSignal("TopbarInset"):Connect(hudResize)
-end)
 hudResize()
 local hudTweens = {}
 local function setBar(name, value, frac, instant)
