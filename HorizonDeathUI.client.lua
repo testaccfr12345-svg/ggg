@@ -593,8 +593,9 @@ for name, col in pairs({ Health = Color3.fromRGB(196, 82, 76), Hunger = Color3.f
 	ic.ImageColor3 = WHITE
 	ic.ScaleType = Enum.ScaleType.Fit
 	ic.AnchorPoint = V2(0, 0.5)
-	ic.Position = UDim2.new(0, 4, 0.5, 0)
-	ic.Size = UDim2.fromOffset(13, 13)
+	ic.Position = UDim2.new(0, 3, 0.5, 0)
+	ic.Size = UDim2.fromOffset(15, 15)
+	ic.ResampleMode = Enum.ResamplerMode.Default
 	ic.ZIndex = 3
 	ic.Parent = bar
 	local val = Instance.new("TextLabel")
