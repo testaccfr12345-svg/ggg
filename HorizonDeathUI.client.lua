@@ -607,8 +607,11 @@ for name, col in pairs({ Health = Color3.fromRGB(196, 82, 76), Hunger = Color3.f
 	ic.Image = "rbxassetid://" .. ASSETS[name].Id
 	ic.ImageColor3 = WHITE
 	ic.ScaleType = Enum.ScaleType.Fit
-	ic.SizeConstraint = Enum.SizeConstraint.RelativeYY
-	ic.Size = UDim2.fromScale(0.8, 0.8)
+	ic.Size = UDim2.fromScale(1, 0.8)
+	local ar = Instance.new("UIAspectRatioConstraint")
+	ar.AspectRatio = 1
+	ar.DominantAxis = Enum.DominantAxis.Height
+	ar.Parent = ic
 	ic.LayoutOrder = 1
 	ic.ZIndex = 3
 	ic.Parent = content
