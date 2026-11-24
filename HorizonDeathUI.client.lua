@@ -1271,7 +1271,7 @@ if CFG.ShowTuner and script:FindFirstChild("Tuner") then
 		setShade(1)
 		shade.Visible = false
 	end
-	task.spawn(require(script.Tuner).start, gui, {
+	task.spawn(require(script.Tuner).start, { gui, hudGui }, {
 		EquipmentIcons = {},
 		Preview = {
 			died = function()

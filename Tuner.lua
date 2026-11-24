@@ -50,7 +50,23 @@ end
 
 local function startTuner(gui, CONFIG, ITEMS)
 	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-	local target = gui
+	local targets = typeof(gui) == "Instance" and { gui } or gui
+	local function isTarget(x)
+		for _, t in ipairs(targets) do
+			if x == t then
+				return true
+			end
+		end
+		return false
+	end
+	local function ownerOf(o)
+		for _, t in ipairs(targets) do
+			if o:IsDescendantOf(t) then
+				return t
+			end
+		end
+		return nil
+	end
 	local oldTuner = playerGui:FindFirstChild("HorizonUITuner")
 	if oldTuner then
 		oldTuner:Destroy()
@@ -197,7 +213,7 @@ local function startTuner(gui, CONFIG, ITEMS)
 
 	local friendly
 	friendly = function(o)
-		if not o or o == target then
+		if not o or isTarget(o) then
 			return "UI"
 		end
 		local n = o.Name
@@ -342,7 +358,7 @@ local function startTuner(gui, CONFIG, ITEMS)
 	local function effectiveScale(o)
 		local sc = 1
 		local cur = o.Parent
-		while cur and cur ~= target do
+		while cur and not isTarget(cur) do
 			local u = cur:FindFirstChildOfClass("UIScale")
 			if u then
 				sc *= u.Scale
@@ -606,7 +622,7 @@ local function startTuner(gui, CONFIG, ITEMS)
 	local function pathOf(o)
 		local parts = {}
 		local cur = o
-		while cur and cur ~= target do
+		while cur and not isTarget(cur) do
 			local name = cur.Name
 			local parent = cur.Parent
 			if parent then
@@ -626,7 +642,9 @@ local function startTuner(gui, CONFIG, ITEMS)
 			table.insert(parts, 1, name)
 			cur = parent
 		end
-		return (table.concat(parts, "/"):gsub("^Menu/Panels/", ""))
+		local owner = ownerOf(o)
+		local prefix = owner and owner ~= targets[1] and owner.Name .. ":" or ""
+		return prefix .. (table.concat(parts, "/"):gsub("^Menu/Panels/", ""))
 	end
 	local function udim2(u)
 		return string.format("%g,%g,%g,%g", u.X.Scale, u.X.Offset, u.Y.Scale, u.Y.Offset)
@@ -689,7 +707,7 @@ local function startTuner(gui, CONFIG, ITEMS)
 	local SKIP_NAMES = { Dim = true, PopupDim = true, MouseUnlock = true, CelebrationDim = true, Shown = true }
 	local function isShown(o)
 		local cur = o
-		while cur and cur ~= target do
+		while cur and not isTarget(cur) do
 			if cur:IsA("GuiObject") and not cur.Visible then
 				return false
 			end
@@ -708,15 +726,16 @@ local function startTuner(gui, CONFIG, ITEMS)
 		return not (s and s.Transparency < 0.99)
 	end
 	local function pickAt(pos)
-		local background = target:FindFirstChild("Background")
 		for _, o in ipairs(playerGui:GetGuiObjectsAtPosition(pos.X, pos.Y)) do
-			if o:IsDescendantOf(target)
+			local owner = ownerOf(o)
+			local background = owner and owner:FindFirstChild("Background")
+			if owner
 				and not SKIP_NAMES[o.Name]
 				and not (background and (o == background or o:IsDescendantOf(background)))
 				and not isEmptyBox(o)
 				and isShown(o)
 			then
-				while o:GetAttribute("TunerPickParent") and o.Parent and o.Parent ~= target do
+				while o:GetAttribute("TunerPickParent") and o.Parent and not isTarget(o.Parent) do
 					o = o.Parent
 				end
 				return o
@@ -778,7 +797,7 @@ local function startTuner(gui, CONFIG, ITEMS)
 		setMode("drag")
 	end)
 	upButton.Activated:Connect(function()
-		if selected and selected.Parent and selected.Parent ~= target then
+		if selected and selected.Parent and not isTarget(selected.Parent) then
 			selectObject(selected.Parent)
 		end
 	end)
@@ -868,7 +887,7 @@ local function startTuner(gui, CONFIG, ITEMS)
 		end
 	end)
 
-	gui.Destroying:Connect(function()
+	targets[1].Destroying:Connect(function()
 		tunerGui:Destroy()
 	end)
 end
