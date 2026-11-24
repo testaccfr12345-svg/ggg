@@ -554,20 +554,20 @@ local HUD_TEXT = Color3.fromRGB(241, 237, 230)
 local HUD_LOW = Color3.fromRGB(240, 160, 96)
 local hud = Instance.new("Frame")
 hud.Name = "SurvivalStats"
-hud.Position = UDim2.fromOffset(8, 6)
-hud.Size = UDim2.fromOffset(150, 44)
+hud.Position = UDim2.fromOffset(8, 2)
+hud.Size = UDim2.fromOffset(132.5, 39)
 hud.BackgroundTransparency = 1
 hud.Parent = hudGui
 local hudScale = Instance.new("UIScale")
 hudScale.Parent = hud
 local bars = {}
-local LAYOUT = { Health = { 0, 0, 1 }, Hunger = { 0, 24 / 44, 73 / 150 }, Thirst = { 77 / 150, 24 / 44, 73 / 150 } }
+local LAYOUT = { Health = { 0, 0, 1 }, Hunger = { 0, 21 / 39, 64.75 / 132.5 }, Thirst = { 67.75 / 132.5, 21 / 39, 64.75 / 132.5 } }
 for name, col in pairs({ Health = Color3.fromRGB(196, 82, 76), Hunger = Color3.fromRGB(133, 157, 99), Thirst = Color3.fromRGB(104, 150, 174) }) do
 	local l = LAYOUT[name]
 	local bar = Instance.new("Frame")
 	bar.Name = name
 	bar.Position = UDim2.fromScale(l[1], l[2])
-	bar.Size = UDim2.fromScale(l[3], 20 / 44)
+	bar.Size = UDim2.fromScale(l[3], 18 / 39)
 	bar.BackgroundColor3 = BLACK
 	bar.BackgroundTransparency = 0.55
 	bar.BorderSizePixel = 0
@@ -593,13 +593,13 @@ for name, col in pairs({ Health = Color3.fromRGB(196, 82, 76), Hunger = Color3.f
 	content.ZIndex = 3
 	content.Parent = bar
 	local pad = Instance.new("UIPadding")
-	pad.PaddingLeft = UDim.new(0, 4)
+	pad.PaddingLeft = UDim.new(0, 1)
 	pad.Parent = content
 	local ll = Instance.new("UIListLayout")
 	ll.FillDirection = Enum.FillDirection.Horizontal
 	ll.VerticalAlignment = Enum.VerticalAlignment.Center
 	ll.SortOrder = Enum.SortOrder.LayoutOrder
-	ll.Padding = UDim.new(0, 5)
+	ll.Padding = UDim.new(0, 0)
 	ll.Parent = content
 	local ic = Instance.new("ImageLabel")
 	ic.Name = "Icon"
@@ -607,7 +607,7 @@ for name, col in pairs({ Health = Color3.fromRGB(196, 82, 76), Hunger = Color3.f
 	ic.Image = "rbxassetid://" .. ASSETS[name].Id
 	ic.ImageColor3 = WHITE
 	ic.ScaleType = Enum.ScaleType.Fit
-	ic.Size = UDim2.fromScale(1, 0.8)
+	ic.Size = UDim2.fromScale(1, 1.15)
 	local ar = Instance.new("UIAspectRatioConstraint")
 	ar.AspectRatio = 1
 	ar.DominantAxis = Enum.DominantAxis.Height
@@ -618,7 +618,9 @@ for name, col in pairs({ Health = Color3.fromRGB(196, 82, 76), Hunger = Color3.f
 	local val = Instance.new("TextLabel")
 	val.Name = "Value"
 	val.BackgroundTransparency = 1
-	val.Size = UDim2.fromScale(0.6, 0.95)
+	val.Size = UDim2.fromScale(0.6, 1)
+	val.TextStrokeColor3 = BLACK
+	val.TextStrokeTransparency = 0.82
 	val.Font = FONT
 	val.TextColor3 = HUD_TEXT
 	val.TextScaled = true
@@ -634,7 +636,7 @@ local function hudResize()
 	if vp.X <= 0 or vp.Y <= 0 then
 		return
 	end
-	hudScale.Scale = math.clamp(vp.Y / 335, 0.9, 1.8)
+	hudScale.Scale = math.clamp(vp.Y / 335, 0.85, 1.8)
 end
 hudGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(hudResize)
 hudResize()
