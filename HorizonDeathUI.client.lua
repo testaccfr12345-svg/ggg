@@ -476,7 +476,7 @@ local function findTrait(v)
 	end
 	return nil
 end
-local traitRow = frame(spec, { Name = "Traits", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 510 - 720), Size = UDim2.fromOffset(0, 40), AutomaticSize = Enum.AutomaticSize.X })
+local traitRow = frame(spec, { Name = "Traits", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, -214.5), Size = UDim2.fromOffset(0, 49), AutomaticSize = Enum.AutomaticSize.X })
 local trl = Instance.new("UIListLayout")
 trl.FillDirection = Enum.FillDirection.Horizontal
 trl.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -486,9 +486,9 @@ trl.Padding = UDim.new(0, 40)
 trl.Parent = traitRow
 local pills = {}
 for i = 1, 2 do
-	local pf = frame(traitRow, { Name = "Trait" .. i, Size = UDim2.fromOffset(40, 40), LayoutOrder = i, Visible = false })
-	local glow = new("ImageLabel", { Parent = pf, Name = "Glow", AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(61, 61), BackgroundTransparency = 1, Image = "rbxassetid://122287453864385", ImageColor3 = CREAM, ImageTransparency = 0.6, ZIndex = 1 })
-	local ic = icon(pf, "", 40, CREAM, { Name = "Icon", ZIndex = 2 })
+	local pf = frame(traitRow, { Name = "Trait" .. i, Size = UDim2.fromOffset(49, 49), LayoutOrder = i, Visible = false })
+	local glow = new("ImageLabel", { Parent = pf, Name = "Glow", AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(96, 96), BackgroundTransparency = 1, Image = "rbxassetid://122287453864385", ImageColor3 = CREAM, ImageTransparency = 0.6, ZIndex = 1 })
+	local ic = icon(pf, "", 49, CREAM, { Name = "Icon", ZIndex = 2 })
 	pills[i] = { f = pf, glow = glow, ic = ic }
 end
 local traitKey = nil
