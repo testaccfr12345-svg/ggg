@@ -3,7 +3,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local ASSETS = {
-	Health = { Id = "130177617556652", Canvas = 420, X = 120, Y = 120, Width = 180, Height = 179 },
+	Health = { Plus = true },
 	Hunger = { Id = "96663414336154", Plain = true },
 	Thirst = { Id = "101658142884052", Canvas = 1024, X = 296, Y = 274, Width = 426, Height = 476 },
 }
@@ -88,7 +88,7 @@ create("ImageLabel", "Haze", root, {
 	BackgroundTransparency = 1,
 	Image = HAZE,
 	ImageColor3 = BLACK,
-	ImageTransparency = 0.75,
+	ImageTransparency = 0.82,
 	ScaleType = Enum.ScaleType.Stretch,
 	ZIndex = 0,
 })
@@ -111,6 +111,28 @@ local function cropIcon(parent, name, asset, color, transparency, offsetY, z)
 		ClipsDescendants = true,
 		ZIndex = z,
 	})
+	if asset.Plus then
+		local plus = create("Frame", "Plus", box, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			ZIndex = z,
+		})
+		create("Frame", "Across", plus, {
+			Position = UDim2.fromOffset(0, 6),
+			Size = UDim2.fromOffset(15, 3),
+			BackgroundColor3 = color,
+			BackgroundTransparency = transparency,
+			ZIndex = z,
+		})
+		create("Frame", "Down", plus, {
+			Position = UDim2.fromOffset(6, 0),
+			Size = UDim2.fromOffset(3, 15),
+			BackgroundColor3 = color,
+			BackgroundTransparency = transparency,
+			ZIndex = z,
+		})
+		return plus
+	end
 	if asset.Plain then
 		return create("ImageLabel", "Image", box, {
 			BackgroundTransparency = 1,
@@ -232,7 +254,13 @@ local function makeRow(name, order)
 	}
 
 	local function applyPulse(t)
-		icon.ImageTransparency = t
+		if icon:IsA("ImageLabel") then
+			icon.ImageTransparency = t
+		else
+			for _, bar in ipairs(icon:GetChildren()) do
+				bar.BackgroundTransparency = t
+			end
+		end
 		value.TextTransparency = t
 	end
 	pulse.Changed:Connect(applyPulse)
