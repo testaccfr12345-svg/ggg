@@ -546,114 +546,209 @@ pcall(function()
 end)
 hudGui.Parent = playerGui
 local ASSETS = {
-	Health = { Id = "130177617556652", Canvas = 1024, X = 160, Y = 160, Width = 704, Height = 704 },
-	Hunger = { Id = "95673501620571", Canvas = 720, X = 250, Y = 126, Width = 290, Height = 452 },
-	Thirst = { Id = "101658142884052", Canvas = 720, X = 168, Y = 146, Width = 388, Height = 428 },
+	Health = { Plus = true },
+	Hunger = { Id = "96663414336154", Plain = true },
+	Thirst = { Id = "101658142884052", Canvas = 1024, X = 296, Y = 274, Width = 426, Height = 476 },
 }
-local HUD_TEXT = Color3.fromRGB(241, 237, 230)
-local HUD_LOW = Color3.fromRGB(240, 160, 96)
+pcall(function()
+	hudGui.ClipToDeviceSafeArea = false
+end)
+local HUD_COLORS = { Health = Color3.fromRGB(224, 122, 110), Hunger = Color3.fromRGB(235, 170, 106), Thirst = Color3.fromRGB(128, 185, 221) }
+local HUD_MARKS = {
+	Health = { { -1.5, -0.5, 0.95 }, { -3.6, 0.1, 0.91 }, { -3.7, 0.0, 0.87 }, { -0.6, -0.6, 0.87 }, { -0.6, 0.5, 0.88 }, { -2.3, 0.2, 0.99 }, { 0.6, -0.1, 1.00 }, { -3.8, 0.5, 0.90 }, { -3.0, -0.6, 0.90 }, { 2.7, -0.5, 0.94 } },
+	Hunger = { { 1.2, -0.2, 0.94 }, { -3.7, -0.6, 0.89 }, { 1.5, -0.1, 0.90 }, { 0.7, -0.1, 0.90 }, { 2.5, 0.3, 0.89 }, { 0.6, 0.0, 0.98 }, { 1.9, -0.3, 1.00 }, { -3.2, -0.1, 0.97 }, { -2.9, 0.0, 0.87 }, { 1.4, 0.4, 0.94 } },
+	Thirst = { { 3.2, -0.3, 0.96 }, { 0.8, 0.1, 0.92 }, { 2.9, 0.6, 0.93 }, { 1.4, -0.6, 0.96 }, { 1.2, 0.7, 0.98 }, { -1.8, -0.2, 0.95 }, { -4.0, -0.1, 0.88 }, { -3.2, -0.6, 0.97 }, { -3.1, -0.4, 0.91 }, { 3.1, -0.6, 0.92 } },
+}
+local STROKE = "rbxassetid://75405977088659"
+local SFW, SFH, SFRAMES = 48, 144, 20
+local HUD_FILL = TweenInfo.new(0.3, QUAD, OUT)
+local HUD_PULSE = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
 local hud = Instance.new("Frame")
 hud.Name = "SurvivalStats"
-hud.Position = UDim2.fromOffset(8, 2)
-hud.Size = UDim2.fromOffset(132.5, 39)
+hud.AnchorPoint = V2(0, 1)
+hud.Position = UDim2.new(0, 18, 1, -8)
+hud.Size = UDim2.fromOffset(140, 63)
 hud.BackgroundTransparency = 1
 hud.Parent = hudGui
 local hudScale = Instance.new("UIScale")
 hudScale.Parent = hud
+local hudHaze = Instance.new("ImageLabel")
+hudHaze.Name = "Haze"
+hudHaze.AnchorPoint = V2(0.5, 0.5)
+hudHaze.Position = UDim2.fromScale(0.5, 0.5)
+hudHaze.Size = UDim2.new(1, 60, 1, 46)
+hudHaze.BackgroundTransparency = 1
+hudHaze.Image = "rbxassetid://130881451468251"
+hudHaze.ImageColor3 = BLACK
+hudHaze.ImageTransparency = 0.82
+hudHaze.ZIndex = 0
+hudHaze.Parent = hud
+local hudRows = Instance.new("Frame")
+hudRows.Name = "Rows"
+hudRows.Size = UDim2.fromScale(1, 1)
+hudRows.BackgroundTransparency = 1
+hudRows.ZIndex = 1
+hudRows.Parent = hud
+local hrl = Instance.new("UIListLayout")
+hrl.FillDirection = Enum.FillDirection.Vertical
+hrl.Padding = UDim.new(0, 6)
+hrl.SortOrder = Enum.SortOrder.LayoutOrder
+hrl.Parent = hudRows
+local function hudIcon(parent, asset, color)
+	local box = Instance.new("Frame")
+	box.Name = "Icon"
+	box.Size = UDim2.fromOffset(15, 15)
+	box.BackgroundTransparency = 1
+	box.ClipsDescendants = not asset.Plus
+	box.LayoutOrder = 1
+	box.Parent = parent
+	if asset.Plus then
+		local plus = Instance.new("Frame")
+		plus.Name = "Plus"
+		plus.Position = UDim2.fromOffset(-0.5, -0.5)
+		plus.Size = UDim2.fromOffset(16, 16)
+		plus.BackgroundTransparency = 1
+		plus.Parent = box
+		for _, d in ipairs({ { 0, 6, 16, 4 }, { 6, 0, 4, 16 } }) do
+			local f = Instance.new("Frame")
+			f.BorderSizePixel = 0
+			f.Position = UDim2.fromOffset(d[1], d[2])
+			f.Size = UDim2.fromOffset(d[3], d[4])
+			f.BackgroundColor3 = color
+			f.Parent = plus
+		end
+		return plus
+	end
+	local image = Instance.new("ImageLabel")
+	image.BackgroundTransparency = 1
+	image.Image = "rbxassetid://" .. asset.Id
+	image.ImageColor3 = color
+	if asset.Plain then
+		image.ScaleType = Enum.ScaleType.Fit
+		image.Size = UDim2.fromScale(1, 1)
+	else
+		local fit = math.min(15 / asset.Width, 15 / asset.Height)
+		image.Size = UDim2.fromOffset(asset.Canvas * fit, asset.Canvas * fit)
+		image.Position = UDim2.fromOffset(7.5 - (asset.X + asset.Width / 2) * fit, 7.5 - (asset.Y + asset.Height / 2) * fit)
+	end
+	image.Parent = box
+	return image
+end
 local bars = {}
-local LAYOUT = { Health = { 0, 0, 1 }, Hunger = { 0, 21 / 39, 64.75 / 132.5 }, Thirst = { 67.75 / 132.5, 21 / 39, 64.75 / 132.5 } }
-for name, col in pairs({ Health = Color3.fromRGB(196, 82, 76), Hunger = Color3.fromRGB(133, 157, 99), Thirst = Color3.fromRGB(104, 150, 174) }) do
-	local l = LAYOUT[name]
-	local bar = Instance.new("Frame")
-	bar.Name = name
-	bar.Position = UDim2.fromScale(l[1], l[2])
-	bar.Size = UDim2.fromScale(l[3], 18 / 39)
-	bar.BackgroundColor3 = BLACK
-	bar.BackgroundTransparency = 0.55
-	bar.BorderSizePixel = 0
-	bar.ClipsDescendants = true
-	bar.Parent = hud
-	local c1 = Instance.new("UICorner")
-	c1.CornerRadius = UDim.new(0.18, 0)
-	c1.Parent = bar
-	local fill = Instance.new("Frame")
-	fill.Name = "Fill"
-	fill.Size = UDim2.fromScale(0, 1)
-	fill.BackgroundColor3 = col
-	fill.BorderSizePixel = 0
-	fill.ZIndex = 2
-	fill.Parent = bar
-	local c2 = Instance.new("UICorner")
-	c2.CornerRadius = UDim.new(0.18, 0)
-	c2.Parent = fill
-	local content = Instance.new("Frame")
-	content.Name = "Content"
-	content.Size = UDim2.fromScale(1, 1)
-	content.BackgroundTransparency = 1
-	content.ZIndex = 3
-	content.Parent = bar
-	local pad = Instance.new("UIPadding")
-	pad.PaddingLeft = UDim.new(0, 1)
-	pad.Parent = content
-	local ll = Instance.new("UIListLayout")
-	ll.FillDirection = Enum.FillDirection.Horizontal
-	ll.VerticalAlignment = Enum.VerticalAlignment.Center
-	ll.SortOrder = Enum.SortOrder.LayoutOrder
-	ll.Padding = UDim.new(0, 0)
-	ll.Parent = content
-	local ic = Instance.new("ImageLabel")
-	ic.Name = "Icon"
-	ic.BackgroundTransparency = 1
-	ic.Image = "rbxassetid://" .. ASSETS[name].Id
-	ic.ImageColor3 = WHITE
-	ic.ScaleType = Enum.ScaleType.Fit
-	ic.Size = UDim2.fromScale(1, 1.15)
-	local ar = Instance.new("UIAspectRatioConstraint")
-	ar.AspectRatio = 1
-	ar.DominantAxis = Enum.DominantAxis.Height
-	ar.Parent = ic
-	ic.LayoutOrder = 1
-	ic.ZIndex = 3
-	ic.Parent = content
+for order, name in ipairs({ "Health", "Hunger", "Thirst" }) do
+	local col = HUD_COLORS[name]
+	local row = Instance.new("Frame")
+	row.Name = name
+	row.Size = UDim2.fromOffset(0, 17)
+	row.AutomaticSize = Enum.AutomaticSize.X
+	row.BackgroundTransparency = 1
+	row.LayoutOrder = order
+	row.Parent = hudRows
+	local rl = Instance.new("UIListLayout")
+	rl.FillDirection = Enum.FillDirection.Horizontal
+	rl.VerticalAlignment = Enum.VerticalAlignment.Center
+	rl.Padding = UDim.new(0, 9)
+	rl.SortOrder = Enum.SortOrder.LayoutOrder
+	rl.Parent = row
+	local ic = hudIcon(row, ASSETS[name], col)
+	local marks = Instance.new("Frame")
+	marks.Name = "Marks"
+	marks.Size = UDim2.fromOffset(81.75, 17)
+	marks.BackgroundTransparency = 1
+	marks.LayoutOrder = 2
+	marks.Parent = row
+	local strokes = {}
+	for i = 0, 9 do
+		local m = HUD_MARKS[name][i + 1]
+		local holder = Instance.new("Frame")
+		holder.AnchorPoint = V2(0.5, 0.5)
+		holder.Position = UDim2.fromOffset(7.5 * i + 3.75 + m[2] + (i >= 5 and 6.75 or 0), 8.5)
+		holder.Size = UDim2.fromOffset(8, 24 * m[3])
+		holder.Rotation = m[1]
+		holder.BackgroundTransparency = 1
+		holder.Parent = marks
+		for li = 1, 2 do
+			local img = Instance.new("ImageLabel")
+			img.Size = UDim2.fromScale(1, 1)
+			img.BackgroundTransparency = 1
+			img.Image = STROKE
+			img.ImageRectSize = Vector2.new(SFW, SFH)
+			img.ImageColor3 = col
+			img.ScaleType = Enum.ScaleType.Stretch
+			img.ZIndex = li
+			if li == 1 then
+				img.ImageRectOffset = Vector2.new(SFRAMES * SFW, 0)
+				img.ImageTransparency = 0.78
+			else
+				img.ImageRectOffset = Vector2.new(0, 0)
+				img.Visible = false
+				strokes[i + 1] = { fill = img, frame = -1 }
+			end
+			img.Parent = holder
+		end
+	end
 	local val = Instance.new("TextLabel")
 	val.Name = "Value"
+	val.Size = UDim2.fromOffset(18, 17)
+	val.AutomaticSize = Enum.AutomaticSize.X
 	val.BackgroundTransparency = 1
-	val.Size = UDim2.fromScale(0.6, 1)
-	val.TextStrokeColor3 = BLACK
-	val.TextStrokeTransparency = 0.82
 	val.Font = FONT
-	val.TextColor3 = HUD_TEXT
-	val.TextScaled = true
+	val.TextSize = 19
+	val.TextColor3 = CREAM
 	val.TextXAlignment = Enum.TextXAlignment.Left
-	val.LayoutOrder = 2
-	val.ZIndex = 3
-	val.Parent = content
-	bars[name] = { bar = bar, fill = fill, val = val }
+	val.Text = ""
+	val.LayoutOrder = 3
+	val.Parent = row
+	local b = { icon = ic, val = val, strokes = strokes, pct = Instance.new("NumberValue"), pulse = Instance.new("NumberValue"), low = false }
+	b.pct.Changed:Connect(function(v)
+		for i, st in ipairs(strokes) do
+			local k = math.floor(math.clamp(v / 10 - (i - 1), 0, 1) * SFRAMES + 0.5)
+			if k ~= st.frame then
+				st.frame = k
+				st.fill.Visible = k > 0
+				st.fill.ImageRectOffset = Vector2.new(k * SFW, 0)
+			end
+		end
+	end)
+	b.pulse.Changed:Connect(function(t)
+		if ic:IsA("ImageLabel") then
+			ic.ImageTransparency = t
+		else
+			for _, f in ipairs(ic:GetChildren()) do
+				f.BackgroundTransparency = t
+			end
+		end
+		val.TextTransparency = t
+	end)
+	bars[name] = b
 end
 local function setLung() end
-local function hudResize()
-	local vp = hudGui.AbsoluteSize
-	if vp.X <= 0 or vp.Y <= 0 then
-		return
-	end
-	hudScale.Scale = math.clamp(vp.Y / 335, 0.85, 1.8)
-end
-hudGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(hudResize)
-hudResize()
-local hudTweens = {}
 local function setBar(name, value, frac, instant)
 	local b = bars[name]
-	b.val.Text = tostring(math.round(value))
-	b.val.TextColor3 = frac < 0.25 and HUD_LOW or HUD_TEXT
-	if hudTweens[name] then
-		hudTweens[name]:Cancel()
+	local pct = math.clamp(frac, 0, 1) * 100
+	b.val.Text = tostring(math.floor(value + 0.5))
+	if b.tw then
+		b.tw:Cancel()
+		b.tw = nil
 	end
-	local goal = UDim2.fromScale(math.clamp(frac, 0, 1), 1)
 	if instant then
-		b.fill.Size = goal
+		b.pct.Value = pct
 	else
-		hudTweens[name] = TweenService:Create(b.fill, TweenInfo.new(0.35, QUAD, OUT), { Size = goal })
-		hudTweens[name]:Play()
+		b.tw = TweenService:Create(b.pct, HUD_FILL, { Value = pct })
+		b.tw:Play()
+	end
+	local low = pct < 25
+	if low ~= b.low then
+		b.low = low
+		if b.ptw then
+			b.ptw:Cancel()
+			b.ptw = nil
+		end
+		b.pulse.Value = 0
+		if low then
+			b.ptw = TweenService:Create(b.pulse, HUD_PULSE, { Value = 0.6 })
+			b.ptw:Play()
+		end
 	end
 end
 
@@ -1250,8 +1345,12 @@ task.spawn(function()
 		end
 	end
 	for _, a in pairs(ASSETS) do
-		add("rbxassetid://" .. a.Id)
+		if a.Id then
+			add("rbxassetid://" .. a.Id)
+		end
 	end
+	add(STROKE)
+	add("rbxassetid://130881451468251")
 	for _, t in pairs(TRAITS) do
 		add(t[3])
 	end

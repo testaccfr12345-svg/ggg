@@ -75,8 +75,8 @@ pcall(function()
 end)
 
 local root = create("Frame", "SurvivalStats", gui, {
-	AnchorPoint = Vector2.new(0, 0),
-	Position = UDim2.fromOffset(18, 8),
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 18, 1, -8),
 	Size = UDim2.fromOffset(140, 63),
 	BackgroundTransparency = 1,
 })
