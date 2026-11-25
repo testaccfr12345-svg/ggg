@@ -476,31 +476,20 @@ local function findTrait(v)
 	end
 	return nil
 end
-local traitRow = frame(spec, { Name = "Traits", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 510 - 720), Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X })
+local traitRow = frame(spec, { Name = "Traits", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 510 - 720), Size = UDim2.fromOffset(0, 40), AutomaticSize = Enum.AutomaticSize.X })
 local trl = Instance.new("UIListLayout")
 trl.FillDirection = Enum.FillDirection.Horizontal
 trl.HorizontalAlignment = Enum.HorizontalAlignment.Center
 trl.VerticalAlignment = Enum.VerticalAlignment.Center
 trl.SortOrder = Enum.SortOrder.LayoutOrder
-trl.Padding = UDim.new(0, 10)
+trl.Padding = UDim.new(0, 40)
 trl.Parent = traitRow
 local pills = {}
 for i = 1, 2 do
-	local pf = frame(traitRow, { Name = "Trait" .. i, Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X, BackgroundColor3 = PANEL, BackgroundTransparency = PANEL_T, LayoutOrder = i, Visible = false })
-	round(pf, 10)
-	local st = new("UIStroke", { Parent = pf, Color = CREAM, Thickness = 1, Transparency = 0.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-	local pp = Instance.new("UIPadding")
-	pp.PaddingLeft, pp.PaddingRight = UDim.new(0, 10), UDim.new(0, 14)
-	pp.Parent = pf
-	local pl = Instance.new("UIListLayout")
-	pl.FillDirection = Enum.FillDirection.Horizontal
-	pl.VerticalAlignment = Enum.VerticalAlignment.Center
-	pl.SortOrder = Enum.SortOrder.LayoutOrder
-	pl.Padding = UDim.new(0, 8)
-	pl.Parent = pf
-	local ic = icon(pf, "", 26, CREAM, { Name = "Icon", LayoutOrder = 1 })
-	local tx = text(pf, "", 27, { Name = "Name", Size = UDim2.fromOffset(0, 27), AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = 2 })
-	pills[i] = { f = pf, st = st, ic = ic, tx = tx }
+	local pf = frame(traitRow, { Name = "Trait" .. i, Size = UDim2.fromOffset(40, 40), LayoutOrder = i, Visible = false })
+	local glow = new("ImageLabel", { Parent = pf, Name = "Glow", AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(86, 86), BackgroundTransparency = 1, Image = "rbxassetid://130881451468251", ImageColor3 = CREAM, ImageTransparency = 0.72, ZIndex = 1 })
+	local ic = icon(pf, "", 40, CREAM, { Name = "Icon", ZIndex = 2 })
+	pills[i] = { f = pf, glow = glow, ic = ic }
 end
 local traitKey = nil
 local function setTraits(a, b)
@@ -516,11 +505,9 @@ local function setTraits(a, b)
 			n += 1
 			local pl = pills[n]
 			local c = Color3.fromHex(TRAIT_COLORS[t[2]])
-			pl.tx.Text = t[1]
-			pl.tx.TextColor3 = c
 			pl.ic.Image = t[3]
 			pl.ic.ImageColor3 = c
-			pl.st.Color = c
+			pl.glow.ImageColor3 = c
 			pl.f.Visible = true
 		end
 	end
