@@ -432,24 +432,23 @@ local gSpec = newGroup()
 building = gSpec
 local spec = frame(cv, { Name = "Spectate", Size = UDim2.fromScale(1, 1), Visible = false })
 local specW = 24 + math.ceil(textW("SPECTATING", 30))
-local specTag = frame(spec, { Name = "Label", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 0, 30), Size = UDim2.fromOffset(specW, 30) })
+local specTag = frame(spec, { Name = "Label", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 0, -10), Size = UDim2.fromOffset(127, 30) })
 round(frame(specTag, { Position = UDim2.fromOffset(0, 9), Size = UDim2.fromOffset(12, 12), BackgroundTransparency = 0, BackgroundColor3 = ACCENT }), 2)
 shadow(text(specTag, "SPECTATING", 30, { Position = UDim2.fromOffset(24, 0), Size = UDim2.fromOffset(specW, 30), TextTransparency = 0.1 }))
 local gWho = newGroup()
 building = gWho
 local whoRow = frame(spec, { Name = "Player", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 562 - 720), Size = UDim2.fromOffset(400, 44) })
-local whoName = shadow(text(whoRow, "", 49, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(600, 49), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE }))
+local whoName = shadow(text(whoRow, "", 49, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 16), Size = UDim2.fromOffset(600, 49), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = WHITE }))
 building = gSpec
 local prevB = new("TextButton", { Parent = spec, Name = "Previous", Text = "", AutoButtonColor = false, AnchorPoint = V2(0.5, 0), Size = UDim2.fromOffset(44, 44), BackgroundTransparency = 1 })
 icon(prevB, CFG.Icons.chevron, 26, CREAM, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Rotation = 180 })
 local nextB = new("TextButton", { Parent = spec, Name = "Next", Text = "", AutoButtonColor = false, AnchorPoint = V2(0.5, 0), Size = UDim2.fromOffset(44, 44), BackgroundTransparency = 1 })
 icon(nextB, CFG.Icons.chevron, 26, CREAM, { AnchorPoint = V2(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
-local backW = 12 + 17 + 6 + math.ceil(textW("Back", 27)) + 18
-local specBack = new("TextButton", { Parent = spec, Name = "BackButton", Text = "", AutoButtonColor = false, AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 614 - 720), Size = UDim2.fromOffset(backW, 42), BackgroundColor3 = PANEL, BackgroundTransparency = PANEL_T })
+local specBack = new("TextButton", { Parent = spec, Name = "BackButton", Text = "", AutoButtonColor = false, AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, -82), Size = UDim2.fromOffset(106, 48), BackgroundColor3 = PANEL, BackgroundTransparency = PANEL_T })
 round(specBack, 10)
 new("UIStroke", { Parent = specBack, Color = CREAM, Thickness = 1, Transparency = 0.86, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-icon(specBack, CFG.Icons.back, 17, CREAM, { AnchorPoint = V2(0, 0.5), Position = UDim2.new(0, 12, 0.5, 0) })
-text(specBack, "Back", 27, { Position = UDim2.fromOffset(35, 0), Size = UDim2.new(1, -35, 1, 0) })
+icon(specBack, CFG.Icons.back, 19, CREAM, { AnchorPoint = V2(0, 0.5), Position = UDim2.new(0, 10, 0.5, 0) })
+text(specBack, "Back", 30, { Position = UDim2.fromOffset(37, -1), Size = UDim2.new(1, -35, 1, 0) })
 
 local TRAIT_COLORS = { "CFC5B4", "9CCB86", "7DB3E0", "B79AE6", "E9B949", "F2706A" }
 local TRAITS = {
@@ -566,7 +565,7 @@ local HUD_PULSE = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection
 local hud = Instance.new("Frame")
 hud.Name = "SurvivalStats"
 hud.AnchorPoint = V2(0, 1)
-hud.Position = UDim2.new(0, 18, 1, -8)
+hud.Position = UDim2.new(0, 11, 1, -8)
 hud.Size = UDim2.fromOffset(140, 63)
 hud.BackgroundTransparency = 1
 hud.Parent = hudGui
@@ -730,8 +729,8 @@ local function setBar(name, value, frac, instant)
 		b.tw = TweenService:Create(b.pct, HUD_FILL, { Value = pct })
 		b.tw:Play()
 	end
-	b.val.TextColor3 = pct < 10 and CREAM:Lerp(HUD_COLORS[b.name], 0.7) or CREAM
-	local low = pct < 25
+	b.val.TextColor3 = pct < 15 and CREAM:Lerp(HUD_COLORS[b.name], 0.7) or CREAM
+	local low = pct < 15
 	if low ~= b.low then
 		b.low = low
 		if b.ptw then
@@ -852,8 +851,8 @@ local function layoutWho(name)
 	whoName.Text = name
 	local w = math.max(220, textW(name, 49))
 	whoRow.Size = UDim2.fromOffset(w, 44)
-	prevB.Position = UDim2.new(0.5, -(w / 2 + 42), 1, 562 - 720)
-	nextB.Position = UDim2.new(0.5, w / 2 + 42, 1, 562 - 720)
+	prevB.Position = UDim2.new(0.5, -152, 1, -142)
+	nextB.Position = UDim2.new(0.5, 152, 1, -142)
 end
 local function paintDemo(smooth)
 	local n, a, b = demoWho()
