@@ -25,7 +25,7 @@ local MARKS = {
 	Thirst = { { 3.2, -0.3, 0.96 }, { 0.8, 0.1, 0.92 }, { 2.9, 0.6, 0.93 }, { 1.4, -0.6, 0.96 }, { 1.2, 0.7, 0.98 }, { -1.8, -0.2, 0.95 }, { -4.0, -0.1, 0.88 }, { -3.2, -0.6, 0.97 }, { -3.1, -0.4, 0.91 }, { 3.1, -0.6, 0.92 } },
 }
 local LOW = 25
-local STROKE = "rbxassetid://0"
+local STROKE = "rbxassetid://75577921024956"
 local FRAME_W, FRAME_H, FRAMES = 48, 144, 20
 local function clamp(x, a, b)
 	if x < a then
