@@ -112,21 +112,23 @@ local function cropIcon(parent, name, asset, color, transparency, offsetY, z)
 		ZIndex = z,
 	})
 	if asset.Plus then
+		box.ClipsDescendants = false
 		local plus = create("Frame", "Plus", box, {
-			Size = UDim2.fromScale(1, 1),
+			Position = UDim2.fromOffset(-0.5, -0.5),
+			Size = UDim2.fromOffset(16, 16),
 			BackgroundTransparency = 1,
 			ZIndex = z,
 		})
 		create("Frame", "Across", plus, {
 			Position = UDim2.fromOffset(0, 6),
-			Size = UDim2.fromOffset(15, 3),
+			Size = UDim2.fromOffset(16, 4),
 			BackgroundColor3 = color,
 			BackgroundTransparency = transparency,
 			ZIndex = z,
 		})
 		create("Frame", "Down", plus, {
 			Position = UDim2.fromOffset(6, 0),
-			Size = UDim2.fromOffset(3, 15),
+			Size = UDim2.fromOffset(4, 16),
 			BackgroundColor3 = color,
 			BackgroundTransparency = transparency,
 			ZIndex = z,
