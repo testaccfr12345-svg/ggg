@@ -70,6 +70,9 @@ local gui = create("ScreenGui", "HorizonSurvivalHUD", playerGui, {
 pcall(function()
 	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 end)
+pcall(function()
+	gui.ClipToDeviceSafeArea = false
+end)
 
 local root = create("Frame", "SurvivalStats", gui, {
 	AnchorPoint = Vector2.new(0, 0),
@@ -85,7 +88,7 @@ create("ImageLabel", "Haze", root, {
 	BackgroundTransparency = 1,
 	Image = HAZE,
 	ImageColor3 = BLACK,
-	ImageTransparency = 0.62,
+	ImageTransparency = 0.75,
 	ScaleType = Enum.ScaleType.Stretch,
 	ZIndex = 0,
 })
@@ -168,7 +171,7 @@ local function makeRow(name, order)
 		local holder = create("Frame", "Stroke" .. (i + 1), marks, {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromOffset(cx, 8.5),
-			Size = UDim2.fromOffset(6, 18 * m[3]),
+			Size = UDim2.fromOffset(8, 24 * m[3]),
 			Rotation = m[1],
 			BackgroundTransparency = 1,
 		})
