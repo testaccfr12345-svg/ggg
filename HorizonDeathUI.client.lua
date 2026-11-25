@@ -1190,8 +1190,8 @@ onTap(spectateB, function()
 		paintDemo()
 	end
 	hudGui.Enabled = true
-	showGroup(gSpec, spec, true, true)
-	showGroup(gWho, whoRow, true, true)
+	showGroup(gSpec, spec, true, false)
+	showGroup(gWho, whoRow, true, false)
 end)
 local function cycle(d)
 	if state.screen ~= "spec" then
@@ -1223,7 +1223,9 @@ onTap(specBack, function()
 	if hum then
 		workspace.CurrentCamera.CameraSubject = hum
 	end
-	showGroup(gSpec, spec, false)
+	fadeTo(gSpec, 0, 0)
+	fadeTo(gWho, 0, 0)
+	spec.Visible = false
 	openMenu()
 end)
 
