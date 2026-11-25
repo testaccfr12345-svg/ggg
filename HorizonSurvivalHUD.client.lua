@@ -3,9 +3,9 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local ASSETS = {
-	Health = { Id = "83496106777704", Canvas = 1024, X = 160, Y = 160, Width = 704, Height = 704 },
-	Hunger = { Id = "92015841820092", Canvas = 720, X = 250, Y = 126, Width = 290, Height = 452 },
-	Thirst = { Id = "107037349047540", Canvas = 720, X = 168, Y = 146, Width = 388, Height = 428 },
+	Health = { Id = "130177617556652", Canvas = 420, X = 120, Y = 120, Width = 180, Height = 179 },
+	Hunger = { Id = "95673501620571", Canvas = 420, X = 113, Y = 96, Width = 199, Height = 225 },
+	Thirst = { Id = "101658142884052", Canvas = 1024, X = 296, Y = 274, Width = 426, Height = 476 },
 }
 
 local DEMO = { Health = 85, Hunger = 64, Thirst = 18 }
@@ -60,7 +60,7 @@ end)
 
 local root = create("Frame", "SurvivalStats", gui, {
 	AnchorPoint = Vector2.new(0, 0),
-	Position = UDim2.fromOffset(4, 8),
+	Position = UDim2.fromOffset(18, 8),
 	Size = UDim2.fromOffset(0, 0),
 	AutomaticSize = Enum.AutomaticSize.XY,
 	BackgroundTransparency = 1,
