@@ -25,7 +25,8 @@ local MARKS = {
 	Thirst = { { 3.2, -0.3, 0.96 }, { 0.8, 0.1, 0.92 }, { 2.9, 0.6, 0.93 }, { 1.4, -0.6, 0.96 }, { 1.2, 0.7, 0.98 }, { -1.8, -0.2, 0.95 }, { -4.0, -0.1, 0.88 }, { -3.2, -0.6, 0.97 }, { -3.1, -0.4, 0.91 }, { 3.1, -0.6, 0.92 } },
 }
 local LOW = 25
-local TIP = 0.1
+local STROKE = "rbxassetid://0"
+local FRAME_W, FRAME_H, FRAMES = 48, 144, 20
 local function clamp(x, a, b)
 	if x < a then
 		return a
@@ -106,6 +107,7 @@ local function cropIcon(parent, name, asset, color, transparency, offsetY, z)
 end
 
 local rows = {}
+local drawMarks
 
 local function makeRow(name, order)
 	local row = create("Frame", name, root, {
@@ -136,34 +138,37 @@ local function makeRow(name, order)
 	local strokes = {}
 	for i = 0, 9 do
 		local m = MARKS[name][i + 1]
-		local h = 15 * m[3]
 		local cx = 7.5 * i + 3.75 + m[2] + (i >= 5 and 6.75 or 0)
 		local holder = create("Frame", "Stroke" .. (i + 1), marks, {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromOffset(cx, 8.5),
-			Size = UDim2.fromOffset(3, h),
+			Size = UDim2.fromOffset(6, 18 * m[3]),
 			Rotation = m[1],
 			BackgroundTransparency = 1,
 		})
-		local track = create("Frame", "Track", holder, {
-			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.fromScale(0.5, 0),
+		create("ImageLabel", "Track", holder, {
 			Size = UDim2.fromScale(1, 1),
-			BackgroundColor3 = TRACK,
-			BackgroundTransparency = 0.5,
+			BackgroundTransparency = 1,
+			Image = STROKE,
+			ImageRectOffset = Vector2.new(FRAMES * FRAME_W, 0),
+			ImageRectSize = Vector2.new(FRAME_W, FRAME_H),
+			ImageColor3 = TRACK,
+			ImageTransparency = 0.5,
+			ScaleType = Enum.ScaleType.Stretch,
 			ZIndex = 1,
 		})
-		create("UICorner", "Corner", track, { CornerRadius = UDim.new(0.5, 0) })
-		local fill = create("Frame", "Fill", holder, {
-			AnchorPoint = Vector2.new(0.5, 1),
-			Position = UDim2.fromScale(0.5, 1),
-			Size = UDim2.fromScale(1, 0),
-			BackgroundColor3 = COLORS[name],
+		local fill = create("ImageLabel", "Fill", holder, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Image = STROKE,
+			ImageRectOffset = Vector2.new(0, 0),
+			ImageRectSize = Vector2.new(FRAME_W, FRAME_H),
+			ImageColor3 = COLORS[name],
+			ScaleType = Enum.ScaleType.Stretch,
 			Visible = false,
 			ZIndex = 2,
 		})
-		create("UICorner", "Corner", fill, { CornerRadius = UDim.new(0.5, 0) })
-		strokes[i + 1] = { fill = fill, track = track, frac = 0 }
+		strokes[i + 1] = { fill = fill, frame = -1 }
 	end
 
 	local valueHolder = create("Frame", "Value", row, {
@@ -193,18 +198,21 @@ local function makeRow(name, order)
 		pulse = pulse,
 		pulseTween = nil,
 		low = false,
-		tweens = {},
-		ttweens = {},
+		shownPct = Instance.new("NumberValue"),
+		fillTween = nil,
 	}
 
 	local function applyPulse(t)
 		icon.ImageTransparency = t
 		value.TextTransparency = t
 		for _, s in ipairs(strokes) do
-			s.fill.BackgroundTransparency = t
+			s.fill.ImageTransparency = t
 		end
 	end
 	pulse.Changed:Connect(applyPulse)
+	r.shownPct.Changed:Connect(function(v)
+		drawMarks(r, v)
+	end)
 	r.applyPulse = applyPulse
 	rows[name] = r
 	return r
@@ -223,7 +231,7 @@ local function setLow(r, low)
 	r.icon.ImageColor3 = color
 	r.value.TextColor3 = color
 	for _, s in ipairs(r.strokes) do
-		s.fill.BackgroundColor3 = low and CORAL or COLORS[r.name]
+		s.fill.ImageColor3 = low and CORAL or COLORS[r.name]
 	end
 	if r.pulseTween then
 		r.pulseTween:Cancel()
@@ -237,53 +245,32 @@ local function setLow(r, low)
 	end
 end
 
+drawMarks = function(r, percent)
+	for i, st in ipairs(r.strokes) do
+		local k = round(clamp(percent / 10 - (i - 1), 0, 1) * FRAMES)
+		if k ~= st.frame then
+			st.frame = k
+			st.fill.Visible = k > 0
+			st.fill.ImageRectOffset = Vector2.new(k * FRAME_W, 0)
+		end
+	end
+end
+
 local function show(name, percent, shown, instant)
 	local r = rows[name]
 	percent = clamp(percent, 0, 100)
 	r.value.Text = tostring(round(shown))
 	setLow(r, percent < LOW)
-	for i, s in ipairs(r.strokes) do
-		local frac = clamp(percent / 10 - (i - 1), 0, 1)
-		if frac ~= s.frac or instant then
-			s.frac = frac
-			if r.tweens[i] then
-				r.tweens[i]:Cancel()
-				r.tweens[i] = nil
-			end
-			if r.ttweens[i] then
-				r.ttweens[i]:Cancel()
-				r.ttweens[i] = nil
-			end
-			local goal = UDim2.fromScale(1, frac)
-			local tgoal = UDim2.fromScale(1, frac >= 1 and TIP or clamp(1 - frac + (frac > 0 and TIP or 0), 0, 1))
-			s.track.Visible = true
-			if frac > 0 then
-				s.fill.Visible = true
-			end
-			if instant then
-				s.fill.Size = goal
-				s.fill.Visible = frac > 0
-				s.track.Size = tgoal
-				s.track.Visible = frac < 1
-			else
-				local tt = TweenService:Create(s.track, FILL_TWEEN, { Size = tgoal })
-				r.ttweens[i] = tt
-				tt.Completed:Connect(function(state)
-					if state == Enum.PlaybackState.Completed and s.frac >= 1 then
-						s.track.Visible = false
-					end
-				end)
-				tt:Play()
-				local tw = TweenService:Create(s.fill, FILL_TWEEN, { Size = goal })
-				r.tweens[i] = tw
-				tw.Completed:Connect(function(state)
-					if state == Enum.PlaybackState.Completed and s.frac <= 0 then
-						s.fill.Visible = false
-					end
-				end)
-				tw:Play()
-			end
-		end
+	if r.fillTween then
+		r.fillTween:Cancel()
+		r.fillTween = nil
+	end
+	if instant then
+		r.shownPct.Value = percent
+		drawMarks(r, percent)
+	else
+		r.fillTween = TweenService:Create(r.shownPct, FILL_TWEEN, { Value = percent })
+		r.fillTween:Play()
 	end
 end
 
@@ -386,11 +373,8 @@ gui.Destroying:Connect(function()
 		if r.pulseTween then
 			r.pulseTween:Cancel()
 		end
-		for _, tw in pairs(r.tweens) do
-			tw:Cancel()
-		end
-		for _, tw in pairs(r.ttweens) do
-			tw:Cancel()
+		if r.fillTween then
+			r.fillTween:Cancel()
 		end
 	end
 	if cameraConnection then
