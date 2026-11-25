@@ -25,6 +25,18 @@ local MARKS = {
 	Thirst = { { 3.2, -0.3, 0.96 }, { 0.8, 0.1, 0.92 }, { 2.9, 0.6, 0.93 }, { 1.4, -0.6, 0.96 }, { 1.2, 0.7, 0.98 }, { -1.8, -0.2, 0.95 }, { -4.0, -0.1, 0.88 }, { -3.2, -0.6, 0.97 }, { -3.1, -0.4, 0.91 }, { 3.1, -0.6, 0.92 } },
 }
 local LOW = 25
+local TIP = 0.1
+local function clamp(x, a, b)
+	if x < a then
+		return a
+	elseif x > b then
+		return b
+	end
+	return x
+end
+local function round(x)
+	return math.floor(x + 0.5)
+end
 local FILL_TWEEN = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local PULSE_TWEEN = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
 
@@ -134,6 +146,8 @@ local function makeRow(name, order)
 			BackgroundTransparency = 1,
 		})
 		local track = create("Frame", "Track", holder, {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.fromScale(0.5, 0),
 			Size = UDim2.fromScale(1, 1),
 			BackgroundColor3 = TRACK,
 			BackgroundTransparency = 0.5,
@@ -149,7 +163,7 @@ local function makeRow(name, order)
 			ZIndex = 2,
 		})
 		create("UICorner", "Corner", fill, { CornerRadius = UDim.new(0.5, 0) })
-		strokes[i + 1] = { fill = fill, frac = 0 }
+		strokes[i + 1] = { fill = fill, track = track, frac = 0 }
 	end
 
 	local valueHolder = create("Frame", "Value", row, {
@@ -180,6 +194,7 @@ local function makeRow(name, order)
 		pulseTween = nil,
 		low = false,
 		tweens = {},
+		ttweens = {},
 	}
 
 	local function applyPulse(t)
@@ -224,25 +239,41 @@ end
 
 local function show(name, percent, shown, instant)
 	local r = rows[name]
-	percent = math.clamp(percent, 0, 100)
-	r.value.Text = tostring(math.round(shown))
+	percent = clamp(percent, 0, 100)
+	r.value.Text = tostring(round(shown))
 	setLow(r, percent < LOW)
 	for i, s in ipairs(r.strokes) do
-		local frac = math.clamp(percent / 10 - (i - 1), 0, 1)
+		local frac = clamp(percent / 10 - (i - 1), 0, 1)
 		if frac ~= s.frac or instant then
 			s.frac = frac
 			if r.tweens[i] then
 				r.tweens[i]:Cancel()
 				r.tweens[i] = nil
 			end
+			if r.ttweens[i] then
+				r.ttweens[i]:Cancel()
+				r.ttweens[i] = nil
+			end
 			local goal = UDim2.fromScale(1, frac)
+			local tgoal = UDim2.fromScale(1, frac >= 1 and TIP or clamp(1 - frac + (frac > 0 and TIP or 0), 0, 1))
+			s.track.Visible = true
 			if frac > 0 then
 				s.fill.Visible = true
 			end
 			if instant then
 				s.fill.Size = goal
 				s.fill.Visible = frac > 0
+				s.track.Size = tgoal
+				s.track.Visible = frac < 1
 			else
+				local tt = TweenService:Create(s.track, FILL_TWEEN, { Size = tgoal })
+				r.ttweens[i] = tt
+				tt.Completed:Connect(function(state)
+					if state == Enum.PlaybackState.Completed and s.frac >= 1 then
+						s.track.Visible = false
+					end
+				end)
+				tt:Play()
 				local tw = TweenService:Create(s.fill, FILL_TWEEN, { Size = goal })
 				r.tweens[i] = tw
 				tw.Completed:Connect(function(state)
@@ -259,7 +290,7 @@ end
 local function resize()
 	local camera = Workspace.CurrentCamera
 	local h = camera and camera.ViewportSize.Y or 414
-	rootScale.Scale = math.clamp(h / 550, 1, 1)
+	rootScale.Scale = clamp(h / 550, 1, 1)
 end
 
 local cameraConnection
@@ -286,7 +317,7 @@ end
 local function updateNeed(name, instant)
 	local maximum = numberAttribute(name .. "Max", 100)
 	local value = numberAttribute(name, maximum * DEMO[name] / 100)
-	local percent = maximum > 0 and math.clamp(value / maximum, 0, 1) * 100 or 0
+	local percent = maximum > 0 and clamp(value / maximum, 0, 1) * 100 or 0
 	show(name, percent, percent, instant)
 end
 
@@ -298,7 +329,9 @@ local function disconnectAll(group)
 	for _, connection in ipairs(group) do
 		connection:Disconnect()
 	end
-	table.clear(group)
+	for i = #group, 1, -1 do
+		group[i] = nil
+	end
 end
 
 local function bindHealth(humanoid, instant)
@@ -354,6 +387,9 @@ gui.Destroying:Connect(function()
 			r.pulseTween:Cancel()
 		end
 		for _, tw in pairs(r.tweens) do
+			tw:Cancel()
+		end
+		for _, tw in pairs(r.ttweens) do
 			tw:Cancel()
 		end
 	end
