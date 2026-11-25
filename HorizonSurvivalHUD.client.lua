@@ -11,13 +11,13 @@ local ASSETS = {
 local DEMO = { Health = 85, Hunger = 64, Thirst = 18 }
 local ORDER = { "Health", "Hunger", "Thirst" }
 local CREAM = Color3.fromRGB(237, 232, 220)
-local CORAL = Color3.fromRGB(244, 164, 124)
-local TRACK = Color3.fromRGB(16, 21, 19)
+local BLACK = Color3.new(0, 0, 0)
+local SHADOW_T = 0.4
 local FONT = Enum.Font.PatrickHand
 local COLORS = {
-	Health = Color3.fromRGB(208, 105, 93),
-	Hunger = Color3.fromRGB(163, 186, 114),
-	Thirst = Color3.fromRGB(125, 176, 204),
+	Health = Color3.fromRGB(224, 122, 110),
+	Hunger = Color3.fromRGB(235, 170, 106),
+	Thirst = Color3.fromRGB(128, 185, 221),
 }
 local MARKS = {
 	Health = { { -1.5, -0.5, 0.95 }, { -3.6, 0.1, 0.91 }, { -3.7, 0.0, 0.87 }, { -0.6, -0.6, 0.87 }, { -0.6, 0.5, 0.88 }, { -2.3, 0.2, 0.99 }, { 0.6, -0.1, 1.00 }, { -3.8, 0.5, 0.90 }, { -3.0, -0.6, 0.90 }, { 2.7, -0.5, 0.94 } },
@@ -128,7 +128,8 @@ local function makeRow(name, order)
 		BackgroundTransparency = 1,
 		LayoutOrder = 1,
 	})
-	local icon = cropIcon(iconHolder, "Main", ASSETS[name], CREAM, 0, 0, 2)
+	local iconShadow = cropIcon(iconHolder, "Shadow", ASSETS[name], BLACK, SHADOW_T, 1, 1)
+	local icon = cropIcon(iconHolder, "Main", ASSETS[name], COLORS[name], 0, 0, 2)
 
 	local marks = create("Frame", "Marks", row, {
 		Size = UDim2.fromOffset(81.75, 17),
@@ -152,8 +153,8 @@ local function makeRow(name, order)
 			Image = STROKE,
 			ImageRectOffset = Vector2.new(FRAMES * FRAME_W, 0),
 			ImageRectSize = Vector2.new(FRAME_W, FRAME_H),
-			ImageColor3 = TRACK,
-			ImageTransparency = 0.5,
+			ImageColor3 = COLORS[name],
+			ImageTransparency = 0.78,
 			ScaleType = Enum.ScaleType.Stretch,
 			ZIndex = 1,
 		})
@@ -177,6 +178,19 @@ local function makeRow(name, order)
 		BackgroundTransparency = 1,
 		LayoutOrder = 3,
 	})
+	local valueShadow = create("TextLabel", "Shadow", valueHolder, {
+		Position = UDim2.fromOffset(0, 1),
+		Size = UDim2.fromOffset(18, 17),
+		AutomaticSize = Enum.AutomaticSize.X,
+		BackgroundTransparency = 1,
+		Font = FONT,
+		TextSize = 19,
+		TextColor3 = BLACK,
+		TextTransparency = SHADOW_T,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Text = "",
+		ZIndex = 1,
+	})
 	local value = create("TextLabel", "Main", valueHolder, {
 		Size = UDim2.fromOffset(18, 17),
 		AutomaticSize = Enum.AutomaticSize.X,
@@ -193,7 +207,9 @@ local function makeRow(name, order)
 	local r = {
 		name = name,
 		icon = icon,
+		iconShadow = iconShadow,
 		value = value,
+		valueShadow = valueShadow,
 		strokes = strokes,
 		pulse = pulse,
 		pulseTween = nil,
@@ -203,11 +219,11 @@ local function makeRow(name, order)
 	}
 
 	local function applyPulse(t)
+		local st = 1 - (1 - SHADOW_T) * (1 - t)
 		icon.ImageTransparency = t
+		iconShadow.ImageTransparency = st
 		value.TextTransparency = t
-		for _, s in ipairs(strokes) do
-			s.fill.ImageTransparency = t
-		end
+		valueShadow.TextTransparency = st
 	end
 	pulse.Changed:Connect(applyPulse)
 	r.shownPct.Changed:Connect(function(v)
@@ -227,12 +243,6 @@ local function setLow(r, low)
 		return
 	end
 	r.low = low
-	local color = low and CORAL or CREAM
-	r.icon.ImageColor3 = color
-	r.value.TextColor3 = color
-	for _, s in ipairs(r.strokes) do
-		s.fill.ImageColor3 = low and CORAL or COLORS[r.name]
-	end
 	if r.pulseTween then
 		r.pulseTween:Cancel()
 		r.pulseTween = nil
@@ -260,6 +270,7 @@ local function show(name, percent, shown, instant)
 	local r = rows[name]
 	percent = clamp(percent, 0, 100)
 	r.value.Text = tostring(round(shown))
+	r.valueShadow.Text = r.value.Text
 	setLow(r, percent < LOW)
 	if r.fillTween then
 		r.fillTween:Cancel()
