@@ -13,7 +13,6 @@ local ORDER = { "Health", "Hunger", "Thirst" }
 local CREAM = Color3.fromRGB(237, 232, 220)
 local CORAL = Color3.fromRGB(244, 164, 124)
 local TRACK = Color3.fromRGB(16, 21, 19)
-local BLACK = Color3.new(0, 0, 0)
 local FONT = Enum.Font.PatrickHand
 local COLORS = {
 	Health = Color3.fromRGB(208, 105, 93),
@@ -26,7 +25,6 @@ local MARKS = {
 	Thirst = { { 3.2, -0.3, 0.96 }, { 0.8, 0.1, 0.92 }, { 2.9, 0.6, 0.93 }, { 1.4, -0.6, 0.96 }, { 1.2, 0.7, 0.98 }, { -1.8, -0.2, 0.95 }, { -4.0, -0.1, 0.88 }, { -3.2, -0.6, 0.97 }, { -3.1, -0.4, 0.91 }, { 3.1, -0.6, 0.92 } },
 }
 local LOW = 25
-local SHADOW_T = 0.4
 local FILL_TWEEN = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local PULSE_TWEEN = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
 
@@ -116,7 +114,6 @@ local function makeRow(name, order)
 		BackgroundTransparency = 1,
 		LayoutOrder = 1,
 	})
-	local iconShadow = cropIcon(iconHolder, "Shadow", ASSETS[name], BLACK, SHADOW_T, 1, 1)
 	local icon = cropIcon(iconHolder, "Main", ASSETS[name], CREAM, 0, 0, 2)
 
 	local marks = create("Frame", "Marks", row, {
@@ -161,19 +158,6 @@ local function makeRow(name, order)
 		BackgroundTransparency = 1,
 		LayoutOrder = 3,
 	})
-	local valueShadow = create("TextLabel", "Shadow", valueHolder, {
-		Position = UDim2.fromOffset(0, 1),
-		Size = UDim2.fromOffset(18, 17),
-		AutomaticSize = Enum.AutomaticSize.X,
-		BackgroundTransparency = 1,
-		Font = FONT,
-		TextSize = 19,
-		TextColor3 = BLACK,
-		TextTransparency = SHADOW_T,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Text = "",
-		ZIndex = 1,
-	})
 	local value = create("TextLabel", "Main", valueHolder, {
 		Size = UDim2.fromOffset(18, 17),
 		AutomaticSize = Enum.AutomaticSize.X,
@@ -190,9 +174,7 @@ local function makeRow(name, order)
 	local r = {
 		name = name,
 		icon = icon,
-		iconShadow = iconShadow,
 		value = value,
-		valueShadow = valueShadow,
 		strokes = strokes,
 		pulse = pulse,
 		pulseTween = nil,
@@ -201,11 +183,8 @@ local function makeRow(name, order)
 	}
 
 	local function applyPulse(t)
-		local st = 1 - (1 - SHADOW_T) * (1 - t)
 		icon.ImageTransparency = t
-		iconShadow.ImageTransparency = st
 		value.TextTransparency = t
-		valueShadow.TextTransparency = st
 		for _, s in ipairs(strokes) do
 			s.fill.BackgroundTransparency = t
 		end
@@ -247,7 +226,6 @@ local function show(name, percent, shown, instant)
 	local r = rows[name]
 	percent = math.clamp(percent, 0, 100)
 	r.value.Text = tostring(math.round(shown))
-	r.valueShadow.Text = r.value.Text
 	setLow(r, percent < LOW)
 	for i, s in ipairs(r.strokes) do
 		local frac = math.clamp(percent / 10 - (i - 1), 0, 1)
@@ -281,7 +259,7 @@ end
 local function resize()
 	local camera = Workspace.CurrentCamera
 	local h = camera and camera.ViewportSize.Y or 414
-	rootScale.Scale = math.clamp(h / 550, 1, 2)
+	rootScale.Scale = math.clamp(h / 550, 1, 1)
 end
 
 local cameraConnection
