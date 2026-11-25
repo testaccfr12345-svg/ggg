@@ -4,7 +4,7 @@ local Workspace = game:GetService("Workspace")
 
 local ASSETS = {
 	Health = { Id = "130177617556652", Canvas = 420, X = 120, Y = 120, Width = 180, Height = 179 },
-	Hunger = { Id = "95673501620571", Canvas = 420, X = 113, Y = 96, Width = 199, Height = 225 },
+	Hunger = { Id = "96663414336154", Plain = true },
 	Thirst = { Id = "101658142884052", Canvas = 1024, X = 296, Y = 274, Width = 426, Height = 476 },
 }
 
@@ -93,6 +93,17 @@ local function cropIcon(parent, name, asset, color, transparency, offsetY, z)
 		ClipsDescendants = true,
 		ZIndex = z,
 	})
+	if asset.Plain then
+		return create("ImageLabel", "Image", box, {
+			BackgroundTransparency = 1,
+			Image = "rbxassetid://" .. asset.Id,
+			ImageColor3 = color,
+			ImageTransparency = transparency,
+			ScaleType = Enum.ScaleType.Fit,
+			Size = UDim2.fromScale(1, 1),
+			ZIndex = z,
+		})
+	end
 	local fit = math.min(15 / asset.Width, 15 / asset.Height)
 	local image = create("ImageLabel", "Image", box, {
 		BackgroundTransparency = 1,
