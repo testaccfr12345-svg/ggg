@@ -25,6 +25,7 @@ local MARKS = {
 	Thirst = { { 3.2, -0.3, 0.96 }, { 0.8, 0.1, 0.92 }, { 2.9, 0.6, 0.93 }, { 1.4, -0.6, 0.96 }, { 1.2, 0.7, 0.98 }, { -1.8, -0.2, 0.95 }, { -4.0, -0.1, 0.88 }, { -3.2, -0.6, 0.97 }, { -3.1, -0.4, 0.91 }, { 3.1, -0.6, 0.92 } },
 }
 local LOW = 25
+local CRITICAL = 10
 local STROKE = "rbxassetid://75405977088659"
 local FRAME_W, FRAME_H, FRAMES = 48, 144, 20
 local function clamp(x, a, b)
@@ -256,13 +257,6 @@ local function makeRow(name, order)
 	}
 
 	local function applyPulse(t)
-		if icon:IsA("ImageLabel") then
-			icon.ImageTransparency = t
-		else
-			for _, bar in ipairs(icon:GetChildren()) do
-				bar.BackgroundTransparency = t
-			end
-		end
 		value.TextTransparency = t
 	end
 	pulse.Changed:Connect(applyPulse)
@@ -278,7 +272,8 @@ for i, name in ipairs(ORDER) do
 	makeRow(name, i)
 end
 
-local function setLow(r, low)
+local function setLow(r, low, critical)
+	r.value.TextColor3 = critical and CREAM:Lerp(COLORS[r.name], 0.7) or CREAM
 	if r.low == low then
 		return
 	end
@@ -310,7 +305,7 @@ local function show(name, percent, shown, instant)
 	local r = rows[name]
 	percent = clamp(percent, 0, 100)
 	r.value.Text = tostring(round(shown))
-	setLow(r, percent < LOW)
+	setLow(r, percent < LOW, percent < CRITICAL)
 	if r.fillTween then
 		r.fillTween:Cancel()
 		r.fillTween = nil

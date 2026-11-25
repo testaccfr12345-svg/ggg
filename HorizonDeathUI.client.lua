@@ -699,7 +699,7 @@ for order, name in ipairs({ "Health", "Hunger", "Thirst" }) do
 	val.Text = ""
 	val.LayoutOrder = 3
 	val.Parent = row
-	local b = { icon = ic, val = val, strokes = strokes, pct = Instance.new("NumberValue"), pulse = Instance.new("NumberValue"), low = false }
+	local b = { name = name, icon = ic, val = val, strokes = strokes, pct = Instance.new("NumberValue"), pulse = Instance.new("NumberValue"), low = false }
 	b.pct.Changed:Connect(function(v)
 		for i, st in ipairs(strokes) do
 			local k = math.floor(math.clamp(v / 10 - (i - 1), 0, 1) * SFRAMES + 0.5)
@@ -711,13 +711,6 @@ for order, name in ipairs({ "Health", "Hunger", "Thirst" }) do
 		end
 	end)
 	b.pulse.Changed:Connect(function(t)
-		if ic:IsA("ImageLabel") then
-			ic.ImageTransparency = t
-		else
-			for _, f in ipairs(ic:GetChildren()) do
-				f.BackgroundTransparency = t
-			end
-		end
 		val.TextTransparency = t
 	end)
 	bars[name] = b
@@ -737,6 +730,7 @@ local function setBar(name, value, frac, instant)
 		b.tw = TweenService:Create(b.pct, HUD_FILL, { Value = pct })
 		b.tw:Play()
 	end
+	b.val.TextColor3 = pct < 10 and CREAM:Lerp(HUD_COLORS[b.name], 0.7) or CREAM
 	local low = pct < 25
 	if low ~= b.low then
 		b.low = low
@@ -861,14 +855,14 @@ local function layoutWho(name)
 	prevB.Position = UDim2.new(0.5, -(w / 2 + 42), 1, 562 - 720)
 	nextB.Position = UDim2.new(0.5, w / 2 + 42, 1, 562 - 720)
 end
-local function paintDemo()
+local function paintDemo(smooth)
 	local n, a, b = demoWho()
 	layoutWho(n)
 	setTraits(a, b)
-	setBar("Health", math.random(5, 100), math.random(), true)
-	local hu, th = math.random(0, 100), math.random(0, 100)
-	setBar("Hunger", hu, hu / 100, true)
-	setBar("Thirst", th, th / 100, true)
+	local he, hu, th = math.random(5, 100), math.random(0, 100), math.random(0, 100)
+	setBar("Health", he, he / 100, not smooth)
+	setBar("Hunger", hu, hu / 100, not smooth)
+	setBar("Thirst", th, th / 100, not smooth)
 	setLung(math.random())
 end
 local function paintWho(instant)
@@ -901,13 +895,13 @@ local function watchList()
 	end
 	return out
 end
-local function watch(p)
+local function watch(p, smooth)
 	state.watching = p
 	local hum = p and p.Character and p.Character:FindFirstChildOfClass("Humanoid")
 	if hum then
 		workspace.CurrentCamera.CameraSubject = hum
 	end
-	paintWho(true)
+	paintWho(not smooth)
 end
 RunService.Heartbeat:Connect(function()
 	if state.screen == "spec" and state.watching then
@@ -1220,14 +1214,12 @@ local function cycle(d)
 	local l = watchList()
 	if #l == 0 then
 		if CFG.DemoSpectate then
-			paintDemo()
-			showGroup(gWho, whoRow, true, true)
+			paintDemo(true)
 		end
 		return
 	end
 	local i = table.find(l, state.watching) or 0
-	watch(l[(i - 1 + d) % #l + 1])
-	showGroup(gWho, whoRow, true, true)
+	watch(l[(i - 1 + d) % #l + 1], true)
 end
 onTap(prevB, function()
 	cycle(-1)
