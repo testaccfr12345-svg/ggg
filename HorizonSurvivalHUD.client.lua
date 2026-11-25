@@ -12,7 +12,7 @@ local DEMO = { Health = 85, Hunger = 64, Thirst = 18 }
 local ORDER = { "Health", "Hunger", "Thirst" }
 local CREAM = Color3.fromRGB(237, 232, 220)
 local BLACK = Color3.new(0, 0, 0)
-local SHADOW_T = 0.4
+local SHADOW_T = 0.8
 local FONT = Enum.Font.PatrickHand
 local COLORS = {
 	Health = Color3.fromRGB(224, 122, 110),
@@ -169,6 +169,19 @@ local function makeRow(name, order)
 			ScaleType = Enum.ScaleType.Stretch,
 			ZIndex = 1,
 		})
+		local fillShadow = create("ImageLabel", "FillShadow", holder, {
+			Position = UDim2.fromOffset(0, 1),
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Image = STROKE,
+			ImageRectOffset = Vector2.new(0, 0),
+			ImageRectSize = Vector2.new(FRAME_W, FRAME_H),
+			ImageColor3 = BLACK,
+			ImageTransparency = SHADOW_T,
+			ScaleType = Enum.ScaleType.Stretch,
+			Visible = false,
+			ZIndex = 0,
+		})
 		local fill = create("ImageLabel", "Fill", holder, {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
@@ -180,7 +193,7 @@ local function makeRow(name, order)
 			Visible = false,
 			ZIndex = 2,
 		})
-		strokes[i + 1] = { fill = fill, frame = -1 }
+		strokes[i + 1] = { fill = fill, shadow = fillShadow, frame = -1 }
 	end
 
 	local valueHolder = create("Frame", "Value", row, {
@@ -273,6 +286,8 @@ drawMarks = function(r, percent)
 			st.frame = k
 			st.fill.Visible = k > 0
 			st.fill.ImageRectOffset = Vector2.new(k * FRAME_W, 0)
+			st.shadow.Visible = k > 0
+			st.shadow.ImageRectOffset = st.fill.ImageRectOffset
 		end
 	end
 end
