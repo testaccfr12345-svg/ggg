@@ -120,7 +120,8 @@ local function place()
 		cx, cy = vp.X + x + size / 2, vp.Y + y + size / 2
 	end
 	jump.button.Size = UDim2.fromOffset(size, size)
-	jump.fit.Scale = size / 70
+	jump.fitBase = size / 70
+	jump.fit.Scale = jump.fitBase * (jump.pressed and 0.92 or 1)
 	jump.button.Position = UDim2.fromOffset(cx, cy)
 	sprint.button.Position = UDim2.fromOffset(cx - 71.5, cy - 57)
 	crouch.button.Position = UDim2.fromOffset(cx - 87.5, cy + 17)
@@ -194,11 +195,15 @@ end
 
 local held = false
 local holdInput
+local PRESS = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local function setJump(on)
 	if held == on then
 		return
 	end
 	held = on
+	jump.pressed = on
+	TweenService:Create(jump.fit, PRESS, { Scale = (jump.fitBase or 1) * (on and 0.92 or 1) }):Play()
+	TweenService:Create(jump.button, PRESS, { BackgroundTransparency = on and 0.35 or 0.5 }):Play()
 	local h = humanoid()
 	if h then
 		h.Jump = on
