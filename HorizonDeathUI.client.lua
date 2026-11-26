@@ -742,7 +742,7 @@ local function setBar(name, value, frac, instant)
 		b.tw = TweenService:Create(b.pct, HUD_FILL, { Value = pct })
 		b.tw:Play()
 	end
-	b.val.TextColor3 = pct < 15 and CREAM:Lerp(HUD_COLORS[b.name], 0.7) or CREAM
+	b.val.TextColor3 = pct < 15 and CREAM:Lerp(HUD_COLORS.Health, 0.7) or CREAM
 	local low = pct < 15
 	if low ~= b.low then
 		b.low = low

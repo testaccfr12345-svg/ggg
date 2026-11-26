@@ -273,7 +273,7 @@ for i, name in ipairs(ORDER) do
 end
 
 local function setLow(r, low, critical)
-	r.value.TextColor3 = critical and CREAM:Lerp(COLORS[r.name], 0.7) or CREAM
+	r.value.TextColor3 = critical and CREAM:Lerp(COLORS.Health, 0.7) or CREAM
 	if r.low == low then
 		return
 	end
