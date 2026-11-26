@@ -6,7 +6,6 @@ local FORCE_SHOW = true
 
 local CREAM = Color3.fromRGB(237, 232, 220)
 local DARK = Color3.fromRGB(16, 21, 19)
-local BLACK = Color3.new(0, 0, 0)
 local FONT = Enum.Font.PatrickHand
 local ROWS = {
 	{ name = "Sprint", key = "Shift", icon = "rbxassetid://115582741734964", attr = "Sprinting" },
@@ -74,16 +73,6 @@ for i, r in ipairs(ROWS) do
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Text = r.name
 	label.Parent = row
-	local shadow
-	pcall(function()
-		shadow = Instance.new("UIShadow")
-		shadow.Mode = Enum.ApplyShadowMode.Text
-		shadow.Color = BLACK
-		shadow.Offset = UDim2.fromOffset(0, 2)
-		shadow.BlurRadius = UDim.new(0, 5)
-		shadow.Transparency = 0.25
-		shadow.Parent = label
-	end)
 
 	local key = Instance.new("TextLabel")
 	key.Name = "Key"
@@ -120,9 +109,6 @@ for i, r in ipairs(ROWS) do
 		key.TextTransparency = 1 - a
 		key.BackgroundTransparency = 1 - (1 - look.bg) * a
 		stroke.Transparency = 1 - (1 - look.ring) * a
-		if shadow then
-			shadow.Transparency = 1 - 0.75 * a
-		end
 	end
 	fade.Changed:Connect(apply)
 	apply()
