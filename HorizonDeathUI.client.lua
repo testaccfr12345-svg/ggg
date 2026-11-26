@@ -702,6 +702,24 @@ for order, name in ipairs({ "Health", "Hunger", "Thirst" }) do
 	bars[name] = b
 end
 local function setLung() end
+local hudBase = {}
+for _, d in ipairs(hud:GetDescendants()) do
+	if d:IsA("ImageLabel") then
+		hudBase[d] = { "ImageTransparency", d.ImageTransparency }
+	elseif d:IsA("TextLabel") then
+		hudBase[d] = { "TextTransparency", d.TextTransparency }
+	elseif d:IsA("Frame") and d.BackgroundTransparency < 1 then
+		hudBase[d] = { "BackgroundTransparency", d.BackgroundTransparency }
+	end
+end
+local hudFadeV = Instance.new("NumberValue")
+local hudFadeTw
+local function hudFade(a)
+	for d, b in pairs(hudBase) do
+		d[b[1]] = 1 - (1 - b[2]) * a
+	end
+end
+hudFadeV.Changed:Connect(hudFade)
 local function setBar(name, value, frac, instant)
 	local b = bars[name]
 	local pct = math.clamp(frac, 0, 1) * 100
@@ -1179,7 +1197,8 @@ onTap(spectateB, function()
 		return
 	end
 	state.screen = "spec"
-	showGroup(gMenu, menu, false)
+	fadeTo(gMenu, 0, 0)
+	menu.Visible = false
 	setShade(0.9, 0.4)
 	TweenService:Create(lobbyBg, TweenInfo.new(0.4, QUAD, OUT), { ImageTransparency = 1, BackgroundTransparency = 1 }):Play()
 	TweenService:Create(lobbyShade, TweenInfo.new(0.4, QUAD, OUT), { BackgroundTransparency = 1 }):Play()
@@ -1189,7 +1208,14 @@ onTap(spectateB, function()
 		state.watching = nil
 		paintDemo()
 	end
+	if hudFadeTw then
+		hudFadeTw:Cancel()
+	end
+	hudFadeV.Value = 0
+	hudFade(0)
 	hudGui.Enabled = true
+	hudFadeTw = TweenService:Create(hudFadeV, TweenInfo.new(0.4, QUINT, OUT), { Value = 1 })
+	hudFadeTw:Play()
 	showGroup(gSpec, spec, true, false)
 	showGroup(gWho, whoRow, true, false)
 end)
