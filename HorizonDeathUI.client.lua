@@ -1386,6 +1386,34 @@ task.spawn(function()
 		end
 	end
 	pcall(ContentProvider.PreloadAsync, ContentProvider, inst)
+	local warm = Instance.new("ScreenGui")
+	warm.Name = "HorizonWarmup"
+	warm.DisplayOrder = -100
+	warm.IgnoreGuiInset = true
+	warm.ResetOnSpawn = false
+	warm.Parent = playerGui
+	for _, d in ipairs(inst) do
+		if d:IsA("Sound") then
+			local c = d:Clone()
+			c.Volume = 0
+			c.Looped = false
+			c.Parent = SoundService
+			c:Play()
+			task.delay(1, function()
+				c:Destroy()
+			end)
+		elseif d.Image ~= "" then
+			local w = Instance.new("ImageLabel")
+			w.BackgroundTransparency = 1
+			w.Image = d.Image
+			w.ImageTransparency = 0.99
+			w.Size = UDim2.fromOffset(1, 1)
+			w.Parent = warm
+		end
+	end
+	task.delay(3, function()
+		warm:Destroy()
+	end)
 	for _ = 1, 3 do
 		local failed = {}
 		pcall(ContentProvider.PreloadAsync, ContentProvider, list, function(id, status)
