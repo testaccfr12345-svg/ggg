@@ -1342,7 +1342,7 @@ onTap(lobbyB, function()
 	end)
 end)
 task.spawn(function()
-	local seen, list, sounds = {}, {}, {}
+	local seen, list = {}, {}
 	local function add(id)
 		if type(id) == "string" and id ~= "" and not seen[id] then
 			seen[id] = true
@@ -1355,7 +1355,6 @@ task.spawn(function()
 	for _, d in pairs(CFG.Sounds) do
 		if d[1] ~= 0 then
 			add("rbxassetid://" .. d[1])
-			sounds["rbxassetid://" .. d[1]] = true
 		end
 	end
 	for _, a in pairs(ASSETS) do
@@ -1375,7 +1374,6 @@ task.spawn(function()
 				add(d.Image)
 			elseif d:IsA("Sound") then
 				add(d.SoundId)
-				sounds[d.SoundId] = true
 			end
 		end
 	end
@@ -1388,25 +1386,6 @@ task.spawn(function()
 		end
 	end
 	pcall(ContentProvider.PreloadAsync, ContentProvider, inst)
-	local warm = Instance.new("ScreenGui")
-	warm.Name = "HorizonWarmup"
-	warm.DisplayOrder = -100
-	warm.IgnoreGuiInset = true
-	warm.ResetOnSpawn = false
-	warm.Parent = playerGui
-	for _, id in ipairs(list) do
-		if not sounds[id] then
-			local w = Instance.new("ImageLabel")
-			w.BackgroundTransparency = 1
-			w.Image = id
-			w.ImageTransparency = 0.99
-			w.Size = UDim2.fromOffset(600, 600)
-			w.Parent = warm
-		end
-	end
-	task.delay(3, function()
-		warm:Destroy()
-	end)
 	for _ = 1, 3 do
 		local failed = {}
 		pcall(ContentProvider.PreloadAsync, ContentProvider, list, function(id, status)
