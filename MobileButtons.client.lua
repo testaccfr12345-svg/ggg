@@ -13,6 +13,8 @@ local ICONS = {
 }
 local PRESS = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local TOGGLE = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local HOP_UP = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local HOP_DOWN = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -87,7 +89,7 @@ local function makeButton(name, size, iconSize, textSize, labelHeight, gap)
 	label.TextSize = textSize
 	label.TextColor3 = CREAM
 	label.Parent = inner
-	return { button = b, stroke = st, scale = sc, fit = fit, base = size }
+	return { button = b, stroke = st, scale = sc, fit = fit, base = size, icon = icon, iconTop = top }
 end
 
 local jump = makeButton("Jump", 70, 25, 20, 15, 2)
@@ -197,6 +199,7 @@ local held = false
 local holdInput
 local function pressVisual(on)
 	TweenService:Create(jump.stroke, PRESS, { Thickness = on and 1.2 or 1.5, Transparency = on and 0.3 or 0.75 }):Play()
+	TweenService:Create(jump.icon, on and HOP_UP or HOP_DOWN, { Position = UDim2.new(0.5, 0, 0, jump.iconTop - (on and 4 or 0)) }):Play()
 end
 local function setJump(on)
 	if held == on then
