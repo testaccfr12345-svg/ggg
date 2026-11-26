@@ -11,7 +11,6 @@ local ICONS = {
 	Sprint = "rbxassetid://115582741734964",
 	Crouch = "rbxassetid://100734509983099",
 }
-local PRESS = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local TOGGLE = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local player = Players.LocalPlayer
@@ -195,15 +194,11 @@ end
 
 local held = false
 local holdInput
-local function pressVisual(on)
-	TweenService:Create(jump.stroke, PRESS, { Thickness = 1, Transparency = on and 0.3 or 0.75 }):Play()
-end
 local function setJump(on)
 	if held == on then
 		return
 	end
 	held = on
-	pressVisual(on)
 	local h = humanoid()
 	if h then
 		h.Jump = on
