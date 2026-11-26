@@ -203,7 +203,7 @@ local function setJump(on)
 	held = on
 	jump.pressed = on
 	TweenService:Create(jump.fit, PRESS, { Scale = (jump.fitBase or 1) * (on and 0.95 or 1) }):Play()
-	TweenService:Create(jump.button, PRESS, { BackgroundTransparency = on and 0.42 or 0.5 }):Play()
+	TweenService:Create(jump.button, PRESS, { BackgroundTransparency = on and 0.46 or 0.5 }):Play()
 	local h = humanoid()
 	if h then
 		h.Jump = on
