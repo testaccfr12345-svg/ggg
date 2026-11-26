@@ -1260,7 +1260,7 @@ local function joinScreen(sg)
 	local sc = Instance.new("UIScale")
 	sc.Scale = s
 	sc.Parent = c
-	for _, q in ipairs({ { "RETURNING TO", 27, 535, ACCENT, 0 }, { "The Lobby", 81, 557, WHITE, 0 }, { "Your world is saved", 30, 635, WHITE, 0.15 } }) do
+	for _, q in ipairs({ { "RETURNING TO", 27, 535, ACCENT, 0 }, { "The Lobby", 81, 557, WHITE, 0 } }) do
 		local l = Instance.new("TextLabel")
 		l.BackgroundTransparency = 1
 		l.Font = FONT
