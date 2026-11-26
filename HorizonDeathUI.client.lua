@@ -1407,9 +1407,9 @@ task.spawn(function()
 			w.BackgroundTransparency = 1
 			w.Image = d.Image
 			w.ImageTransparency = 0.99
-			w.AnchorPoint = V2(1, 1)
-			w.Position = UDim2.fromOffset(-20, -20)
-			w.Size = UDim2.fromOffset(128, 128)
+			w.AnchorPoint = V2(0, 1)
+			w.Position = UDim2.fromScale(0, 1)
+			w.Size = UDim2.fromOffset(2, 2)
 			w.Parent = warm
 		end
 	end
