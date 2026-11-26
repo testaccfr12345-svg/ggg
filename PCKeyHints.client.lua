@@ -2,6 +2,8 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
+local FORCE_SHOW = true
+
 local CREAM = Color3.fromRGB(237, 232, 220)
 local DARK = Color3.fromRGB(16, 21, 19)
 local BLACK = Color3.new(0, 0, 0)
@@ -195,7 +197,7 @@ local function isPC()
 	return UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled
 end
 local function updateEnabled()
-	gui.Enabled = isPC()
+	gui.Enabled = FORCE_SHOW or isPC()
 end
 pcall(function()
 	UserInputService:GetPropertyChangedSignal("PreferredInput"):Connect(updateEnabled)
