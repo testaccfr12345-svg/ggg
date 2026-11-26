@@ -274,8 +274,7 @@ local diedRoot = frame(cv, { Name = "YouDied", Size = UDim2.fromScale(1, 1), Vis
 local diedW0 = math.ceil(textW("YOU DIED", 100)) + 24
 building = nil
 local diedBox = frame(diedRoot, { Name = "Holder", AnchorPoint = V2(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 345), Size = UDim2.fromOffset(275.9, 58.6) })
-local diedCG = new("CanvasGroup", { Parent = diedBox, Name = "Text", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, GroupTransparency = 1 })
-local diedImg = new("ImageLabel", { Parent = diedCG, Name = "Image", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Image = CFG.Icons.youDied, ImageColor3 = WHITE, ScaleType = Enum.ScaleType.Stretch })
+local diedImg = new("ImageLabel", { Parent = diedBox, Name = "Image", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Image = CFG.Icons.youDied, ImageColor3 = WHITE, ImageTransparency = 1, ScaleType = Enum.ScaleType.Stretch })
 local diedScale = Instance.new("UIScale")
 local DIED_SCALE = 544 / diedW0
 diedScale.Scale = DIED_SCALE
@@ -1031,7 +1030,7 @@ local function onDied()
 			if diedTw then
 				diedTw:Cancel()
 			end
-			diedCG.GroupTransparency = 0
+			diedImg.ImageTransparency = 0
 			newStains()
 			paintBlood(0)
 			local b0 = os.clock()
@@ -1050,7 +1049,7 @@ local function onDied()
 				if my ~= state.seq then
 					return
 				end
-				diedTw = TweenService:Create(diedCG, TweenInfo.new(0.45, QUAD, IN), { GroupTransparency = 1 })
+				diedTw = TweenService:Create(diedImg, TweenInfo.new(0.45, QUAD, IN), { ImageTransparency = 1 })
 				diedTw:Play()
 			end)
 			task.delay(3.25, function()
