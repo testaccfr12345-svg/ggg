@@ -3,9 +3,6 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
-local SHOW_TUNER = true
-local HOP_LIFT = 2.5
-
 local CREAM = Color3.fromRGB(237, 232, 220)
 local DARK = Color3.fromRGB(16, 21, 19)
 local FONT = Enum.Font.PatrickHand
@@ -16,8 +13,6 @@ local ICONS = {
 }
 local PRESS = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local TOGGLE = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local HOP_UP = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local HOP_DOWN = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -203,16 +198,12 @@ local holdInput
 local function pressVisual(on)
 	TweenService:Create(jump.stroke, PRESS, { Thickness = 1, Transparency = on and 0.3 or 0.75 }):Play()
 end
-local hop
 local function setJump(on)
 	if held == on then
 		return
 	end
 	held = on
 	pressVisual(on)
-	if on then
-		hop()
-	end
 	local h = humanoid()
 	if h then
 		h.Jump = on
@@ -244,43 +235,6 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 end)
-
-local hopSeq = 0
-local lastHop = -math.huge
-hop = function()
-	if os.clock() - lastHop < 0.25 then
-		return
-	end
-	lastHop = os.clock()
-	hopSeq += 1
-	local my = hopSeq
-	local up = TweenService:Create(jump.icon, HOP_UP, { Position = UDim2.new(0.5, 0, 0, jump.iconTop - HOP_LIFT) })
-	up.Completed:Connect(function(state)
-		if state == Enum.PlaybackState.Completed and my == hopSeq then
-			TweenService:Create(jump.icon, HOP_DOWN, { Position = UDim2.new(0.5, 0, 0, jump.iconTop) }):Play()
-		end
-	end)
-	up:Play()
-end
-local stateConn
-local function bindHop(char)
-	if stateConn then
-		stateConn:Disconnect()
-		stateConn = nil
-	end
-	local h = char and char:WaitForChild("Humanoid", 10)
-	if h then
-		stateConn = h.StateChanged:Connect(function(_, new)
-			if new == Enum.HumanoidStateType.Jumping and held then
-				hop()
-			end
-		end)
-	end
-end
-player.CharacterAdded:Connect(bindHop)
-if player.Character then
-	task.spawn(bindHop, player.Character)
-end
 
 local states = { Sprint = false, Crouch = false }
 local toggles = { Sprint = sprint, Crouch = crouch }
@@ -314,58 +268,3 @@ player.CharacterAdded:Connect(resetToggles)
 resetToggles()
 
 bindTouchGui()
-
-if SHOW_TUNER then
-	local tg = Instance.new("ScreenGui")
-	tg.Name = "JumpLiftTuner"
-	tg.ResetOnSpawn = false
-	tg.DisplayOrder = 1000
-	tg.Parent = playerGui
-	local panel = Instance.new("Frame")
-	panel.AnchorPoint = Vector2.new(0.5, 0)
-	panel.Position = UDim2.new(0.5, 0, 0, 10)
-	panel.Size = UDim2.fromOffset(220, 40)
-	panel.BackgroundColor3 = DARK
-	panel.BackgroundTransparency = 0.15
-	panel.BorderSizePixel = 0
-	panel.Parent = tg
-	local pc = Instance.new("UICorner")
-	pc.CornerRadius = UDim.new(0, 8)
-	pc.Parent = panel
-	local label = Instance.new("TextLabel")
-	label.BackgroundTransparency = 1
-	label.Position = UDim2.fromOffset(10, 0)
-	label.Size = UDim2.new(1, -90, 1, 0)
-	label.Font = FONT
-	label.TextSize = 20
-	label.TextColor3 = CREAM
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Parent = panel
-	local function refresh()
-		label.Text = "Arrow lift: " .. string.format("%.1f", HOP_LIFT)
-	end
-	local function step(x, text, d)
-		local b = Instance.new("TextButton")
-		b.Position = UDim2.new(1, x, 0.5, -14)
-		b.Size = UDim2.fromOffset(32, 28)
-		b.BackgroundColor3 = Color3.fromRGB(45, 50, 48)
-		b.BorderSizePixel = 0
-		b.Font = FONT
-		b.TextSize = 22
-		b.TextColor3 = CREAM
-		b.Text = text
-		b.Parent = panel
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(0, 6)
-		c.Parent = b
-		b.Activated:Connect(function()
-			HOP_LIFT = math.max(0, math.floor((HOP_LIFT + d) * 10 + 0.5) / 10)
-			refresh()
-			lastHop = -math.huge
-			hop()
-		end)
-	end
-	step(-76, "-", -0.5)
-	step(-40, "+", 0.5)
-	refresh()
-end
