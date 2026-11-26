@@ -203,6 +203,16 @@ end)
 backGui.Parent = playerGui
 local lobbyBg = new("ImageLabel", { Parent = backGui, Name = "LobbyBackground", Image = CFG.Icons.lobbyBg, ScaleType = Enum.ScaleType.Crop, Size = UDim2.fromScale(1, 1), BackgroundTransparency = 0, BackgroundColor3 = BLACK, Visible = false })
 local lobbyShade = new("Frame", { Parent = lobbyBg, Name = "Shade", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 0.65, BackgroundColor3 = BLACK })
+local diedWarm = Instance.new("ImageLabel")
+diedWarm.Name = "Prepare"
+diedWarm.AnchorPoint = Vector2.new(0.5, 0.5)
+diedWarm.Position = UDim2.fromScale(0.5, 0.5)
+diedWarm.Size = UDim2.fromOffset(900, 190)
+diedWarm.BackgroundTransparency = 1
+diedWarm.Image = CFG.Icons.youDied
+diedWarm.ZIndex = 0
+diedWarm.Visible = false
+diedWarm.Parent = backGui
 local shade = new("Frame", { Parent = backGui, Name = "Shade", Size = UDim2.fromScale(1, 1), BackgroundColor3 = BLACK, BackgroundTransparency = 1, Visible = false })
 local lids = new("Frame", { Parent = backGui, Name = "Eyelids", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Active = true, Visible = false })
 local function lidLayer(name, color, z)
@@ -993,6 +1003,7 @@ local function clearFx()
 end
 
 local function openMenu(ft, still)
+	diedWarm.Visible = false
 	ft = ft or 0.5
 	state.screen = "menu"
 	local hasBed = player:GetAttribute("HasBed") == true
@@ -1018,6 +1029,11 @@ local function onDied()
 	setShade(0)
 	diedRoot.Visible = false
 	task.spawn(pcall, ContentProvider.PreloadAsync, ContentProvider, { diedImg, snd.death })
+	local ds0 = diedImg.AbsoluteSize
+	if ds0.X > 10 then
+		diedWarm.Size = UDim2.fromOffset(ds0.X, ds0.Y)
+	end
+	diedWarm.Visible = true
 	task.delay(1.8, function()
 		if my ~= state.seq then
 			return
@@ -1031,6 +1047,7 @@ local function onDied()
 				diedTw:Cancel()
 			end
 			diedImg.ImageTransparency = 0
+			diedWarm.Visible = false
 			newStains()
 			paintBlood(0)
 			local b0 = os.clock()
