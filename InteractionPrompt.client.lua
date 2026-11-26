@@ -13,12 +13,12 @@ local PROMPT_SETTINGS = {
         BoxWidth = 29,
         BoxHeight = 29,
         HintTextSize = 25,
-        ActionTextSize = 26,
+        ActionTextSize = 28,
         Gap = 3,
         BoxTransparency = 50,
         CornerRadius = 5,
         BoxEdgeBlur = 5,
-        ShadowOpacity = 80,
+        ShadowOpacity = 55,
         ShadowOffset = 2,
         ShadowBlur = 2,
         FadeInTime = 0.1,
@@ -29,13 +29,13 @@ local PROMPT_SETTINGS = {
         Y = 3,
         Scale = 117,
         BoxHeight = 29,
-        HintTextSize = 20,
-        ActionTextSize = 26,
+        HintTextSize = 19,
+        ActionTextSize = 28,
         Gap = 3,
         BoxTransparency = 50,
         CornerRadius = 5,
         BoxEdgeBlur = 5,
-        ShadowOpacity = 80,
+        ShadowOpacity = 55,
         ShadowOffset = 2,
         ShadowBlur = 2,
         FadeInTime = 0.1,
@@ -90,6 +90,18 @@ prompt.Name = "Prompt"
 prompt.AnchorPoint = Vector2.new(0.5, 1)
 prompt.BackgroundTransparency = 1
 prompt.Parent = root
+
+local haze = Instance.new("ImageLabel")
+haze.Name = "Haze"
+haze.AnchorPoint = Vector2.new(0.5, 0.5)
+haze.Position = UDim2.fromScale(0.5, 0.5)
+haze.Size = UDim2.new(1, 60, 1, 46)
+haze.BackgroundTransparency = 1
+haze.Image = "rbxassetid://130881451468251"
+haze.ImageColor3 = Color3.new(0, 0, 0)
+haze.ImageTransparency = 1
+haze.ZIndex = 0
+haze.Parent = prompt
 
 local keycap = Instance.new("Frame")
 keycap.Name = "Keycap"
@@ -147,6 +159,7 @@ local function applyOpacity()
     tapShadow.Transparency = shadowTransparency
     actionShadow.Transparency = shadowTransparency
     keycapShadow.Transparency = 1 - 0.55 * alpha
+    haze.ImageTransparency = 1 - 0.18 * alpha
 end
 
 local function fadePrompt(visible)
