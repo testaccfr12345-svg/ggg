@@ -13,8 +13,8 @@ local ICONS = {
 }
 local PRESS = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local TOGGLE = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local HOP_UP = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local HOP_DOWN = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+local HOP_UP = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local HOP_DOWN = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -49,7 +49,7 @@ local function makeButton(name, size, iconSize, textSize, labelHeight, gap)
 	c.Parent = b
 	local st = Instance.new("UIStroke")
 	st.Color = CREAM
-	st.Thickness = 1.5
+	st.Thickness = 1
 	st.Transparency = 0.75
 	st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	pcall(function()
@@ -198,8 +198,7 @@ end
 local held = false
 local holdInput
 local function pressVisual(on)
-	TweenService:Create(jump.stroke, PRESS, { Thickness = on and 1.2 or 1.5, Transparency = on and 0.3 or 0.75 }):Play()
-	TweenService:Create(jump.icon, on and HOP_UP or HOP_DOWN, { Position = UDim2.new(0.5, 0, 0, jump.iconTop - (on and 4 or 0)) }):Play()
+	TweenService:Create(jump.stroke, PRESS, { Thickness = 1, Transparency = on and 0.3 or 0.75 }):Play()
 end
 local function setJump(on)
 	if held == on then
@@ -239,13 +238,45 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
+local hopSeq = 0
+local function hop()
+	hopSeq += 1
+	local my = hopSeq
+	local up = TweenService:Create(jump.icon, HOP_UP, { Position = UDim2.new(0.5, 0, 0, jump.iconTop - 1.5) })
+	up.Completed:Connect(function(state)
+		if state == Enum.PlaybackState.Completed and my == hopSeq then
+			TweenService:Create(jump.icon, HOP_DOWN, { Position = UDim2.new(0.5, 0, 0, jump.iconTop) }):Play()
+		end
+	end)
+	up:Play()
+end
+local stateConn
+local function bindHop(char)
+	if stateConn then
+		stateConn:Disconnect()
+		stateConn = nil
+	end
+	local h = char and char:WaitForChild("Humanoid", 10)
+	if h then
+		stateConn = h.StateChanged:Connect(function(_, new)
+			if new == Enum.HumanoidStateType.Jumping and held then
+				hop()
+			end
+		end)
+	end
+end
+player.CharacterAdded:Connect(bindHop)
+if player.Character then
+	task.spawn(bindHop, player.Character)
+end
+
 local states = { Sprint = false, Crouch = false }
 local toggles = { Sprint = sprint, Crouch = crouch }
 local ATTR = { Sprint = "Sprinting", Crouch = "Crouching" }
 local function setState(name, on)
 	states[name] = on
 	local t = toggles[name]
-	TweenService:Create(t.stroke, TOGGLE, { Thickness = on and 1.2 or 1.5, Transparency = on and 0.3 or 0.75 }):Play()
+	TweenService:Create(t.stroke, TOGGLE, { Thickness = 1, Transparency = on and 0.3 or 0.75 }):Play()
 	player:SetAttribute(ATTR[name], on)
 end
 for name, t in pairs(toggles) do
