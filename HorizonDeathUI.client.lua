@@ -28,7 +28,6 @@ local CFG = {
 		youDied = "rbxassetid://131110407134601",
 	},
 	PanelAlpha = 0.68,
-	ShowTuner = true,
 	DemoSpectate = true,
 }
 
@@ -431,10 +430,10 @@ local lobbyB = menuButton("LobbyButton", "Return to lobby", CFG.Icons.lobby, 3, 
 local gSpec = newGroup()
 building = gSpec
 local spec = frame(cv, { Name = "Spectate", Size = UDim2.fromScale(1, 1), Visible = false })
-local specW = 24 + math.ceil(textW("SPECTATING", 30))
-local specTag = frame(spec, { Name = "Label", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 0, -10), Size = UDim2.fromOffset(127, 30) })
-round(frame(specTag, { Position = UDim2.fromOffset(0, 9), Size = UDim2.fromOffset(12, 12), BackgroundTransparency = 0, BackgroundColor3 = ACCENT }), 2)
-shadow(text(specTag, "SPECTATING", 30, { Position = UDim2.fromOffset(24, 0), Size = UDim2.fromOffset(specW, 30), TextTransparency = 0.1 }))
+local specW = 27 + math.ceil(textW("SPECTATING", 35))
+local specTag = frame(spec, { Name = "Label", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 0, -10), Size = UDim2.fromOffset(specW, 35) })
+round(frame(specTag, { Position = UDim2.fromOffset(0, 10), Size = UDim2.fromOffset(15, 15), BackgroundTransparency = 0, BackgroundColor3 = ACCENT }), 3)
+shadow(text(specTag, "SPECTATING", 35, { Position = UDim2.fromOffset(27, 0), Size = UDim2.fromOffset(specW, 35), TextTransparency = 0.1 }))
 local gWho = newGroup()
 building = gWho
 local whoRow = frame(spec, { Name = "Player", AnchorPoint = V2(0.5, 0), Position = UDim2.new(0.5, 0, 1, 562 - 720), Size = UDim2.fromOffset(400, 44) })
@@ -1019,6 +1018,7 @@ local function onDied()
 	hideOwnHud(true)
 	setShade(0)
 	diedRoot.Visible = false
+	task.spawn(pcall, ContentProvider.PreloadAsync, ContentProvider, { diedImg, snd.death })
 	task.delay(1.8, function()
 		if my ~= state.seq then
 			return
@@ -1293,16 +1293,23 @@ local function joinScreen(sg)
 		l.Text = q[1]
 		l.TextSize = q[2]
 		l.TextColor3 = q[4]
-		l.TextTransparency = q[5]
+		l.TextTransparency = 1
 		l.AnchorPoint = V2(0.5, 0)
-		l.Position = UDim2.new(0.5, 0, 0, q[3])
+		l.Position = UDim2.new(0.5, 0, 0, q[3] + 14)
 		l.Size = UDim2.new(1, 0, 0, q[2])
 		l.Parent = c
 		local st = Instance.new("UIStroke")
 		st.Color = BLACK
 		st.Thickness = q[2] >= 40 and 3 or 2
-		st.Transparency = 0.55
+		st.Transparency = 1
 		st.Parent = l
+		task.delay(q[2] > 50 and 0.37 or 0.25, function()
+			if l.Parent then
+				local ti = TweenInfo.new(0.6, QUINT, OUT)
+				TweenService:Create(l, ti, { TextTransparency = q[5], Position = UDim2.new(0.5, 0, 0, q[3]) }):Play()
+				TweenService:Create(st, ti, { Transparency = 0.55 }):Play()
+			end
+		end)
 	end
 	return root
 end
@@ -1335,7 +1342,7 @@ onTap(lobbyB, function()
 	end)
 end)
 task.spawn(function()
-	local seen, list = {}, {}
+	local seen, list, sounds = {}, {}, {}
 	local function add(id)
 		if type(id) == "string" and id ~= "" and not seen[id] then
 			seen[id] = true
@@ -1348,6 +1355,7 @@ task.spawn(function()
 	for _, d in pairs(CFG.Sounds) do
 		if d[1] ~= 0 then
 			add("rbxassetid://" .. d[1])
+			sounds["rbxassetid://" .. d[1]] = true
 		end
 	end
 	for _, a in pairs(ASSETS) do
@@ -1367,9 +1375,38 @@ task.spawn(function()
 				add(d.Image)
 			elseif d:IsA("Sound") then
 				add(d.SoundId)
+				sounds[d.SoundId] = true
 			end
 		end
 	end
+	local inst = {}
+	for _, rootObj in ipairs({ playerGui, SoundService }) do
+		for _, d in ipairs(rootObj:GetDescendants()) do
+			if d:IsA("ImageLabel") or d:IsA("ImageButton") or d:IsA("Sound") then
+				table.insert(inst, d)
+			end
+		end
+	end
+	pcall(ContentProvider.PreloadAsync, ContentProvider, inst)
+	local warm = Instance.new("ScreenGui")
+	warm.Name = "HorizonWarmup"
+	warm.DisplayOrder = -100
+	warm.IgnoreGuiInset = true
+	warm.ResetOnSpawn = false
+	warm.Parent = playerGui
+	for _, id in ipairs(list) do
+		if not sounds[id] then
+			local w = Instance.new("ImageLabel")
+			w.BackgroundTransparency = 1
+			w.Image = id
+			w.ImageTransparency = 0.99
+			w.Size = UDim2.fromOffset(600, 600)
+			w.Parent = warm
+		end
+	end
+	task.delay(3, function()
+		warm:Destroy()
+	end)
 	for _ = 1, 3 do
 		local failed = {}
 		pcall(ContentProvider.PreloadAsync, ContentProvider, list, function(id, status)
@@ -1384,53 +1421,3 @@ task.spawn(function()
 		task.wait(2)
 	end
 end)
-if CFG.ShowTuner and script:FindFirstChild("Tuner") then
-	local function hideAll()
-		state.screen = "none"
-		diedRoot.Visible = false
-		diedCG.GroupTransparency = 1
-		menu.Visible = false
-		spec.Visible = false
-		hudGui.Enabled = false
-		lobbyBg.Visible = false
-		setShade(1)
-		shade.Visible = false
-	end
-	task.spawn(require(script.Tuner).start, { gui, hudGui }, {
-		EquipmentIcons = {},
-		Preview = {
-			died = function()
-				local on = not diedRoot.Visible
-				hideAll()
-				if on then
-					setShade(0)
-					newStains()
-					paintBlood(1.6)
-					diedCG.GroupTransparency = 0
-					diedRoot.Visible = true
-					fadeTo(gDied, 1, 0)
-				end
-			end,
-			menu = function()
-				local on = not menu.Visible
-				hideAll()
-				if on then
-					openMenu(0, true)
-				end
-			end,
-			spectate = function()
-				hideAll()
-				paintDemo()
-				hudGui.Enabled = true
-				spec.Visible = true
-				whoRow.Visible = true
-				fadeTo(gSpec, 1, 0)
-				fadeTo(gWho, 1, 0)
-			end,
-			hide = hideAll,
-			notify = function()
-				notify("Back on your feet")
-			end,
-		},
-	}, {})
-end
