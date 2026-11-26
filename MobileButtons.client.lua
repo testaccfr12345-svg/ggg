@@ -11,7 +11,8 @@ local ICONS = {
 	Sprint = "rbxassetid://115582741734964",
 	Crouch = "rbxassetid://100734509983099",
 }
-local PRESS = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local PRESS = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local TOGGLE = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -195,8 +196,7 @@ end
 local held = false
 local holdInput
 local function pressVisual(on)
-	TweenService:Create(jump.button, PRESS, { BackgroundTransparency = on and 0.28 or 0.5 }):Play()
-	TweenService:Create(jump.scale, PRESS, { Scale = on and 0.94 or 1 }):Play()
+	TweenService:Create(jump.stroke, PRESS, { Thickness = on and 1.2 or 1.5, Transparency = on and 0.3 or 0.75 }):Play()
 end
 local function setJump(on)
 	if held == on then
@@ -242,8 +242,7 @@ local ATTR = { Sprint = "Sprinting", Crouch = "Crouching" }
 local function setState(name, on)
 	states[name] = on
 	local t = toggles[name]
-	t.stroke.Thickness = on and 1.2 or 1.5
-	t.stroke.Transparency = on and 0.3 or 0.75
+	TweenService:Create(t.stroke, TOGGLE, { Thickness = on and 1.2 or 1.5, Transparency = on and 0.3 or 0.75 }):Play()
 	player:SetAttribute(ATTR[name], on)
 end
 for name, t in pairs(toggles) do
