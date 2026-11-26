@@ -200,12 +200,16 @@ local holdInput
 local function pressVisual(on)
 	TweenService:Create(jump.stroke, PRESS, { Thickness = 1, Transparency = on and 0.3 or 0.75 }):Play()
 end
+local hop
 local function setJump(on)
 	if held == on then
 		return
 	end
 	held = on
 	pressVisual(on)
+	if on then
+		hop()
+	end
 	local h = humanoid()
 	if h then
 		h.Jump = on
@@ -239,10 +243,15 @@ RunService.Heartbeat:Connect(function()
 end)
 
 local hopSeq = 0
-local function hop()
+local lastHop = -math.huge
+hop = function()
+	if os.clock() - lastHop < 0.25 then
+		return
+	end
+	lastHop = os.clock()
 	hopSeq += 1
 	local my = hopSeq
-	local up = TweenService:Create(jump.icon, HOP_UP, { Position = UDim2.new(0.5, 0, 0, jump.iconTop - 1.5) })
+	local up = TweenService:Create(jump.icon, HOP_UP, { Position = UDim2.new(0.5, 0, 0, jump.iconTop - 2.5) })
 	up.Completed:Connect(function(state)
 		if state == Enum.PlaybackState.Completed and my == hopSeq then
 			TweenService:Create(jump.icon, HOP_DOWN, { Position = UDim2.new(0.5, 0, 0, jump.iconTop) }):Play()
