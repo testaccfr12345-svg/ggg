@@ -227,7 +227,7 @@ UserInputService.InputEnded:Connect(function(input)
 		setJump(false)
 	end
 end)
-RunService.Heartbeat:Connect(function()
+RunService:BindToRenderStep("HorizonJumpButton", Enum.RenderPriority.Input.Value + 1, function()
 	if held then
 		local h = humanoid()
 		if h then
