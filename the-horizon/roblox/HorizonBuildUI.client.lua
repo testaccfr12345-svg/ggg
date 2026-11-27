@@ -1031,10 +1031,12 @@ local function updateMenuLayout()
 	stretch = math.clamp((viewport.X * INV.MenuWidthFraction / fitH - INV.PanelGap) / INV.PanelsW, 1, INV.MaxWidthStretch)
 	local invMenuW = INV.PanelsW * stretch + INV.PanelGap
 	local scale = math.min(fitH, availW / invMenuW)
-	local panelWidth = PANEL_W * stretch
+	local pitch = 90 * stretch + 8
+	local count = math.ceil((PANEL_W * stretch - 40 + 8) / pitch)
+	local panelWidth = 40 + count * pitch - 8
 	menuHolder.Size = UDim2.fromOffset(panelWidth, PANEL_H)
 	menuScale.Scale = scale
-	menuHolder.Position = UDim2.fromOffset(viewport.X / 2, top + availH / 2)
+	menuHolder.Position = UDim2.new(0.5, 0, 0, top + availH / 2)
 	for _, tile in ipairs(allTiles) do
 		tile.Size = UDim2.fromOffset(90 * stretch, 100)
 	end
