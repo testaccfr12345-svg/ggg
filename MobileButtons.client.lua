@@ -7,9 +7,9 @@ local CREAM = Color3.fromRGB(237, 232, 220)
 local DARK = Color3.fromRGB(16, 21, 19)
 local FONT = Enum.Font.PatrickHand
 local ICONS = {
-	Jump = "rbxassetid://128447441686780",
-	Sprint = "rbxassetid://115582741734964",
-	Crouch = "rbxassetid://100734509983099",
+	Jump = "rbxassetid://90498940473124",
+	Sprint = "rbxassetid://116064107344508",
+	Crouch = "rbxassetid://116577259921226",
 }
 local TOGGLE = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
@@ -72,7 +72,7 @@ local function makeButton(name, size, iconSize, textSize, labelHeight, gap)
 	icon.Size = UDim2.fromOffset(iconSize, iconSize)
 	icon.BackgroundTransparency = 1
 	icon.Image = ICONS[name]
-	icon.ImageColor3 = CREAM
+	icon.ImageColor3 = Color3.new(1, 1, 1)
 	icon.ScaleType = Enum.ScaleType.Fit
 	icon.Parent = inner
 	local label = Instance.new("TextLabel")

@@ -8,9 +8,9 @@ local CREAM = Color3.fromRGB(237, 232, 220)
 local DARK = Color3.fromRGB(16, 21, 19)
 local FONT = Enum.Font.PatrickHand
 local ROWS = {
-	{ name = "Sprint", key = "Shift", icon = "rbxassetid://115582741734964", attr = "Sprinting" },
-	{ name = "Crouch", key = "C", icon = "rbxassetid://100734509983099", attr = "Crouching" },
-	{ name = "Jump", key = "Space", icon = "rbxassetid://128447441686780" },
+	{ name = "Sprint", key = "Shift", icon = "rbxassetid://116064107344508", attr = "Sprinting" },
+	{ name = "Crouch", key = "C", icon = "rbxassetid://116577259921226", attr = "Crouching" },
+	{ name = "Jump", key = "Space", icon = "rbxassetid://90498940473124" },
 }
 local FADE = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
@@ -58,7 +58,7 @@ for i, r in ipairs(ROWS) do
 	icon.Size = UDim2.fromOffset(19, 19)
 	icon.BackgroundTransparency = 1
 	icon.Image = r.icon
-	icon.ImageColor3 = CREAM
+	icon.ImageColor3 = Color3.new(1, 1, 1)
 	icon.ScaleType = Enum.ScaleType.Fit
 	icon.Parent = row
 
