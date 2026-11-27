@@ -567,7 +567,7 @@ for _, tab in ipairs(TABS) do
 		local nameSize = 25 / CONFIG.FontScale
 		local lines = { label }
 		if textWidth(label, nameSize) > TILE_W - 6 then
-			nameSize = 20 / CONFIG.FontScale
+			nameSize = 23 / CONFIG.FontScale
 			if textWidth(label, nameSize) > TILE_W - 6 then
 				local best, bestDiff = nil, math.huge
 				for position in label:gmatch("() ") do
@@ -580,8 +580,8 @@ for _, tab in ipairs(TABS) do
 				lines = best or lines
 			end
 		end
-		local iconSize = #lines == 1 and 56 or 48
-		local lineHeight = #lines == 1 and 20 or 17
+		local iconSize = #lines == 1 and 56 or 46
+		local lineHeight = #lines == 1 and 20 or 19
 		local gap = #lines == 1 and 6 or 3
 		local contentHeight = iconSize + gap + #lines * lineHeight
 		local top = (100 - contentHeight) / 2
@@ -669,19 +669,19 @@ local materialsLabel = text(side, 30 / CONFIG.FontScale, { Size = UDim2.new(1, 0
 
 local materialRow = new("Frame", {
 	Name = "MaterialRow",
-	Size = UDim2.new(1, 0, 0, 52),
+	Size = UDim2.new(1, 0, 0, 62),
 	BackgroundColor3 = WHITE,
 	BackgroundTransparency = 0.94,
 	BorderSizePixel = 0,
 }, side)
 corner(materialRow, 10)
-local materialIcon = image(materialRow, 42, { Position = UDim2.fromOffset(32, 26) })
-local materialName = text(materialRow, 30 / CONFIG.FontScale, { Position = UDim2.fromOffset(64, 4), Size = UDim2.fromOffset(149, 20) })
-local materialStatus = text(materialRow, 24 / CONFIG.FontScale, { Position = UDim2.fromOffset(65, 28), Size = UDim2.fromOffset(150, 16) })
-local materialAmount = text(materialRow, 22, {
+local materialIcon = image(materialRow, 50, { Position = UDim2.fromOffset(37, 31) })
+local materialName = text(materialRow, 34 / CONFIG.FontScale, { Position = UDim2.fromOffset(74, 6), Size = UDim2.fromOffset(170, 24) })
+local materialStatus = text(materialRow, 27 / CONFIG.FontScale, { Position = UDim2.fromOffset(75, 33), Size = UDim2.fromOffset(170, 19) })
+local materialAmount = text(materialRow, 25, {
 	AnchorPoint = Vector2.new(1, 0),
 	Position = UDim2.new(1, -13, 0, -1),
-	Size = UDim2.fromOffset(80, 52),
+	Size = UDim2.fromOffset(100, 62),
 	TextXAlignment = Enum.TextXAlignment.Right,
 })
 
@@ -697,12 +697,12 @@ text(noRecipe, 18, { Position = UDim2.fromOffset(16, 0), Size = UDim2.new(1, -32
 
 local selectButton = new("TextButton", {
 	Name = "Select",
-	Position = UDim2.fromOffset(0, 302),
-	Size = UDim2.new(1, 0, 0, 52),
+	Position = UDim2.fromOffset(0, 294),
+	Size = UDim2.new(1, 0, 0, 60),
 	BackgroundColor3 = CONFIG.Accent,
 	AutoButtonColor = false,
 	FontFace = FONT,
-	TextSize = ts(32),
+	TextSize = ts(36),
 	TextColor3 = CONFIG.Ink,
 	Text = "",
 }, side)
