@@ -58,7 +58,7 @@ for i, r in ipairs(ROWS) do
 	icon.Size = UDim2.fromOffset(19, 19)
 	icon.BackgroundTransparency = 1
 	icon.Image = r.icon
-	icon.ImageColor3 = CREAM
+	icon.ImageColor3 = Color3.new(1, 1, 1)
 	icon.ScaleType = Enum.ScaleType.Fit
 	icon.Parent = row
 
@@ -120,7 +120,7 @@ local function setRow(row, opacity, on)
 		tw:Cancel()
 	end
 	row.look.bg = on and 0.38 or 0.5
-	row.look.ring = on and 0.3 or 0.82
+	row.look.ring = on and 0 or 0.82
 	row.stroke.Thickness = on and 1.2 or 1
 	local tw = TweenService:Create(row.fade, FADE, { Value = opacity })
 	row.tweens = { tw }

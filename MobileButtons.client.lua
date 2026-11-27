@@ -72,7 +72,7 @@ local function makeButton(name, size, iconSize, textSize, labelHeight, gap)
 	icon.Size = UDim2.fromOffset(iconSize, iconSize)
 	icon.BackgroundTransparency = 1
 	icon.Image = ICONS[name]
-	icon.ImageColor3 = CREAM
+	icon.ImageColor3 = Color3.new(1, 1, 1)
 	icon.ScaleType = Enum.ScaleType.Fit
 	icon.Parent = inner
 	local label = Instance.new("TextLabel")
@@ -242,7 +242,7 @@ local ATTR = { Sprint = "Sprinting", Crouch = "Crouching" }
 local function setState(name, on)
 	states[name] = on
 	local t = toggles[name]
-	TweenService:Create(t.stroke, TOGGLE, { Thickness = 1, Transparency = on and 0.3 or 0.75 }):Play()
+	TweenService:Create(t.stroke, TOGGLE, { Thickness = 1, Transparency = on and 0 or 0.75 }):Play()
 	player:SetAttribute(ATTR[name], on)
 end
 for name, t in pairs(toggles) do
