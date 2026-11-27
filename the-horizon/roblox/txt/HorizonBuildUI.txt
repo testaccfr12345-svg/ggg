@@ -707,7 +707,7 @@ local function mobileButton(name, iconId, label)
 	local entry = { Button = button, Stroke = stroke, Fit = fit, On = false }
 	local holdInput = nil
 	local function setPressed(on)
-		TweenService:Create(fit, PRESS, { Scale = on and 0.95 or 1 }):Play()
+		TweenService:Create(fit, PRESS, { Scale = on and 0.985 or 1 }):Play()
 		TweenService:Create(button, PRESS, { BackgroundTransparency = on and 0.46 or 0.5 }):Play()
 	end
 	button.InputBegan:Connect(function(input)
@@ -733,7 +733,7 @@ local function setButtonOn(entry, on)
 		return
 	end
 	entry.On = on
-	TweenService:Create(entry.Stroke, TOGGLE, { Transparency = on and 0 or 0.75 }):Play()
+	TweenService:Create(entry.Stroke, TOGGLE, { Transparency = 0.75 }):Play()
 end
 
 local touchGui, nativeJump
