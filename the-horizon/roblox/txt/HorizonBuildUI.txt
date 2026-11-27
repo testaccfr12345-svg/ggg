@@ -37,12 +37,12 @@ local CONFIG = {
 	DestroyKey = Enum.KeyCode.X,
 
 	Icons = {
-		Build = "",
-		Rotate = "",
+		Build = "rbxassetid://101709534722383",
+		Rotate = "rbxassetid://79907808407701",
 		MouseClick = "",
-		Upgrade = "",
-		Repair = "",
-		Destroy = "",
+		Upgrade = "rbxassetid://102141489103280",
+		Repair = "rbxassetid://137499770517153",
+		Destroy = "rbxassetid://94996894660218",
 	},
 
 	MaterialIcons = {
