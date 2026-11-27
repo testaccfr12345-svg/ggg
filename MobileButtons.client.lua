@@ -72,7 +72,7 @@ local function makeButton(name, size, iconSize, textSize, labelHeight, gap)
 	icon.Size = UDim2.fromOffset(iconSize, iconSize)
 	icon.BackgroundTransparency = 1
 	icon.Image = ICONS[name]
-	icon.ImageColor3 = Color3.new(1, 1, 1)
+	icon.ImageColor3 = CREAM
 	icon.ScaleType = Enum.ScaleType.Fit
 	icon.Parent = inner
 	local label = Instance.new("TextLabel")

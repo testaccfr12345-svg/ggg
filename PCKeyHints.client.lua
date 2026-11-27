@@ -58,7 +58,7 @@ for i, r in ipairs(ROWS) do
 	icon.Size = UDim2.fromOffset(19, 19)
 	icon.BackgroundTransparency = 1
 	icon.Image = r.icon
-	icon.ImageColor3 = Color3.new(1, 1, 1)
+	icon.ImageColor3 = CREAM
 	icon.ScaleType = Enum.ScaleType.Fit
 	icon.Parent = row
 
