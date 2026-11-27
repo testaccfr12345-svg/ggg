@@ -34,7 +34,7 @@ local CONFIG = {
 	TestPieceImage = "rbxassetid://137129354242963",
 	ShowWithoutHammer = true,
 	WidthTuner = true,
-	ExtraWidth = 0,
+	ExtraWidth = 80,
 	BuildKey = Enum.KeyCode.B,
 	RotateKey = Enum.KeyCode.R,
 	UpgradeKey = Enum.KeyCode.E,
@@ -515,7 +515,7 @@ local function layoutTabs(panelWidth)
 	end
 end
 
-local TILE_W, TILE_GAP, EDGE_FADE = 84, 7, 0.22
+local TILE_W, TILE_GAP, EDGE_FADE = 100, 7, 0.22
 local stripFade = new("CanvasGroup", {
 	Name = "StripFade",
 	Position = UDim2.fromOffset(20, 73),
@@ -1128,6 +1128,34 @@ if CONFIG.WidthTuner then
 	end)
 end
 
+local leftEdge = new("NumberValue", { Value = 0 }, stripFade)
+local rightEdge = new("NumberValue", { Value = 0 }, stripFade)
+local function drawEdges()
+	stripGradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, leftEdge.Value),
+		NumberSequenceKeypoint.new(EDGE_FADE, 0),
+		NumberSequenceKeypoint.new(1 - EDGE_FADE, 0),
+		NumberSequenceKeypoint.new(1, rightEdge.Value),
+	})
+end
+leftEdge.Changed:Connect(drawEdges)
+rightEdge.Changed:Connect(drawEdges)
+drawEdges()
+local edgeState = {}
+local function edgeTarget(left, right)
+	for _, entry in ipairs({ { leftEdge, left }, { rightEdge, right } }) do
+		local value, on = entry[1], entry[2]
+		if edgeState[value] ~= on then
+			edgeState[value] = on
+			if menu.Visible then
+				TweenService:Create(value, TweenInfo.new(0.18, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { Value = on and 1 or 0 }):Play()
+			else
+				value.Value = on and 1 or 0
+			end
+		end
+	end
+end
+
 local function applyStripFade()
 	local strip = strips[state.tab]
 	if not strip then
@@ -1150,15 +1178,7 @@ local function applyStripFade()
 	local stripRight = stripLeft + strip.AbsoluteWindowSize.X
 	local left = first.AbsolutePosition.X < stripLeft - 1
 	local right = last.AbsolutePosition.X + last.AbsoluteSize.X > stripRight + 1
-	local points = { NumberSequenceKeypoint.new(0, left and 1 or 0) }
-	if left then
-		table.insert(points, NumberSequenceKeypoint.new(EDGE_FADE, 0))
-	end
-	if right then
-		table.insert(points, NumberSequenceKeypoint.new(1 - EDGE_FADE, 0))
-	end
-	table.insert(points, NumberSequenceKeypoint.new(1, right and 1 or 0))
-	stripGradient.Transparency = NumberSequence.new(points)
+	edgeTarget(left, right)
 end
 
 local fadeQueued = false
@@ -1655,9 +1675,6 @@ end
 
 selectButton.Activated:Connect(selectPiece)
 closeButton.Activated:Connect(function()
-	setMenu(false)
-end)
-dim.Activated:Connect(function()
 	setMenu(false)
 end)
 buildButton.Button.Activated:Connect(toggleBuild)
