@@ -39,7 +39,6 @@ local CONFIG = {
 	Icons = {
 		Build = "rbxassetid://101709534722383",
 		Rotate = "rbxassetid://79907808407701",
-		MouseClick = "",
 		Upgrade = "rbxassetid://102141489103280",
 		Repair = "rbxassetid://137499770517153",
 		Destroy = "rbxassetid://94996894660218",
@@ -1001,8 +1000,8 @@ local function renderHud()
 			setKeycapContent(promptCap, "TAP")
 			promptCap.Frame.Size = UDim2.fromOffset(math.max(30, math.ceil(textWidth("TAP", 15)) + 14), 26)
 		else
-			setKeycapContent(promptCap, nil, CONFIG.Icons.MouseClick, 17)
-			promptCap.Frame.Size = UDim2.fromOffset(31, 26)
+			setKeycapContent(promptCap, "CLICK")
+			promptCap.Frame.Size = UDim2.fromOffset(math.max(30, math.ceil(textWidth("CLICK", 15)) + 14), 26)
 		end
 		promptText.Text = spaced("PLACE " .. string.upper(fullName(placing.name, placing.stone, placing.structure)), 1.5)
 		local cost = costInfo(placing.name, placing.stone)
