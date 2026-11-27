@@ -3,12 +3,13 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TextService = game:GetService("TextService")
+local GuiService = game:GetService("GuiService")
 local Lighting = game:GetService("Lighting")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-for _, name in ipairs({ "HorizonBuildUI", "HorizonBuildDim" }) do
+for _, name in ipairs({ "HorizonBuildUI", "HorizonBuildDim", "HorizonBuildButtons" }) do
 	local existing = playerGui:FindFirstChild(name)
 	if existing then
 		existing:Destroy()
@@ -398,23 +399,41 @@ end
 gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateScale)
 updateScale()
 
+local INV = {
+	DesignWidth = 1280,
+	DesignHeight = 720,
+	HotbarSlot = 62,
+	HotbarBoost = 1,
+	HotbarTouchBoost = 1.3,
+	ExtraH = 3,
+	MenuH = 560,
+	PanelsW = 464 + 640,
+	PanelGap = 20,
+	MenuWidthFraction = 0.878,
+	MaxWidthStretch = 1.2,
+}
+local MENU_H = 380
+local menuWidth = 620
+
 local menu = new("Frame", {
 	Name = "BuildMenu",
-	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 0, 14),
-	Size = UDim2.fromOffset(620, 380),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(menuWidth, MENU_H),
 	BackgroundColor3 = CONFIG.PanelColor,
 	BackgroundTransparency = CONFIG.PanelTransparency,
 	BorderSizePixel = 0,
 	Active = true,
 	Visible = false,
-}, stage)
+	ZIndex = 2,
+}, dimGui)
 corner(menu, 14)
+local menuScale = new("UIScale", {}, menu)
 
 local content = new("Frame", {
 	Name = "Content",
 	Position = UDim2.fromOffset(14, 14),
-	Size = UDim2.fromOffset(592, 352),
+	Size = UDim2.new(1, -28, 1, -28),
 	BackgroundTransparency = 1,
 }, menu)
 
@@ -422,7 +441,7 @@ text(content, 27, { Name = "Title", Size = UDim2.fromOffset(200, 30), Text = spa
 
 local closeButton = new("TextButton", {
 	Name = "Close",
-	Position = UDim2.fromOffset(562, 0),
+	Position = UDim2.new(1, -30, 0, 0),
 	Size = UDim2.fromOffset(30, 30),
 	BackgroundColor3 = WHITE,
 	BackgroundTransparency = 0.93,
@@ -452,7 +471,7 @@ do
 		right -= width
 		local pill = new("TextButton", {
 			Name = name .. "Tab",
-			Position = UDim2.fromOffset(right, 0),
+			Position = UDim2.new(1, right - 592, 0, 0),
 			Size = UDim2.fromOffset(width, 30),
 			BackgroundColor3 = WHITE,
 			BackgroundTransparency = 0.93,
@@ -489,7 +508,7 @@ for _, tab in ipairs(TABS) do
 	local strip = new("ScrollingFrame", {
 		Name = tab .. "Strip",
 		Position = UDim2.fromOffset(0, 40),
-		Size = UDim2.fromOffset(592, 85),
+		Size = UDim2.new(1, 0, 0, 85),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollingDirection = Enum.ScrollingDirection.X,
@@ -541,18 +560,18 @@ end
 local preview = new("Frame", {
 	Name = "Preview",
 	Position = UDim2.fromOffset(0, 135),
-	Size = UDim2.fromOffset(290, 217),
+	Size = UDim2.new(0.5, -6, 0, 217),
 	BackgroundColor3 = WHITE,
 	BackgroundTransparency = 0.95,
 	BorderSizePixel = 0,
 }, content)
 corner(preview, 11)
 local previewPicture = image(preview, 104)
-local previewName = text(preview, 26, { AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(262, 26), TextXAlignment = Enum.TextXAlignment.Center })
-local previewCategory = text(preview, 14, { AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(262, 19), TextTransparency = 0.3, TextXAlignment = Enum.TextXAlignment.Center })
+local previewName = text(preview, 26, { AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.new(1, -28, 0, 26), TextXAlignment = Enum.TextXAlignment.Center })
+local previewCategory = text(preview, 14, { AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.new(1, -28, 0, 19), TextTransparency = 0.3, TextXAlignment = Enum.TextXAlignment.Center })
 local previewDesc = text(preview, 15, {
 	AnchorPoint = Vector2.new(0.5, 0),
-	Size = UDim2.fromOffset(262, 20),
+	Size = UDim2.new(1, -28, 0, 20),
 	TextTransparency = 0.15,
 	TextWrapped = true,
 	TextXAlignment = Enum.TextXAlignment.Center,
@@ -561,12 +580,12 @@ local previewDesc = text(preview, 15, {
 
 local side = new("Frame", {
 	Name = "Side",
-	Position = UDim2.fromOffset(302, 135),
-	Size = UDim2.fromOffset(290, 217),
+	Position = UDim2.new(0.5, 6, 0, 135),
+	Size = UDim2.new(0.5, -6, 0, 217),
 	BackgroundTransparency = 1,
 }, content)
 
-local typeRow = new("Frame", { Name = "TypeRow", Size = UDim2.fromOffset(290, 30), BackgroundTransparency = 1 }, side)
+local typeRow = new("Frame", { Name = "TypeRow", Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1 }, side)
 text(typeRow, 15, { Size = UDim2.fromOffset(100, 30), Text = "Type", TextTransparency = 0.3 })
 local typeButtons = {}
 do
@@ -576,7 +595,7 @@ do
 		right -= width
 		local pill = new("TextButton", {
 			Name = entry[2],
-			Position = UDim2.fromOffset(right, 0),
+			Position = UDim2.new(1, right - 290, 0, 0),
 			Size = UDim2.fromOffset(width, 30),
 			BackgroundColor3 = WHITE,
 			BackgroundTransparency = 0.93,
@@ -592,11 +611,11 @@ do
 	end
 end
 
-local materialsLabel = text(side, 15, { Size = UDim2.fromOffset(290, 20), Text = "Required materials", TextTransparency = 0.3 })
+local materialsLabel = text(side, 15, { Size = UDim2.new(1, 0, 0, 20), Text = "Required materials", TextTransparency = 0.3 })
 
 local materialRow = new("Frame", {
 	Name = "MaterialRow",
-	Size = UDim2.fromOffset(290, 42),
+	Size = UDim2.new(1, 0, 0, 42),
 	BackgroundColor3 = WHITE,
 	BackgroundTransparency = 0.94,
 	BorderSizePixel = 0,
@@ -615,7 +634,7 @@ local materialAmount = text(materialRow, 18, {
 local selectButton = new("TextButton", {
 	Name = "Select",
 	Position = UDim2.fromOffset(0, 173),
-	Size = UDim2.fromOffset(290, 44),
+	Size = UDim2.new(1, 0, 0, 44),
 	BackgroundColor3 = CONFIG.Accent,
 	AutoButtonColor = false,
 	FontFace = FONT,
@@ -626,50 +645,162 @@ local selectButton = new("TextButton", {
 }, side)
 corner(selectButton, 11)
 
-local function mobileButton(name, iconId, label, rightOffset, bottomOffset)
+local buttonGui = new("ScreenGui", {
+	Name = "HorizonBuildButtons",
+	ResetOnSpawn = false,
+	DisplayOrder = 5,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, playerGui)
+pcall(function()
+	buttonGui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
+end)
+
+local PRESS = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local TOGGLE = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+local function mobileButton(name, iconId, label)
 	local button = new("TextButton", {
 		Name = name,
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -rightOffset, 1, -bottomOffset),
+		Text = "",
+		AutoButtonColor = false,
+		AnchorPoint = Vector2.new(0.5, 0.5),
 		Size = UDim2.fromOffset(48, 48),
 		BackgroundColor3 = CONFIG.PanelColor,
 		BackgroundTransparency = 0.5,
-		AutoButtonColor = false,
-		Text = "",
+		BorderSizePixel = 0,
 		Visible = false,
-	}, stage)
+	}, buttonGui)
 	corner(button, UDim.new(0.5, 0))
-	local stroke = ring(button, 1.5, 0.75, UDim.new(0.5, 0))
-	image(button, 18, { Position = UDim2.fromOffset(24, 18), Image = iconId })
-	text(button, 11, {
+	local stroke = new("UIStroke", {
+		Color = CONFIG.Text,
+		Thickness = 1,
+		Transparency = 0.75,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	}, button)
+	pcall(function()
+		stroke.BorderStrokePosition = Enum.BorderStrokePosition.Inner
+	end)
+	local inner = new("Frame", {
+		Name = "Content",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromOffset(24, 33.5),
-		Size = UDim2.fromOffset(48, 14),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(48, 48),
+		BackgroundTransparency = 1,
+	}, button)
+	local fit = new("UIScale", {}, inner)
+	local top = (48 - (16 + 1 + 11)) / 2
+	new("ImageLabel", {
+		Name = "Icon",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, top),
+		Size = UDim2.fromOffset(16, 16),
+		BackgroundTransparency = 1,
+		Image = iconId,
+		ImageColor3 = WHITE,
+		ScaleType = Enum.ScaleType.Fit,
+	}, inner)
+	new("TextLabel", {
+		Name = "Label",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, top + 16 + 1),
+		Size = UDim2.new(1, 0, 0, 11),
+		BackgroundTransparency = 1,
+		Font = CONFIG.FontEnum,
 		Text = label,
-		TextXAlignment = Enum.TextXAlignment.Center,
-	})
+		TextSize = 15,
+		TextColor3 = CONFIG.Text,
+	}, inner)
+	local entry = { Button = button, Stroke = stroke, Fit = fit, On = false }
+	local holdInput = nil
+	local function setPressed(on)
+		TweenService:Create(fit, PRESS, { Scale = on and 0.95 or 1 }):Play()
+		TweenService:Create(button, PRESS, { BackgroundTransparency = on and 0.46 or 0.5 }):Play()
+	end
 	button.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			button.BackgroundTransparency = 0.38
+			holdInput = input
+			setPressed(true)
 		end
 	end)
-	button.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			button.BackgroundTransparency = 0.5
+	UserInputService.InputEnded:Connect(function(input)
+		if input == holdInput then
+			holdInput = nil
+			setPressed(false)
 		end
 	end)
-	return { Button = button, Stroke = stroke }
+	return entry
 end
 
-local buildButton = mobileButton("BuildButton", CONFIG.Icons.Build, "Build", 58, 162)
-local rotateButton = mobileButton("RotateButton", CONFIG.Icons.Rotate, "Rotate", 58, 220)
+local buildButton = mobileButton("Build", CONFIG.Icons.Build, "Build")
+local rotateButton = mobileButton("Rotate", CONFIG.Icons.Rotate, "Rotate")
 
 local function setButtonOn(entry, on)
-	entry.Stroke.Thickness = on and 1.2 or 1.5
-	entry.Stroke.Transparency = on and 0.3 or 0.75
-	entry.Stroke.Parent.Position = UDim2.fromOffset(entry.Stroke.Thickness, entry.Stroke.Thickness)
-	entry.Stroke.Parent.Size = UDim2.new(1, -2 * entry.Stroke.Thickness, 1, -2 * entry.Stroke.Thickness)
+	if entry.On == on then
+		return
+	end
+	entry.On = on
+	TweenService:Create(entry.Stroke, TOGGLE, { Transparency = on and 0 or 0.75 }):Play()
 end
+
+local touchGui, nativeJump
+local touchWatch = {}
+
+local function placeButtons()
+	local cx, cy
+	if nativeJump and touchGui and nativeJump.AbsoluteSize.X > 0 then
+		local position = nativeJump.AbsolutePosition - buttonGui.AbsolutePosition
+		local size = nativeJump.AbsoluteSize
+		cx, cy = position.X + size.X / 2, position.Y + size.Y / 2
+	else
+		local viewport = buttonGui.AbsoluteSize
+		local small = math.min(viewport.X, viewport.Y) <= 500
+		local size = small and 70 or 120
+		local x, y = small and -95 or -170, small and -90 or -210
+		cx, cy = viewport.X + x + size / 2, viewport.Y + y + size / 2
+	end
+	buildButton.Button.Position = UDim2.fromOffset(cx + 26.5, cy - 131)
+	rotateButton.Button.Position = UDim2.fromOffset(cx + 26.5, cy - 189)
+end
+
+local function bindTouchGui()
+	for _, c in ipairs(touchWatch) do
+		c:Disconnect()
+	end
+	table.clear(touchWatch)
+	touchGui = playerGui:FindFirstChild("TouchGui")
+	if touchGui and touchGui:IsA("ScreenGui") then
+		buttonGui.IgnoreGuiInset = touchGui.IgnoreGuiInset
+	end
+	local frame = touchGui and touchGui:FindFirstChild("TouchControlFrame")
+	nativeJump = frame and frame:FindFirstChild("JumpButton")
+	if frame then
+		table.insert(touchWatch, frame.ChildAdded:Connect(function(c)
+			if c.Name == "JumpButton" then
+				task.defer(bindTouchGui)
+			end
+		end))
+	end
+	if nativeJump then
+		table.insert(touchWatch, nativeJump:GetPropertyChangedSignal("AbsolutePosition"):Connect(placeButtons))
+		table.insert(touchWatch, nativeJump:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeButtons))
+	elseif touchGui then
+		table.insert(touchWatch, touchGui.DescendantAdded:Connect(function(d)
+			if d.Name == "JumpButton" or d.Name == "TouchControlFrame" then
+				task.defer(bindTouchGui)
+			end
+		end))
+	end
+	placeButtons()
+end
+
+playerGui.ChildAdded:Connect(function(c)
+	if c.Name == "TouchGui" then
+		task.defer(bindTouchGui)
+	end
+end)
+buttonGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeButtons)
+buttonGui:GetPropertyChangedSignal("AbsolutePosition"):Connect(placeButtons)
+bindTouchGui()
 
 local function keycap(parent, props)
 	local cap = new("Frame", {
@@ -818,7 +949,38 @@ local state = {
 }
 
 local function isMobile()
+	local ok, preferred = pcall(function()
+		return UserInputService.PreferredInput
+	end)
+	if ok and preferred then
+		return preferred == Enum.PreferredInput.Touch
+	end
 	return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+end
+
+local function updateMenuLayout()
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return
+	end
+	local viewport = camera.ViewportSize
+	local topInset = GuiService:GetGuiInset().Y
+	local sc = math.min(viewport.X / INV.DesignWidth, viewport.Y / INV.DesignHeight)
+	local touchOnly = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local hb = sc * (touchOnly and INV.HotbarTouchBoost or INV.HotbarBoost)
+	local top = math.max(topInset, 48 * sc) + 2 * sc
+	local bottom = viewport.Y - (14 + INV.HotbarSlot) * hb - (28 + INV.ExtraH) * sc
+	local availH = math.max(100, bottom - top)
+	local availW = viewport.X - 16 * sc
+	local fitH = math.min(sc, availH / INV.MenuH)
+	local k = math.clamp((viewport.X * INV.MenuWidthFraction / fitH - INV.PanelGap) / INV.PanelsW, 1, INV.MaxWidthStretch)
+	local invMenuW = INV.PanelsW * k + INV.PanelGap
+	local invScale = math.min(fitH, availW / invMenuW)
+	local ratio = INV.MenuH / MENU_H
+	menuWidth = invMenuW / ratio
+	menu.Size = UDim2.fromOffset(menuWidth, MENU_H)
+	menuScale.Scale = invScale * ratio
+	menu.Position = UDim2.fromOffset(viewport.X / 2, top + availH / 2)
 end
 
 local function pieceDesc(tab, name, stone)
@@ -843,21 +1005,24 @@ local function costInfo(name, stone)
 end
 
 local function layoutPreview(desc, pictureSize)
+	local columnWidth = (menuWidth - 28 - 12) / 2
+	local center = columnWidth / 2
+	local textWidthMax = columnWidth - 28
 	local descHeight = 0
 	if desc ~= "" then
-		descHeight = TextService:GetTextSize(desc, ts(15), CONFIG.FontEnum, Vector2.new(262, 1000)).Y
+		descHeight = TextService:GetTextSize(desc, ts(15), CONFIG.FontEnum, Vector2.new(textWidthMax, 1000)).Y
 	end
 	local total = 104 + 2 + 26 + 2 + 19 + (desc ~= "" and (4 + descHeight) or 0)
 	local y = (217 - total) / 2
 	previewPicture.Size = UDim2.fromOffset(pictureSize, pictureSize)
-	previewPicture.Position = UDim2.fromOffset(145, y + 52)
+	previewPicture.Position = UDim2.fromOffset(center, y + 52)
 	y += 104 + 2
-	previewName.Position = UDim2.fromOffset(145, y)
+	previewName.Position = UDim2.fromOffset(center, y)
 	y += 26 + 2
-	previewCategory.Position = UDim2.fromOffset(145, y)
+	previewCategory.Position = UDim2.fromOffset(center, y)
 	y += 19 + 4
-	previewDesc.Position = UDim2.fromOffset(145, y)
-	previewDesc.Size = UDim2.fromOffset(262, descHeight)
+	previewDesc.Position = UDim2.fromOffset(center, y)
+	previewDesc.Size = UDim2.fromOffset(textWidthMax, descHeight)
 	previewDesc.Visible = desc ~= ""
 end
 
@@ -1078,6 +1243,7 @@ local function setMenu(open, instant)
 	stopFade()
 	restoreFade()
 	if open then
+		updateMenuLayout()
 		renderMenu()
 		snapshotFade()
 		fadeValue.Value = 0
@@ -1327,6 +1493,7 @@ RunService.RenderStepped:Connect(function(dt)
 		refreshTimer = 0
 		changed = true
 		if state.menuOpen and #fadeEntries == 0 then
+			updateMenuLayout()
 			renderMenu()
 		end
 	end
@@ -1338,6 +1505,7 @@ end)
 gui.Destroying:Connect(function()
 	blur:Destroy()
 	dimGui:Destroy()
+	buttonGui:Destroy()
 end)
 
 renderMenu()

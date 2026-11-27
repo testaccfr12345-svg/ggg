@@ -27,7 +27,10 @@ designed vs. actually working and the rules for working on this project.
   GetLookedAtPiece returns nil; GetMaterialCount uses PLACEHOLDER_MATERIALS; GetPieceCost uses the HTML structure costs, placeables return nil = Select disabled;
   StartPlacing/RotatePlacing/PlacePiece/CancelPlacing/Upgrade/Repair/Destroy are empty). No comments, so the hook list lives here.
 - Icons/pictures: `design/build_icons/*.png` (rendered from the HTML SVGs, cream). IDs go in CONFIG.Icons and CONFIG.PieceImages.
-- User said the Jump/Sprint/Crouch buttons in the HTML don't exist in the game; ignore them.
+- User said the Jump/Sprint/Crouch buttons in the HTML don't exist in the build script; they live in the user's own `HorizonMobileButtons` script.
+  The Build/Rotate mobile buttons copy that script's style and placement (own ScreenGui, real px, placed relative to the native TouchGui JumpButton: Build at +26.5,-131, Rotate at +26.5,-189 from its centre).
+- The build menu uses the inventory's exact size and position math (`updateMenuLayout`, copied from the inventory's updateScale): same height, width and centre as the inventory menu. Layout inside is width-responsive.
+- `ShowWithoutHammer = true` is a test switch (UI shows without the hammer). PC place prompt keycap says CLICK (no mouse icon).
 
 ## Decisions the user made (keep these)
 **Colours and font**
