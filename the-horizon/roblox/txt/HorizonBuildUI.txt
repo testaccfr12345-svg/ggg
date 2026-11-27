@@ -34,7 +34,7 @@ local CONFIG = {
 	TestPieceImage = "rbxassetid://137129354242963",
 	ShowWithoutHammer = true,
 	WidthTuner = true,
-	ExtraWidth = 80,
+	ExtraWidth = 100,
 	BuildKey = Enum.KeyCode.B,
 	RotateKey = Enum.KeyCode.R,
 	UpgradeKey = Enum.KeyCode.E,
@@ -519,7 +519,7 @@ local TILE_W, TILE_GAP, EDGE_FADE = 100, 7, 0.22
 local stripFade = new("CanvasGroup", {
 	Name = "StripFade",
 	Position = UDim2.fromOffset(20, 73),
-	Size = UDim2.new(1, -40, 0, 112),
+	Size = UDim2.new(1, -40, 0, 100),
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 }, menu)
@@ -607,8 +607,8 @@ end
 
 local preview = new("Frame", {
 	Name = "Preview",
-	Position = UDim2.fromOffset(20, 198),
-	Size = UDim2.new(0.5, -28, 0, 342),
+	Position = UDim2.fromOffset(20, 186),
+	Size = UDim2.new(0.5, -28, 0, 354),
 	BackgroundColor3 = WHITE,
 	BackgroundTransparency = 0.95,
 	BorderSizePixel = 0,
@@ -643,8 +643,8 @@ new("UIPadding", { PaddingTop = UDim.new(0, 12) }, previewDesc)
 
 local side = new("Frame", {
 	Name = "Requirements",
-	Position = UDim2.new(0.5, 8, 0, 198),
-	Size = UDim2.new(0.5, -28, 0, 342),
+	Position = UDim2.new(0.5, 8, 0, 186),
+	Size = UDim2.new(0.5, -28, 0, 354),
 	BackgroundTransparency = 1,
 }, menu)
 
@@ -697,7 +697,7 @@ text(noRecipe, 18, { Position = UDim2.fromOffset(16, 0), Size = UDim2.new(1, -32
 
 local selectButton = new("TextButton", {
 	Name = "Select",
-	Position = UDim2.fromOffset(0, 290),
+	Position = UDim2.fromOffset(0, 302),
 	Size = UDim2.new(1, 0, 0, 52),
 	BackgroundColor3 = CONFIG.Accent,
 	AutoButtonColor = false,
@@ -711,7 +711,7 @@ corner(selectButton, 12)
 local buttonGui = new("ScreenGui", {
 	Name = "HorizonBuildButtons",
 	ResetOnSpawn = false,
-	DisplayOrder = 5,
+	DisplayOrder = 13,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, playerGui)
 pcall(function()
@@ -1233,7 +1233,7 @@ local function layoutPreview()
 	local descHolderHeight = 13 + 12 + descHeight
 	local gap = 4
 	local total = 164 + 31 + 22 + descHolderHeight + gap * 3
-	local y = (342 - total) / 2
+	local y = (354 - total) / 2
 	previewIconHolder.Position = UDim2.new(0.5, 0, 0, y)
 	y += 164 + gap
 	previewNameHolder.Position = UDim2.new(0.5, 0, 0, y)
@@ -1370,10 +1370,10 @@ local function renderHud()
 	local mobile = isMobile()
 	local hammer = state.hammer
 	local buildOn = state.menuOpen or state.placing ~= nil
-	buildButton.Button.Visible = mobile and hammer and not state.menuOpen
+	buildButton.Button.Visible = mobile and hammer
 	setButtonOn(buildButton, buildOn)
 	rotateButton.Button.Visible = mobile and hammer and state.placing ~= nil and not state.menuOpen
-	legend.Visible = not mobile and hammer and not state.menuOpen
+	legend.Visible = not mobile and hammer
 	rotateKeyRow.Row.Visible = state.placing ~= nil
 	setKeycapOn(buildKeyRow.Cap, buildOn)
 
