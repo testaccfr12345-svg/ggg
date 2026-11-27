@@ -21,6 +21,14 @@ designed vs. actually working and the rules for working on this project.
 | `docs/old_SurvivalCraftingUI_reference.lua` | The user's OLD crafting UI script. Reference for style, the original `CraftingProgress` element, asset IDs and recipes. Don't run it alongside the new script. |
 | `docs/THE_HORIZON_PROJECT_OVERVIEW.txt` | Whole-game design doc + status + rules. |
 
+## Build UI (UI only, separate LocalScript)
+- `roblox/HorizonBuildUI.client.lua` (+ `txt/HorizonBuildUI.txt`): LocalScript in StarterPlayerScripts. Reference: `design/Horizon_Build_UI.html` (896x414, safe area).
+- UI only. Everything it reads/triggers goes through the `BuildHooks` functions at the top (IsHammerEquipped = character holds a Tool named "Building Hammer";
+  GetLookedAtPiece returns nil; GetMaterialCount uses PLACEHOLDER_MATERIALS; GetPieceCost uses the HTML structure costs, placeables return nil = Select disabled;
+  StartPlacing/RotatePlacing/PlacePiece/CancelPlacing/Upgrade/Repair/Destroy are empty). No comments, so the hook list lives here.
+- Icons/pictures: `design/build_icons/*.png` (rendered from the HTML SVGs, cream). IDs go in CONFIG.Icons and CONFIG.PieceImages.
+- User said the Jump/Sprint/Crouch buttons in the HTML don't exist in the game; ignore them.
+
 ## Decisions the user made (keep these)
 **Colours and font**
 - **Accent is yellow** `#E9B949` (RGB 233,185,73). No teal or second accent colour, and no black/white-only theme. The user rejected both.
