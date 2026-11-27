@@ -9,7 +9,7 @@ local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-for _, name in ipairs({ "HorizonBuildUI", "HorizonBuildDim", "HorizonBuildButtons" }) do
+for _, name in ipairs({ "HorizonBuildUI", "HorizonBuildDim", "HorizonBuildButtons", "HorizonBuildPrompt" }) do
 	local existing = playerGui:FindFirstChild(name)
 	if existing then
 		existing:Destroy()
@@ -922,32 +922,269 @@ end
 local rotateKeyRow = legendRow(CONFIG.Icons.Rotate, "Rotate", "R", 0)
 local buildKeyRow = legendRow(CONFIG.Icons.Build, "Build", "B", 32)
 
-local prompt = new("Frame", {
-	Name = "PlacePrompt",
-	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 0.5, 37),
-	Size = UDim2.fromOffset(600, 80),
-	BackgroundTransparency = 1,
-	Visible = false,
-}, stage)
-local promptCap = keycap(prompt, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(300, 0) })
-promptCap.Frame.BackgroundTransparency = 0.45
-local promptText = text(prompt, 17, {
-	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.fromOffset(300, 32),
-	Size = UDim2.fromOffset(600, 23),
-	RichText = true,
-	TextXAlignment = Enum.TextXAlignment.Center,
-})
-addShadow(promptText)
-local promptCost = text(prompt, 13, {
-	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.fromOffset(300, 57),
-	Size = UDim2.fromOffset(600, 18),
-	TextTransparency = 0.3,
-	TextXAlignment = Enum.TextXAlignment.Center,
-})
-addShadow(promptCost)
+local PROMPT_SETTINGS = {
+	PC = {
+		X = 0,
+		Y = 3,
+		Scale = 117,
+		BoxWidth = 29,
+		BoxHeight = 29,
+		HintTextSize = 19,
+		ActionTextSize = 28,
+		Gap = 3,
+		KeyY = 3,
+		BoxTransparency = 50,
+		CornerRadius = 5,
+		BoxEdgeBlur = 5,
+		ShadowOpacity = 55,
+		ShadowOffset = 2,
+		ShadowBlur = 2,
+		FadeInTime = 0.1,
+		FadeOutTime = 0.1,
+	},
+	Mobile = {
+		X = 0,
+		Y = 3,
+		Scale = 117,
+		BoxHeight = 29,
+		HintTextSize = 19,
+		ActionTextSize = 28,
+		Gap = 3,
+		KeyY = 3,
+		BoxTransparency = 50,
+		CornerRadius = 5,
+		BoxEdgeBlur = 5,
+		ShadowOpacity = 55,
+		ShadowOffset = 2,
+		ShadowBlur = 2,
+		FadeInTime = 0.1,
+		FadeOutTime = 0.1,
+	},
+}
+
+local PROMPT_IVORY = Color3.fromRGB(237, 232, 220)
+local PROMPT_KEY_BACKGROUND = Color3.fromRGB(37, 30, 24)
+local PROMPT_SHADOW = Color3.fromRGB(24, 19, 15)
+
+local function promptLabel(parent, name, color)
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.BackgroundTransparency = 1
+	label.Active = false
+	label.Font = Enum.Font.GothamMedium
+	label.TextColor3 = color
+	label.TextTruncate = Enum.TextTruncate.AtEnd
+	label.Text = ""
+	label.Parent = parent
+	return label
+end
+
+local function promptTextShadow(label, name)
+	local shadow = Instance.new("UIShadow")
+	shadow.Name = name
+	shadow.Mode = Enum.ApplyShadowMode.Text
+	shadow.Color = PROMPT_SHADOW
+	shadow.Parent = label
+	return shadow
+end
+
+local promptGui = Instance.new("ScreenGui")
+promptGui.Name = "HorizonBuildPrompt"
+promptGui.ResetOnSpawn = false
+promptGui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
+promptGui.SafeAreaCompatibility = Enum.SafeAreaCompatibility.None
+promptGui.DisplayOrder = 20
+promptGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local promptRoot = Instance.new("Frame")
+promptRoot.Name = "SafeArea"
+promptRoot.BackgroundTransparency = 1
+promptRoot.Size = UDim2.fromScale(1, 1)
+promptRoot.Parent = promptGui
+
+local prompt = Instance.new("Frame")
+prompt.Name = "Prompt"
+prompt.AnchorPoint = Vector2.new(0.5, 1)
+prompt.BackgroundTransparency = 1
+prompt.Visible = false
+prompt.Parent = promptRoot
+
+local promptHaze = Instance.new("ImageLabel")
+promptHaze.Name = "Haze"
+promptHaze.AnchorPoint = Vector2.new(0.5, 0.5)
+promptHaze.Position = UDim2.fromScale(0.5, 0.5)
+promptHaze.Size = UDim2.new(1, 60, 1, 46)
+promptHaze.BackgroundTransparency = 1
+promptHaze.Image = "rbxassetid://130881451468251"
+promptHaze.ImageColor3 = Color3.new(0, 0, 0)
+promptHaze.ImageTransparency = 1
+promptHaze.ZIndex = 0
+promptHaze.Parent = prompt
+
+local promptKeycap = Instance.new("Frame")
+promptKeycap.Name = "Keycap"
+promptKeycap.AnchorPoint = Vector2.new(0.5, 0)
+promptKeycap.Position = UDim2.fromScale(0.5, 0)
+promptKeycap.BackgroundColor3 = PROMPT_KEY_BACKGROUND
+promptKeycap.BorderSizePixel = 0
+promptKeycap.Parent = prompt
+
+local promptCorner = Instance.new("UICorner")
+promptCorner.Parent = promptKeycap
+
+local promptKeycapShadow = Instance.new("UIShadow")
+promptKeycapShadow.Name = "KeycapShadow"
+promptKeycapShadow.Color = PROMPT_KEY_BACKGROUND
+promptKeycapShadow.Offset = UDim2.fromOffset(0, 0)
+promptKeycapShadow.Spread = UDim2.fromOffset(0, 0)
+promptKeycapShadow.ShowBehindParent = false
+promptKeycapShadow.Transparency = 0.45
+promptKeycapShadow.Parent = promptKeycap
+
+local promptKey = promptLabel(promptKeycap, "Key", PROMPT_IVORY)
+promptKey.Size = UDim2.fromScale(1, 1)
+promptKey.Text = "CLICK"
+promptKey.Font = Enum.Font.PatrickHand
+
+local promptTap = promptLabel(promptKeycap, "Tap", PROMPT_IVORY)
+promptTap.Size = UDim2.fromScale(1, 1)
+promptTap.Text = "TAP"
+promptTap.Font = Enum.Font.PatrickHand
+local promptTapShadow = promptTextShadow(promptTap, "TapShadow")
+
+local promptAction = promptLabel(prompt, "Action", PROMPT_IVORY)
+promptAction.Font = Enum.Font.PatrickHand
+promptAction.ZIndex = 2
+local promptActionShadow = promptTextShadow(promptAction, "ActionShadow")
+
+local promptTouch = false
+local promptFadeTween = nil
+local promptWanted = false
+
+local promptOpacity = Instance.new("NumberValue")
+promptOpacity.Name = "PromptOpacity"
+promptOpacity.Value = 0
+promptOpacity.Parent = promptGui
+
+local function applyPromptOpacity()
+	local settings = PROMPT_SETTINGS[promptTouch and "Mobile" or "PC"]
+	local alpha = promptOpacity.Value
+	promptKey.TextTransparency = 1 - alpha
+	promptTap.TextTransparency = 1 - alpha
+	promptAction.TextTransparency = 1 - alpha
+	promptKeycap.BackgroundTransparency = 1 - (1 - settings.BoxTransparency / 100) * alpha
+	local shadowTransparency = 1 - settings.ShadowOpacity / 100 * alpha
+	promptTapShadow.Transparency = shadowTransparency
+	promptActionShadow.Transparency = shadowTransparency
+	promptKeycapShadow.Transparency = 1 - 0.55 * alpha
+	promptHaze.ImageTransparency = 1 - 0.18 * alpha
+end
+
+local function fadePrompt(visible)
+	if promptWanted == visible and (visible or not prompt.Visible) then
+		return
+	end
+	promptWanted = visible
+	if promptFadeTween then
+		promptFadeTween:Cancel()
+		promptFadeTween = nil
+	end
+	local target = visible and 1 or 0
+	local distance = math.abs(target - promptOpacity.Value)
+	if distance < 0.001 then
+		promptOpacity.Value = target
+		prompt.Visible = visible
+		return
+	end
+	local settings = PROMPT_SETTINGS[promptTouch and "Mobile" or "PC"]
+	local duration = (visible and settings.FadeInTime or settings.FadeOutTime) * distance
+	local direction = visible and Enum.EasingDirection.Out or Enum.EasingDirection.In
+	local t = TweenService:Create(promptOpacity, TweenInfo.new(duration, Enum.EasingStyle.Sine, direction), { Value = target })
+	promptFadeTween = t
+	prompt.Visible = true
+	t.Completed:Once(function(playbackState)
+		if promptFadeTween == t and playbackState == Enum.PlaybackState.Completed then
+			promptFadeTween = nil
+			prompt.Visible = visible
+		end
+	end)
+	t:Play()
+end
+
+local function layoutPrompt()
+	local size = promptRoot.AbsoluteSize
+	if size.X <= 24 or size.Y <= 24 then
+		return
+	end
+	local settings = PROMPT_SETTINGS[promptTouch and "Mobile" or "PC"]
+	local deviceScale = math.clamp(math.min(size.X, size.Y) / 610, 0.8, 1.35)
+	local boxWidth = settings.BoxWidth or settings.BoxHeight
+	local actionLineHeight = math.max(25, settings.ActionTextSize + 5)
+	local totalHeight = settings.BoxHeight + settings.Gap + actionLineHeight
+	local scale = math.min(deviceScale * settings.Scale / 100, (size.X - 24) / boxWidth, (size.Y - 8) / totalHeight)
+
+	local hintTextSize = math.max(1, math.round(settings.HintTextSize * scale))
+	local keyLabel = promptTouch and promptTap or promptKey
+	local keyBounds = TextService:GetTextSize(keyLabel.Text, hintTextSize, keyLabel.Font, Vector2.new(10000, 10000))
+	local hintWidth = math.max(math.round(boxWidth * scale), math.ceil(keyBounds.X) + math.round(10 * scale))
+	local hintHeight = math.round(settings.BoxHeight * scale)
+	local actionHeight = math.round(actionLineHeight * scale)
+	local actionTop = hintHeight + math.round(settings.Gap * scale)
+	local promptHeight = actionTop + actionHeight
+
+	promptKeycap.Size = UDim2.fromOffset(hintWidth, hintHeight)
+	promptKeycap.Position = UDim2.new(0.5, 0, 0, math.round(settings.KeyY * scale))
+	promptCorner.CornerRadius = UDim.new(0, math.round(settings.CornerRadius * scale))
+	promptKeycapShadow.Enabled = settings.BoxEdgeBlur > 0 and settings.BoxTransparency < 100
+	promptKeycapShadow.BlurRadius = UDim.new(0, settings.BoxEdgeBlur)
+
+	promptKey.TextSize = hintTextSize
+	promptTap.TextSize = hintTextSize
+	promptAction.Position = UDim2.fromOffset(0, actionTop)
+	promptAction.Size = UDim2.new(1, 0, 0, actionHeight)
+	promptAction.TextSize = math.max(1, math.round(settings.ActionTextSize * scale))
+
+	local shadowOffset = UDim2.fromOffset(0, settings.ShadowOffset)
+	local shadowBlur = UDim.new(0, settings.ShadowBlur)
+	promptTapShadow.Offset = shadowOffset
+	promptTapShadow.BlurRadius = shadowBlur
+	promptActionShadow.Offset = shadowOffset
+	promptActionShadow.BlurRadius = shadowBlur
+
+	local textBounds = TextService:GetTextSize(promptAction.Text, promptAction.TextSize, promptAction.Font, Vector2.new(10000, 10000))
+	local promptWidth = math.min(size.X - 24, math.max(hintWidth, math.ceil(textBounds.X) + 12))
+	local xLimit = math.floor((size.X - promptWidth - 24) / 2)
+	local x = math.clamp(math.round(settings.X * deviceScale), -xLimit, xLimit)
+	local bottom = size.Y * 0.81 + settings.Y * deviceScale
+	bottom = math.clamp(bottom, math.min(promptHeight, size.Y), size.Y)
+
+	prompt.Size = UDim2.fromOffset(promptWidth, promptHeight)
+	prompt.Position = UDim2.new(0.5, x, 0, math.round(bottom))
+	applyPromptOpacity()
+end
+
+local function updatePromptInput()
+	local ok, preferred = pcall(function()
+		return UserInputService.PreferredInput
+	end)
+	if ok and preferred then
+		promptTouch = preferred == Enum.PreferredInput.Touch
+	else
+		promptTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	end
+	promptKey.Visible = not promptTouch
+	promptTap.Visible = promptTouch
+	layoutPrompt()
+end
+
+promptRoot:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutPrompt)
+pcall(function()
+	UserInputService:GetPropertyChangedSignal("PreferredInput"):Connect(updatePromptInput)
+end)
+promptOpacity:GetPropertyChangedSignal("Value"):Connect(applyPromptOpacity)
+applyPromptOpacity()
+promptGui.Parent = playerGui
+updatePromptInput()
 
 local pieceMenu = new("Frame", {
 	Name = "PieceMenu",
@@ -1378,25 +1615,15 @@ local function renderHud()
 	setKeycapOn(buildKeyRow.Cap, buildOn)
 
 	local placing = state.placing
-	prompt.Visible = hammer and placing ~= nil and not state.menuOpen
-	if prompt.Visible then
-		if mobile then
-			setKeycapContent(promptCap, "TAP")
-			promptCap.Frame.Size = UDim2.fromOffset(math.max(30, math.ceil(textWidth("TAP", 15)) + 14), 26)
-		else
-			setKeycapContent(promptCap, "CLICK")
-			promptCap.Frame.Size = UDim2.fromOffset(math.max(30, math.ceil(textWidth("CLICK", 15)) + 14), 26)
-		end
-		promptText.Text = spaced("PLACE " .. string.upper(fullName(placing.name, placing.stone, placing.structure)), 1.5)
-		local cost = costInfo(placing.name, placing.stone)
-		if cost then
-			promptCost.Text = cost.ok and (cost.amount .. " " .. cost.material) or ("Need " .. (cost.amount - cost.have) .. " more " .. cost.material)
-			promptCost.TextColor3 = cost.ok and CONFIG.Text or CONFIG.Red
-			promptCost.TextTransparency = cost.ok and 0.3 or 0
-		else
-			promptCost.Text = ""
+	local showPrompt = hammer and placing ~= nil and not state.menuOpen
+	if showPrompt then
+		local actionText = "PLACE " .. string.upper(fullName(placing.name, placing.stone, placing.structure))
+		if promptAction.Text ~= actionText then
+			promptAction.Text = actionText
+			layoutPrompt()
 		end
 	end
+	fadePrompt(showPrompt)
 	renderPieceMenu()
 end
 
@@ -1767,6 +1994,7 @@ gui.Destroying:Connect(function()
 	blur:Destroy()
 	dimGui:Destroy()
 	buttonGui:Destroy()
+	promptGui:Destroy()
 end)
 
 renderMenu()
