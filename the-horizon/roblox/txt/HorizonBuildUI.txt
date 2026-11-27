@@ -30,6 +30,7 @@ local CONFIG = {
 	DesignWidth = 896,
 	DesignHeight = 414,
 	HammerName = "Building Hammer",
+	ShowWithoutHammer = true,
 	BuildKey = Enum.KeyCode.B,
 	RotateKey = Enum.KeyCode.R,
 	UpgradeKey = Enum.KeyCode.E,
@@ -54,7 +55,7 @@ local CONFIG = {
 		["Stone Platform"] = "",
 		["Wooden Triangle Platform"] = "",
 		["Stone Triangle Platform"] = "",
-		["Wooden Wall"] = "",
+		["Wooden Wall"] = "rbxassetid://137129354242963",
 		["Stone Wall"] = "",
 		["Wooden Half Wall"] = "",
 		["Stone Half Wall"] = "",
@@ -159,6 +160,9 @@ local PLACEHOLDER_MATERIALS = {
 local BuildHooks = {}
 
 function BuildHooks.IsHammerEquipped()
+	if CONFIG.ShowWithoutHammer then
+		return true
+	end
 	local character = player.Character
 	local tool = character and character:FindFirstChildOfClass("Tool")
 	return tool ~= nil and tool.Name == CONFIG.HammerName
