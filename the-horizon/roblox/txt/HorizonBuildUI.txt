@@ -515,29 +515,36 @@ local function layoutTabs(panelWidth)
 	end
 end
 
+local TILE_W, TILE_GAP, EDGE_FADE = 84, 7, 0.22
+local stripFade = new("CanvasGroup", {
+	Name = "StripFade",
+	Position = UDim2.fromOffset(20, 73),
+	Size = UDim2.new(1, -40, 0, 112),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+}, menu)
+local stripGradient = new("UIGradient", {}, stripFade)
+
 local strips = {}
 local tiles = {}
-local allTiles = {}
 for _, tab in ipairs(TABS) do
 	local strip = new("ScrollingFrame", {
 		Name = tab .. "Strip",
-		Position = UDim2.fromOffset(20, 73),
-		Size = UDim2.new(1, -40, 0, 112),
+		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollingDirection = Enum.ScrollingDirection.X,
 		AutomaticCanvasSize = Enum.AutomaticSize.X,
 		CanvasSize = UDim2.new(),
-		ScrollBarThickness = 4,
-		ScrollBarImageColor3 = CONFIG.Text,
-		ScrollBarImageTransparency = 0.7,
+		ScrollBarThickness = 0,
+		ScrollBarImageTransparency = 1,
 		ElasticBehavior = Enum.ElasticBehavior.Never,
 		Visible = false,
-	}, menu)
+	}, stripFade)
 	new("UIListLayout", {
 		FillDirection = Enum.FillDirection.Horizontal,
 		SortOrder = Enum.SortOrder.LayoutOrder,
-		Padding = UDim.new(0, 8),
+		Padding = UDim.new(0, TILE_GAP),
 	}, strip)
 	strips[tab] = strip
 	tiles[tab] = {}
@@ -546,7 +553,7 @@ for _, tab in ipairs(TABS) do
 		local tile = new("TextButton", {
 			Name = name,
 			LayoutOrder = order,
-			Size = UDim2.fromOffset(90, 100),
+			Size = UDim2.fromOffset(TILE_W, 100),
 			BackgroundColor3 = WHITE,
 			BackgroundTransparency = 0.95,
 			AutoButtonColor = false,
@@ -559,9 +566,9 @@ for _, tab in ipairs(TABS) do
 		local label = name:gsub("^Wooden ", "")
 		local nameSize = 25 / CONFIG.FontScale
 		local lines = { label }
-		if textWidth(label, nameSize) > 84 then
+		if textWidth(label, nameSize) > TILE_W - 6 then
 			nameSize = 20 / CONFIG.FontScale
-			if textWidth(label, nameSize) > 84 then
+			if textWidth(label, nameSize) > TILE_W - 6 then
 				local best, bestDiff = nil, math.huge
 				for position in label:gmatch("() ") do
 					local a, b = label:sub(1, position - 1), label:sub(position + 1)
@@ -595,7 +602,6 @@ for _, tab in ipairs(TABS) do
 			})
 		end
 		tiles[tab][name] = { Button = tile, Stroke = outline, Picture = picture }
-		table.insert(allTiles, tile)
 	end
 end
 
@@ -1037,15 +1043,9 @@ local function updateMenuLayout()
 	local pitch = 90 * stretch + 8
 	local count = math.ceil((PANEL_W * stretch - 40 + 8) / pitch)
 	local panelWidth = math.max(520, 40 + count * pitch - 8 + CONFIG.ExtraWidth)
-	local stripWidth = panelWidth - 40
-	local shown = math.max(1, math.floor((stripWidth + 8) / pitch + 0.001))
-	local tileWidth = (stripWidth + 8) / shown - 8
 	menuHolder.Size = UDim2.fromOffset(panelWidth, PANEL_H)
 	menuScale.Scale = scale
 	menuHolder.Position = UDim2.new(0.5, 0, 0, top + availH / 2)
-	for _, tile in ipairs(allTiles) do
-		tile.Size = UDim2.fromOffset(tileWidth, 100)
-	end
 	if tabsLaidOut ~= panelWidth then
 		tabsLaidOut = panelWidth
 		layoutTabs(panelWidth)
@@ -1128,6 +1128,62 @@ if CONFIG.WidthTuner then
 	end)
 end
 
+local function applyStripFade()
+	local strip = strips[state.tab]
+	if not strip then
+		return
+	end
+	local first, last = nil, nil
+	for _, tile in pairs(tiles[state.tab]) do
+		local order = tile.Button.LayoutOrder
+		if not first or order < first.LayoutOrder then
+			first = tile.Button
+		end
+		if not last or order > last.LayoutOrder then
+			last = tile.Button
+		end
+	end
+	if not first then
+		return
+	end
+	local stripLeft = strip.AbsolutePosition.X
+	local stripRight = stripLeft + strip.AbsoluteWindowSize.X
+	local left = first.AbsolutePosition.X < stripLeft - 1
+	local right = last.AbsolutePosition.X + last.AbsoluteSize.X > stripRight + 1
+	local points = { NumberSequenceKeypoint.new(0, left and 1 or 0) }
+	if left then
+		table.insert(points, NumberSequenceKeypoint.new(EDGE_FADE, 0))
+	end
+	if right then
+		table.insert(points, NumberSequenceKeypoint.new(1 - EDGE_FADE, 0))
+	end
+	table.insert(points, NumberSequenceKeypoint.new(1, right and 1 or 0))
+	stripGradient.Transparency = NumberSequence.new(points)
+end
+
+local fadeQueued = false
+local function updateStripFade()
+	applyStripFade()
+	if fadeQueued then
+		return
+	end
+	fadeQueued = true
+	task.defer(function()
+		fadeQueued = false
+		applyStripFade()
+	end)
+end
+
+for _, strip in pairs(strips) do
+	for _, property in ipairs({ "CanvasPosition", "AbsoluteCanvasSize", "AbsoluteWindowSize" }) do
+		strip:GetPropertyChangedSignal(property):Connect(function()
+			if strip.Visible then
+				updateStripFade()
+			end
+		end)
+	end
+end
+
 local function pieceDesc(tab, name, stone)
 	for _, entry in ipairs(PIECES[tab]) do
 		if entry[1] == name then
@@ -1180,6 +1236,7 @@ local function renderMenu()
 	for tab, strip in pairs(strips) do
 		strip.Visible = tab == state.tab
 	end
+	updateStripFade()
 	for name, tile in pairs(tiles[state.tab]) do
 		local on = name == state.selected
 		tile.Stroke.Transparency = on and 0 or 1
