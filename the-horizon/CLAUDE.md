@@ -29,7 +29,9 @@ designed vs. actually working and the rules for working on this project.
 - Icons/pictures: `design/build_icons/*.png` (rendered from the HTML SVGs, cream). IDs go in CONFIG.Icons and CONFIG.PieceImages.
 - User said the Jump/Sprint/Crouch buttons in the HTML don't exist in the build script; they live in the user's own `HorizonMobileButtons` script.
   The Build/Rotate mobile buttons copy that script's style and placement (own ScreenGui, real px, placed relative to the native TouchGui JumpButton: Build at +26.5,-131, Rotate at +26.5,-189 from its centre).
-- The build menu uses the inventory's exact size and position math (`updateMenuLayout`, copied from the inventory's updateScale): same height, width and centre as the inventory menu. Layout inside is width-responsive.
+- Build menu: 620x380 (HTML size, user said "like before smaller"), centred on screen, kept below the Roblox top bar (GuiInset + 6), scaled down only if it doesn't fit.
+  Open/close animation is an exact copy of the inventory's (fade + text fade, 0.985 -> 1 grow, close shrink to 0.96, same timings and lock).
+- Material row and Select button copy the inventory crafting style (row 52 tall, icon 42, Ready = yellow, missing = rgb 244,164,124). `TestPieceImage` (wall) fills every piece with no picture.
 - `ShowWithoutHammer = true` is a test switch (UI shows without the hammer). PC place prompt keycap says CLICK (no mouse icon).
 
 ## Decisions the user made (keep these)

@@ -20,7 +20,7 @@ local CONFIG = {
 	Accent = Color3.fromRGB(233, 185, 73),
 	Text = Color3.fromRGB(237, 232, 220),
 	Ink = Color3.fromRGB(27, 26, 20),
-	Red = Color3.fromRGB(224, 122, 110),
+	Red = Color3.fromRGB(244, 164, 124),
 	PanelColor = Color3.fromRGB(16, 21, 19),
 	DimColor = Color3.fromRGB(6, 9, 8),
 	DimTransparency = 0.58,
@@ -31,6 +31,7 @@ local CONFIG = {
 	DesignWidth = 896,
 	DesignHeight = 414,
 	HammerName = "Building Hammer",
+	TestPieceImage = "rbxassetid://137129354242963",
 	ShowWithoutHammer = true,
 	BuildKey = Enum.KeyCode.B,
 	RotateKey = Enum.KeyCode.R,
@@ -315,12 +316,6 @@ local function image(parent, size, props)
 	return label
 end
 
-local function tween(object, duration, props, style, direction)
-	local t = TweenService:Create(object, TweenInfo.new(duration, style or Enum.EasingStyle.Sine, direction or Enum.EasingDirection.Out), props)
-	t:Play()
-	return t
-end
-
 local function isStructure(tab)
 	return tab == "Structures"
 end
@@ -334,7 +329,11 @@ local function fullName(name, stone, structure)
 end
 
 local function pieceImage(name, stone, structure)
-	return CONFIG.PieceImages[fullName(name, stone, structure)] or ""
+	local id = CONFIG.PieceImages[fullName(name, stone, structure)] or ""
+	if id == "" then
+		return CONFIG.TestPieceImage or ""
+	end
+	return id
 end
 
 local dimGui = new("ScreenGui", {
@@ -399,36 +398,32 @@ end
 gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateScale)
 updateScale()
 
-local INV = {
-	DesignWidth = 1280,
-	DesignHeight = 720,
-	HotbarSlot = 62,
-	HotbarBoost = 1,
-	HotbarTouchBoost = 1.3,
-	ExtraH = 3,
-	MenuH = 560,
-	PanelsW = 464 + 640,
-	PanelGap = 20,
-	MenuWidthFraction = 0.878,
-	MaxWidthStretch = 1.2,
-}
-local MENU_H = 380
-local menuWidth = 620
+local MENU_W, MENU_H = 620, 380
+local menuWidth = MENU_W
 
-local menu = new("Frame", {
+local menuHolder = new("Frame", {
 	Name = "BuildMenu",
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromOffset(menuWidth, MENU_H),
+	Size = UDim2.fromOffset(MENU_W, MENU_H),
+	BackgroundTransparency = 1,
+	ZIndex = 2,
+}, dimGui)
+local menuScale = new("UIScale", {}, menuHolder)
+
+local menu = new("Frame", {
+	Name = "Panel",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromScale(1, 1),
 	BackgroundColor3 = CONFIG.PanelColor,
 	BackgroundTransparency = CONFIG.PanelTransparency,
 	BorderSizePixel = 0,
 	Active = true,
 	Visible = false,
-	ZIndex = 2,
-}, dimGui)
+}, menuHolder)
 corner(menu, 14)
-local menuScale = new("UIScale", {}, menu)
+local openScale = new("UIScale", { Scale = 1 }, menu)
 
 local content = new("Frame", {
 	Name = "Content",
@@ -586,7 +581,7 @@ local side = new("Frame", {
 }, content)
 
 local typeRow = new("Frame", { Name = "TypeRow", Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1 }, side)
-text(typeRow, 15, { Size = UDim2.fromOffset(100, 30), Text = "Type", TextTransparency = 0.3 })
+text(typeRow, 30 / CONFIG.FontScale, { Size = UDim2.fromOffset(100, 30), Text = "Type", TextTransparency = 0.3 })
 local typeButtons = {}
 do
 	local right = 290
@@ -611,39 +606,38 @@ do
 	end
 end
 
-local materialsLabel = text(side, 15, { Size = UDim2.new(1, 0, 0, 20), Text = "Required materials", TextTransparency = 0.3 })
+local materialsLabel = text(side, 30 / CONFIG.FontScale, { Size = UDim2.new(1, 0, 0, 20), Text = "Required materials", TextTransparency = 0.3 })
 
 local materialRow = new("Frame", {
 	Name = "MaterialRow",
-	Size = UDim2.new(1, 0, 0, 42),
+	Size = UDim2.new(1, 0, 0, 52),
 	BackgroundColor3 = WHITE,
 	BackgroundTransparency = 0.94,
 	BorderSizePixel = 0,
 }, side)
-corner(materialRow, 9)
-local materialIcon = image(materialRow, 26, { Position = UDim2.fromOffset(23, 21) })
-local materialName = text(materialRow, 16, { Position = UDim2.fromOffset(44, 6), Size = UDim2.fromOffset(160, 17) })
-local materialStatus = text(materialRow, 13, { Position = UDim2.fromOffset(44, 23), Size = UDim2.fromOffset(160, 14) })
-local materialAmount = text(materialRow, 18, {
+corner(materialRow, 10)
+local materialIcon = image(materialRow, 42, { Position = UDim2.fromOffset(32, 26) })
+local materialName = text(materialRow, 30 / CONFIG.FontScale, { Position = UDim2.fromOffset(64, 4), Size = UDim2.fromOffset(149, 20) })
+local materialStatus = text(materialRow, 24 / CONFIG.FontScale, { Position = UDim2.fromOffset(65, 28), Size = UDim2.fromOffset(150, 16) })
+local materialAmount = text(materialRow, 22, {
 	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -10, 0, 0),
-	Size = UDim2.fromOffset(100, 42),
+	Position = UDim2.new(1, -13, 0, -1),
+	Size = UDim2.fromOffset(80, 52),
 	TextXAlignment = Enum.TextXAlignment.Right,
 })
 
 local selectButton = new("TextButton", {
 	Name = "Select",
-	Position = UDim2.fromOffset(0, 173),
-	Size = UDim2.new(1, 0, 0, 44),
+	Position = UDim2.fromOffset(0, 165),
+	Size = UDim2.new(1, 0, 0, 52),
 	BackgroundColor3 = CONFIG.Accent,
 	AutoButtonColor = false,
 	FontFace = FONT,
-	TextSize = ts(23),
+	TextSize = ts(32),
 	TextColor3 = CONFIG.Ink,
-	RichText = true,
 	Text = "",
 }, side)
-corner(selectButton, 11)
+corner(selectButton, 12)
 
 local buttonGui = new("ScreenGui", {
 	Name = "HorizonBuildButtons",
@@ -964,23 +958,14 @@ local function updateMenuLayout()
 		return
 	end
 	local viewport = camera.ViewportSize
-	local topInset = GuiService:GetGuiInset().Y
-	local sc = math.min(viewport.X / INV.DesignWidth, viewport.Y / INV.DesignHeight)
-	local touchOnly = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-	local hb = sc * (touchOnly and INV.HotbarTouchBoost or INV.HotbarBoost)
-	local top = math.max(topInset, 48 * sc) + 2 * sc
-	local bottom = viewport.Y - (14 + INV.HotbarSlot) * hb - (28 + INV.ExtraH) * sc
-	local availH = math.max(100, bottom - top)
-	local availW = viewport.X - 16 * sc
-	local fitH = math.min(sc, availH / INV.MenuH)
-	local k = math.clamp((viewport.X * INV.MenuWidthFraction / fitH - INV.PanelGap) / INV.PanelsW, 1, INV.MaxWidthStretch)
-	local invMenuW = INV.PanelsW * k + INV.PanelGap
-	local invScale = math.min(fitH, availW / invMenuW)
-	local ratio = INV.MenuH / MENU_H
-	menuWidth = invMenuW / ratio
-	menu.Size = UDim2.fromOffset(menuWidth, MENU_H)
-	menuScale.Scale = invScale * ratio
-	menu.Position = UDim2.fromOffset(viewport.X / 2, top + availH / 2)
+	local safe = gui.AbsoluteSize
+	local sc = math.min(safe.X / CONFIG.DesignWidth, safe.Y / CONFIG.DesignHeight)
+	local top = GuiService:GetGuiInset().Y + 6
+	local scale = math.min(sc, (viewport.Y - top - 8) / MENU_H)
+	local half = MENU_H * scale / 2
+	local centerY = math.max(viewport.Y / 2, top + half)
+	menuScale.Scale = scale
+	menuHolder.Position = UDim2.fromOffset(math.floor(viewport.X / 2 + 0.5), math.floor(centerY + 0.5))
 end
 
 local function pieceDesc(tab, name, stone)
@@ -1072,13 +1057,14 @@ local function renderMenu()
 		materialStatus.Text = cost.ok and "Ready" or ("Need " .. (cost.amount - cost.have) .. " more")
 		materialStatus.TextColor3 = cost.ok and CONFIG.Accent or CONFIG.Red
 		materialAmount.Text = cost.have .. " / " .. cost.amount
+		materialAmount.TextColor3 = cost.ok and CONFIG.Text or CONFIG.Red
 	else
 		materialIcon.Visible = false
 		materialName.Text = "No recipe yet"
 		materialStatus.Text = ""
 		materialAmount.Text = ""
 	end
-	materialName.Position = UDim2.fromOffset(cost and 44 or 12, cost and 6 or 12)
+	materialName.Position = UDim2.fromOffset(cost and 64 or 16, cost and 4 or 16)
 
 	local can = cost ~= nil and cost.ok
 	selectButton.Active = can
@@ -1086,7 +1072,7 @@ local function renderMenu()
 	selectButton.BackgroundTransparency = can and 0 or 0.92
 	selectButton.TextColor3 = can and CONFIG.Ink or CONFIG.Text
 	selectButton.TextTransparency = can and 0 or 0.4
-	selectButton.Text = spaced(can and "Select" or (cost and "Missing materials" or "Not available yet"), 1)
+	selectButton.Text = can and "Select" or (cost and "Missing materials" or "Not available yet")
 end
 
 local function renderPieceMenu()
@@ -1186,39 +1172,65 @@ local function renderHud()
 end
 
 local fadeEntries = {}
-local fadeValue = new("NumberValue", { Name = "BuildMenuFade", Value = 0 }, gui)
+local fadeActive = false
+local fadeValue = new("NumberValue", { Name = "BuildMenuFade", Value = 1 }, gui)
+local textFadeValue = new("NumberValue", { Name = "BuildMenuTextFade", Value = 1 }, gui)
 local fadeTweens = {}
 
-local function snapshotFade()
+local function applyFade(a, textA)
+	for _, entry in ipairs(fadeEntries) do
+		local object = entry[1]
+		for prop, base in pairs(entry[2]) do
+			object[prop] = 1 - (1 - base) * a
+		end
+		if entry[3] then
+			for prop, base in pairs(entry[3]) do
+				object[prop] = 1 - (1 - base) * textA
+			end
+		end
+	end
+end
+
+local function endFade()
+	if fadeActive then
+		applyFade(1, 1)
+		fadeActive = false
+	end
+end
+
+local function startFade()
+	endFade()
 	table.clear(fadeEntries)
 	for _, object in ipairs(menu:GetDescendants()) do
-		local props = nil
+		local props, textProps = nil, nil
 		if object:IsA("GuiObject") then
 			props = { BackgroundTransparency = object.BackgroundTransparency }
-			if object:IsA("TextLabel") or object:IsA("TextButton") then
-				props.TextTransparency = object.TextTransparency
+			if object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox") then
+				textProps = { TextTransparency = object.TextTransparency }
 			elseif object:IsA("ImageLabel") or object:IsA("ImageButton") then
 				props.ImageTransparency = object.ImageTransparency
+			end
+			if object:IsA("ScrollingFrame") then
+				props.ScrollBarImageTransparency = object.ScrollBarImageTransparency
 			end
 		elseif object:IsA("UIStroke") then
 			props = { Transparency = object.Transparency }
 		end
 		if props then
-			table.insert(fadeEntries, { object, props })
+			table.insert(fadeEntries, { object, props, textProps })
 		end
 	end
-	table.insert(fadeEntries, { menu, { BackgroundTransparency = CONFIG.PanelTransparency } })
+	table.insert(fadeEntries, { menu, { BackgroundTransparency = menu.BackgroundTransparency } })
+	fadeActive = true
 end
 
-local function applyFade(alpha)
-	for _, entry in ipairs(fadeEntries) do
-		for prop, base in pairs(entry[2]) do
-			entry[1][prop] = 1 - (1 - base) * alpha
-		end
+local function onFadeChanged()
+	if fadeActive then
+		applyFade(fadeValue.Value, textFadeValue.Value)
 	end
 end
-
-fadeValue.Changed:Connect(applyFade)
+fadeValue.Changed:Connect(onFadeChanged)
+textFadeValue.Changed:Connect(onFadeChanged)
 
 local function stopFade()
 	for _, t in ipairs(fadeTweens) do
@@ -1227,56 +1239,70 @@ local function stopFade()
 	table.clear(fadeTweens)
 end
 
-local function restoreFade()
-	if #fadeEntries > 0 then
-		applyFade(1)
-		table.clear(fadeEntries)
-	end
+local function fadeTween(object, duration, props, style, direction, delay)
+	local t = TweenService:Create(object, TweenInfo.new(duration, style, direction, 0, false, delay or 0), props)
+	t:Play()
+	table.insert(fadeTweens, t)
+	return t
 end
 
+local menuLockUntil = 0
 local function setMenu(open, instant)
 	if state.menuOpen == open then
 		return
 	end
+	if not instant and os.clock() < menuLockUntil then
+		return
+	end
+	menuLockUntil = os.clock() + (open and 0.26 or 0.18) + 0.1
 	state.menuOpen = open
 	modal.Visible = open
 	stopFade()
-	restoreFade()
+	local Sine, Quint = Enum.EasingStyle.Sine, Enum.EasingStyle.Quint
+	local Out, In = Enum.EasingDirection.Out, Enum.EasingDirection.In
 	if open then
 		updateMenuLayout()
+		endFade()
 		renderMenu()
-		snapshotFade()
+		startFade()
 		fadeValue.Value = 0
-		applyFade(0)
+		textFadeValue.Value = 0
+		applyFade(0, 0)
+		openScale.Scale = 0.985
 		menu.Visible = true
 		dim.Visible = true
-		local fadeIn = tween(fadeValue, 0.16, { Value = 1 })
-		table.insert(fadeTweens, fadeIn)
+		fadeTween(openScale, 0.26, { Scale = 1 }, Quint, Out)
+		fadeTween(fadeValue, 0.2, { Value = 1 }, Sine, Out)
+		local fadeIn = fadeTween(textFadeValue, 0.2, { Value = 1 }, Sine, Out)
+		fadeTween(dim, 0.2, { BackgroundTransparency = CONFIG.DimTransparency }, Sine, Out)
+		fadeTween(blur, 0.2, { Size = CONFIG.BlurSize }, Sine, Out)
 		fadeIn.Completed:Once(function(playback)
 			if playback == Enum.PlaybackState.Completed and state.menuOpen then
-				table.clear(fadeEntries)
-				renderMenu()
+				endFade()
 			end
 		end)
-		table.insert(fadeTweens, tween(dim, 0.16, { BackgroundTransparency = CONFIG.DimTransparency }))
-		table.insert(fadeTweens, tween(blur, 0.16, { Size = CONFIG.BlurSize }))
 	elseif instant then
+		endFade()
 		menu.Visible = false
 		dim.Visible = false
 		dim.BackgroundTransparency = 1
 		blur.Size = 0
+		openScale.Scale = 1
 	else
-		snapshotFade()
+		startFade()
 		fadeValue.Value = 1
-		local out = tween(fadeValue, 0.12, { Value = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-		table.insert(fadeTweens, out)
-		table.insert(fadeTweens, tween(dim, 0.12, { BackgroundTransparency = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In))
-		table.insert(fadeTweens, tween(blur, 0.12, { Size = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In))
+		textFadeValue.Value = 1
+		fadeTween(textFadeValue, 0.07, { Value = 0 }, Sine, In)
+		local out = fadeTween(openScale, 0.12, { Scale = 0.96 }, Sine, In, 0.06)
+		fadeTween(fadeValue, 0.18, { Value = 0 }, Sine, In)
+		fadeTween(dim, 0.16, { BackgroundTransparency = 1 }, Sine, In)
+		fadeTween(blur, 0.16, { Size = 0 }, Sine, In)
 		out.Completed:Once(function(playback)
 			if playback == Enum.PlaybackState.Completed and not state.menuOpen then
 				menu.Visible = false
 				dim.Visible = false
-				restoreFade()
+				endFade()
+				openScale.Scale = 1
 			end
 		end)
 	end
@@ -1492,7 +1518,7 @@ RunService.RenderStepped:Connect(function(dt)
 	if refreshTimer >= 0.25 then
 		refreshTimer = 0
 		changed = true
-		if state.menuOpen and #fadeEntries == 0 then
+		if state.menuOpen and not fadeActive then
 			updateMenuLayout()
 			renderMenu()
 		end
