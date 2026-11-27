@@ -34,6 +34,8 @@ designed vs. actually working and the rules for working on this project.
   preview card, material row, "Recipe not set yet" box and button as crafting. Same dim (rgb 12,11,6 @ 0.16), panel 0.32 and blur 12.
   Open/close animation is an exact copy of the inventory's (fade + text fade, 0.985 -> 1 grow, close shrink to 0.96, same timings and lock).
 - Material row and Select button copy the inventory crafting style (row 52 tall, icon 42, Ready = yellow, missing = rgb 244,164,124). `TestPieceImage` (wall) fills every piece with no picture.
+- Tiles never show the word "Wooden" (only the preview name does). Tiles always fill the strip with whole tiles.
+- `WidthTuner = true` shows a small draggable tuner (- / +, steps of 10) while the menu is open; the user sends the number and it goes in `ExtraWidth`.
 - `ShowWithoutHammer = true` is a test switch (UI shows without the hammer). PC place prompt keycap says CLICK (no mouse icon).
 
 ## Decisions the user made (keep these)

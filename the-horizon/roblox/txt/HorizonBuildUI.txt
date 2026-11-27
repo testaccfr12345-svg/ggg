@@ -33,6 +33,8 @@ local CONFIG = {
 	HammerName = "Building Hammer",
 	TestPieceImage = "rbxassetid://137129354242963",
 	ShowWithoutHammer = true,
+	WidthTuner = true,
+	ExtraWidth = 0,
 	BuildKey = Enum.KeyCode.B,
 	RotateKey = Enum.KeyCode.R,
 	UpgradeKey = Enum.KeyCode.E,
@@ -554,24 +556,15 @@ for _, tab in ipairs(TABS) do
 		local outlineHolder = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, tile)
 		corner(outlineHolder, 8)
 		local outline = new("UIStroke", { Color = CONFIG.Accent, Thickness = 2, Transparency = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, outlineHolder)
-		local holder = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, tile)
-		new("UIListLayout", {
-			SortOrder = Enum.SortOrder.LayoutOrder,
-			HorizontalAlignment = Enum.HorizontalAlignment.Center,
-			VerticalAlignment = Enum.VerticalAlignment.Center,
-			Padding = UDim.new(0, 6),
-		}, holder)
-		local iconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1 }, holder)
-		local picture = image(iconHolder, 66, { Position = UDim2.new(0.5, -2, 0.5, 2) })
+		local label = name:gsub("^Wooden ", "")
 		local nameSize = 25 / CONFIG.FontScale
-		local lines = { name }
-		if textWidth(name, nameSize) > 84 then
+		local lines = { label }
+		if textWidth(label, nameSize) > 84 then
 			nameSize = 20 / CONFIG.FontScale
-			lines = { name }
-			if textWidth(name, nameSize) > 84 then
+			if textWidth(label, nameSize) > 84 then
 				local best, bestDiff = nil, math.huge
-				for position in name:gmatch("() ") do
-					local a, b = name:sub(1, position - 1), name:sub(position + 1)
+				for position in label:gmatch("() ") do
+					local a, b = label:sub(1, position - 1), label:sub(position + 1)
 					local diff = math.abs(textWidth(a, nameSize) - textWidth(b, nameSize))
 					if diff < bestDiff then
 						best, bestDiff = { a, b }, diff
@@ -580,17 +573,27 @@ for _, tab in ipairs(TABS) do
 				lines = best or lines
 			end
 		end
-		local nameHolder = new("Frame", { LayoutOrder = 2, Size = UDim2.new(1, 0, 0, #lines == 1 and 20 or 33), BackgroundTransparency = 1 }, holder)
-		text(nameHolder, nameSize, {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0.5, 2),
-			Size = UDim2.new(1, -4, 0, 0),
-			AutomaticSize = Enum.AutomaticSize.Y,
-			Text = table.concat(lines, "\n"),
-			LineHeight = 0.82,
-			TextWrapped = false,
-			TextXAlignment = Enum.TextXAlignment.Center,
-		})
+		local iconSize = #lines == 1 and 56 or 48
+		local lineHeight = #lines == 1 and 20 or 17
+		local gap = #lines == 1 and 6 or 3
+		local contentHeight = iconSize + gap + #lines * lineHeight
+		local top = (100 - contentHeight) / 2
+		local iconHolder = new("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, top),
+			Size = UDim2.fromOffset(iconSize, iconSize),
+			BackgroundTransparency = 1,
+		}, tile)
+		local picture = image(iconHolder, iconSize * 66 / 56, { Position = UDim2.new(0.5, -2, 0.5, 2) })
+		for index, line in ipairs(lines) do
+			text(tile, nameSize, {
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, top + iconSize + gap + (index - 1) * lineHeight + (#lines == 1 and 2 or 0)),
+				Size = UDim2.new(1, -4, 0, lineHeight),
+				Text = line,
+				TextXAlignment = Enum.TextXAlignment.Center,
+			})
+		end
 		tiles[tab][name] = { Button = tile, Stroke = outline, Picture = picture }
 		table.insert(allTiles, tile)
 	end
@@ -1033,17 +1036,96 @@ local function updateMenuLayout()
 	local scale = math.min(fitH, availW / invMenuW)
 	local pitch = 90 * stretch + 8
 	local count = math.ceil((PANEL_W * stretch - 40 + 8) / pitch)
-	local panelWidth = 40 + count * pitch - 8
+	local panelWidth = math.max(520, 40 + count * pitch - 8 + CONFIG.ExtraWidth)
+	local stripWidth = panelWidth - 40
+	local shown = math.max(1, math.floor((stripWidth + 8) / pitch + 0.001))
+	local tileWidth = (stripWidth + 8) / shown - 8
 	menuHolder.Size = UDim2.fromOffset(panelWidth, PANEL_H)
 	menuScale.Scale = scale
 	menuHolder.Position = UDim2.new(0.5, 0, 0, top + availH / 2)
 	for _, tile in ipairs(allTiles) do
-		tile.Size = UDim2.fromOffset(90 * stretch, 100)
+		tile.Size = UDim2.fromOffset(tileWidth, 100)
 	end
 	if tabsLaidOut ~= panelWidth then
 		tabsLaidOut = panelWidth
 		layoutTabs(panelWidth)
 	end
+end
+
+local tuner = nil
+if CONFIG.WidthTuner then
+	tuner = new("Frame", {
+		Name = "WidthTuner",
+		Position = UDim2.fromOffset(12, 60),
+		Size = UDim2.fromOffset(170, 74),
+		BackgroundColor3 = CONFIG.PanelColor,
+		BackgroundTransparency = 0.1,
+		Active = true,
+		Visible = false,
+		ZIndex = 50,
+	}, dimGui)
+	corner(tuner, 10)
+	new("UIStroke", { Color = CONFIG.Accent, Thickness = 1.5, Transparency = 0.3 }, tuner)
+	local title = new("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 26),
+		BackgroundTransparency = 1,
+		FontFace = FONT,
+		TextSize = 18,
+		TextColor3 = CONFIG.Accent,
+		Text = "Width tuner (drag)",
+		ZIndex = 51,
+	}, tuner)
+	local value = new("TextLabel", {
+		Position = UDim2.fromOffset(50, 30),
+		Size = UDim2.fromOffset(70, 36),
+		BackgroundTransparency = 1,
+		FontFace = FONT,
+		TextSize = 22,
+		TextColor3 = CONFIG.Text,
+		ZIndex = 51,
+	}, tuner)
+	local function show()
+		value.Text = (CONFIG.ExtraWidth >= 0 and "+" or "") .. CONFIG.ExtraWidth
+	end
+	for _, entry in ipairs({ { "-", 8, -10 }, { "+", 126, 10 } }) do
+		local button = new("TextButton", {
+			Position = UDim2.fromOffset(entry[2], 30),
+			Size = UDim2.fromOffset(36, 36),
+			BackgroundColor3 = WHITE,
+			BackgroundTransparency = 0.88,
+			AutoButtonColor = false,
+			FontFace = FONT,
+			TextSize = 26,
+			TextColor3 = CONFIG.Text,
+			Text = entry[1],
+			ZIndex = 51,
+		}, tuner)
+		corner(button, 8)
+		button.Activated:Connect(function()
+			CONFIG.ExtraWidth += entry[3]
+			show()
+			updateMenuLayout()
+		end)
+	end
+	show()
+	local dragInput, dragStart, startPos = nil, nil, nil
+	title.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragInput, dragStart, startPos = input, input.Position, tuner.Position
+		end
+	end)
+	title.Active = true
+	UserInputService.InputChanged:Connect(function(input)
+		if dragInput and (input == dragInput or input.UserInputType == Enum.UserInputType.MouseMovement) then
+			local delta = input.Position - dragStart
+			tuner.Position = UDim2.fromOffset(startPos.X.Offset + delta.X, startPos.Y.Offset + delta.Y)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input == dragInput or (dragInput and input.UserInputType == Enum.UserInputType.MouseButton1) then
+			dragInput = nil
+		end
+	end)
 end
 
 local function pieceDesc(tab, name, stone)
@@ -1341,6 +1423,9 @@ local function setMenu(open, instant)
 		openScale.Scale = 0.985
 		menu.Visible = true
 		dim.Visible = true
+		if tuner then
+			tuner.Visible = true
+		end
 		fadeTween(openScale, 0.26, { Scale = 1 }, Quint, Out)
 		fadeTween(fadeValue, 0.2, { Value = 1 }, Sine, Out)
 		local fadeIn = fadeTween(textFadeValue, 0.2, { Value = 1 }, Sine, Out)
@@ -1355,6 +1440,9 @@ local function setMenu(open, instant)
 		endFade()
 		menu.Visible = false
 		dim.Visible = false
+		if tuner then
+			tuner.Visible = false
+		end
 		dim.BackgroundTransparency = 1
 		blur.Size = 0
 		openScale.Scale = 1
@@ -1371,6 +1459,9 @@ local function setMenu(open, instant)
 			if playback == Enum.PlaybackState.Completed and not state.menuOpen then
 				menu.Visible = false
 				dim.Visible = false
+				if tuner then
+					tuner.Visible = false
+				end
 				endFade()
 				openScale.Scale = 1
 			end
