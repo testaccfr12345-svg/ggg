@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<defs>
+<linearGradient id="wood" x1="0" x2="1" y1="0" y2="0">
+<stop offset="0" stop-color="#3f2f24"/><stop offset="0.35" stop-color="#7d6150"/><stop offset="0.55" stop-color="#6a5040"/><stop offset="1" stop-color="#36281f"/>
+</linearGradient>
+<linearGradient id="wrap" x1="0" x2="1" y1="0" y2="0">
+<stop offset="0" stop-color="#a9a194"/><stop offset="0.4" stop-color="#f1ece2"/><stop offset="0.6" stop-color="#e2dccf"/><stop offset="1" stop-color="#9c9486"/>
+</linearGradient>
+<filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#000" flood-opacity="0.35"/></filter>
+</defs>
+<g filter="url(#sh)" transform="rotate(45 256 256) translate(0 6)">
+<g stroke="#241b15" stroke-width="7" stroke-linejoin="round">
+<rect x="241" y="150" width="30" height="345" rx="13" fill="url(#wood)"/>
+<polygon points="256,8 292,92 286,138 268,170 244,170 226,138 220,92" fill="#cfcfca"/>
+</g>
+<rect x="241" y="150" width="30" height="345" rx="13" fill="url(#wood)"/>
+<g stroke="#3a332b" stroke-width="1.5" stroke-opacity="0.35">
+<line x1="252" y1="320" x2="252" y2="380"/><line x1="262" y1="210" x2="262" y2="250"/><line x1="250" y1="440" x2="250" y2="470"/>
+</g>
+<polygon points="256,8 292,92 256,104" fill="#f4f4f1"/>
+<polygon points="256,8 256,104 220,92" fill="#d9d9d4"/>
+<polygon points="220,92 256,104 244,170 226,138" fill="#a7a8a3"/>
+<polygon points="292,92 286,138 268,170 256,104" fill="#c4c5c0"/>
+<polygon points="256,104 268,170 244,170" fill="#8e8f8a"/>
+<polygon points="256,30 270,70 256,78" fill="#ffffff" opacity="0.8"/>
+<polyline points="226,70 233,74 230,82 237,88" fill="none" stroke="#7c7d78" stroke-width="2.5" stroke-linecap="round"/>
+<polyline points="286,74 279,80 284,88 277,96" fill="none" stroke="#9a9b96" stroke-width="2.5" stroke-linecap="round"/>
+<g stroke="#241b15" stroke-width="5" stroke-linejoin="round">
+<path d="M236 150 L276 144 L278 166 L234 172 Z" fill="url(#wrap)"/>
+<path d="M236 172 L278 166 L279 188 L235 194 Z" fill="url(#wrap)"/>
+<path d="M237 194 L278 188 L278 210 L237 216 Z" fill="url(#wrap)"/>
+<path d="M238 226 L276 221 L276 237 L238 242 Z" fill="url(#wrap)"/>
+<path d="M238 252 L276 247 L276 263 L238 268 Z" fill="url(#wrap)"/>
+<path d="M237 392 L277 387 L277 405 L237 410 Z" fill="url(#wrap)"/>
+<path d="M237 412 L277 407 L277 425 L237 430 Z" fill="url(#wrap)"/>
+</g>
+<g stroke="#8d8578" stroke-width="2" opacity="0.7">
+<line x1="246" y1="149" x2="244" y2="171"/><line x1="266" y1="168" x2="268" y2="190"/><line x1="250" y1="193" x2="249" y2="215"/>
+<line x1="262" y1="389" x2="263" y2="407"/><line x1="248" y1="411" x2="247" y2="429"/>
+</g>
+<ellipse cx="256" cy="492" rx="12" ry="5" fill="#2e231b"/>
+</g>
+</svg>
