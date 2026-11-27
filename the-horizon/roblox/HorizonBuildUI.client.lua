@@ -22,9 +22,9 @@ local CONFIG = {
 	Ink = Color3.fromRGB(27, 26, 20),
 	Red = Color3.fromRGB(244, 164, 124),
 	PanelColor = Color3.fromRGB(16, 21, 19),
-	DimColor = Color3.fromRGB(6, 9, 8),
-	DimTransparency = 0.58,
-	PanelTransparency = 0.28,
+	DimColor = Color3.fromRGB(12, 11, 6),
+	DimTransparency = 0.16,
+	PanelTransparency = 0.32,
 	BlurSize = 12,
 	FontEnum = Enum.Font.PatrickHand,
 	FontScale = 1.354,
@@ -398,21 +398,34 @@ end
 gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateScale)
 updateScale()
 
-local MENU_W, MENU_H = 620, 380
-local menuWidth = MENU_W
+local INV = {
+	DesignWidth = 1280,
+	DesignHeight = 720,
+	HotbarSlot = 62,
+	HotbarBoost = 1,
+	HotbarTouchBoost = 1.3,
+	ExtraH = 3,
+	MenuH = 560,
+	PanelsW = 464 + 640,
+	PanelGap = 20,
+	MenuWidthFraction = 0.878,
+	MaxWidthStretch = 1.2,
+}
+local PANEL_W, PANEL_H = 640, 560
+local stretch = 1
 
 local menuHolder = new("Frame", {
 	Name = "BuildMenu",
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromOffset(MENU_W, MENU_H),
+	Size = UDim2.fromOffset(PANEL_W, PANEL_H),
 	BackgroundTransparency = 1,
 	ZIndex = 2,
 }, dimGui)
 local menuScale = new("UIScale", {}, menuHolder)
 
 local menu = new("Frame", {
-	Name = "Panel",
+	Name = "BuildPanel",
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromScale(0.5, 0.5),
 	Size = UDim2.fromScale(1, 1),
@@ -425,98 +438,104 @@ local menu = new("Frame", {
 corner(menu, 14)
 local openScale = new("UIScale", { Scale = 1 }, menu)
 
-local content = new("Frame", {
-	Name = "Content",
-	Position = UDim2.fromOffset(14, 14),
-	Size = UDim2.new(1, -28, 1, -28),
-	BackgroundTransparency = 1,
-}, menu)
-
-text(content, 27, { Name = "Title", Size = UDim2.fromOffset(200, 30), Text = spaced("Build", 1), RichText = true })
+local TITLE_SIZE = 30
+text(menu, TITLE_SIZE, { Name = "Title", Position = UDim2.fromOffset(19, 7), Size = UDim2.fromOffset(200, 36), Text = "Build" })
 
 local closeButton = new("TextButton", {
 	Name = "Close",
-	Position = UDim2.new(1, -30, 0, 0),
-	Size = UDim2.fromOffset(30, 30),
+	Position = UDim2.new(1, -59, 0, 17),
+	Size = UDim2.fromOffset(41, 41),
 	BackgroundColor3 = WHITE,
 	BackgroundTransparency = 0.93,
 	AutoButtonColor = false,
 	Text = "",
-}, content)
-corner(closeButton, 15)
+}, menu)
+corner(closeButton, 18)
 for _, rotation in ipairs({ 45, -45 }) do
 	local line = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(2, 14),
+		Size = UDim2.fromOffset(3, 16),
 		Rotation = rotation,
 		BackgroundColor3 = CONFIG.Text,
 		BorderSizePixel = 0,
 		ZIndex = 2,
 	}, closeButton)
-	corner(line, 1)
+	corner(line, 2)
+end
+
+local function pill(parent, name, label)
+	local button = new("TextButton", {
+		Name = name,
+		Size = UDim2.fromOffset(80, 40),
+		BackgroundColor3 = WHITE,
+		BackgroundTransparency = 0.93,
+		AutoButtonColor = false,
+		FontFace = FONT,
+		TextSize = 30,
+		TextColor3 = CONFIG.Text,
+		Text = label,
+	}, parent)
+	corner(button, 20)
+	return button
 end
 
 local tabButtons = {}
-do
-	local right = 562 - 10
-	for index = #TABS, 1, -1 do
-		local name = TABS[index]
-		local width = math.ceil(textWidth(name, 17)) + 26
-		right -= width
-		local pill = new("TextButton", {
-			Name = name .. "Tab",
-			Position = UDim2.new(1, right - 592, 0, 0),
-			Size = UDim2.fromOffset(width, 30),
-			BackgroundColor3 = WHITE,
-			BackgroundTransparency = 0.93,
-			AutoButtonColor = false,
-			FontFace = FONT,
-			TextSize = ts(17),
-			TextColor3 = CONFIG.Text,
-			Text = name,
-		}, content)
-		corner(pill, 15)
-		tabButtons[name] = pill
-		right -= 6
-	end
+for _, name in ipairs(TABS) do
+	tabButtons[name] = pill(menu, name .. "Tab", name)
 end
 
-local function splitName(name, width, size)
-	if textWidth(name, size) <= width then
-		return { name }
-	end
-	local best, bestDiff = nil, math.huge
-	for position in name:gmatch("() ") do
-		local a, b = name:sub(1, position - 1), name:sub(position + 1)
-		local diff = math.abs(textWidth(a, size) - textWidth(b, size))
-		if diff < bestDiff then
-			best, bestDiff = { a, b }, diff
+local function layoutTabs(panelWidth)
+	local available = panelWidth - 59 - 8 - (19 + textWidth("Build", TITLE_SIZE) + 16)
+	local size = 30 / CONFIG.FontScale
+	local function total(textSize)
+		local padding = 30 * textSize / (30 / CONFIG.FontScale)
+		local sum = 8 * (#TABS - 1)
+		for _, name in ipairs(TABS) do
+			sum += math.ceil(textWidth(name, textSize)) + padding
 		end
+		return sum, padding
 	end
-	return best or { name }
+	local width, padding = total(size)
+	while width > available and size > 15 / CONFIG.FontScale do
+		size -= 0.25
+		width, padding = total(size)
+	end
+	local right = -59 - 8
+	for index = #TABS, 1, -1 do
+		local button = tabButtons[TABS[index]]
+		local w = math.ceil(textWidth(TABS[index], size)) + padding
+		right -= w
+		button.TextSize = ts(size)
+		button.Size = UDim2.fromOffset(w, 40)
+		button.Position = UDim2.new(1, right, 0, 17 + (41 - 40) / 2)
+		right -= 8
+	end
 end
 
 local strips = {}
 local tiles = {}
+local allTiles = {}
 for _, tab in ipairs(TABS) do
 	local strip = new("ScrollingFrame", {
 		Name = tab .. "Strip",
-		Position = UDim2.fromOffset(0, 40),
-		Size = UDim2.new(1, 0, 0, 85),
+		Position = UDim2.fromOffset(20, 73),
+		Size = UDim2.new(1, -40, 0, 112),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollingDirection = Enum.ScrollingDirection.X,
 		AutomaticCanvasSize = Enum.AutomaticSize.X,
 		CanvasSize = UDim2.new(),
-		ScrollBarThickness = 0,
+		ScrollBarThickness = 4,
+		ScrollBarImageColor3 = CONFIG.Text,
+		ScrollBarImageTransparency = 0.7,
 		ElasticBehavior = Enum.ElasticBehavior.Never,
 		Visible = false,
-	}, content)
+	}, menu)
 	new("UIListLayout", {
 		FillDirection = Enum.FillDirection.Horizontal,
 		SortOrder = Enum.SortOrder.LayoutOrder,
-		Padding = UDim.new(0, 7),
+		Padding = UDim.new(0, 8),
 	}, strip)
 	strips[tab] = strip
 	tiles[tab] = {}
@@ -525,84 +544,115 @@ for _, tab in ipairs(TABS) do
 		local tile = new("TextButton", {
 			Name = name,
 			LayoutOrder = order,
-			Size = UDim2.fromOffset(74, 84),
+			Size = UDim2.fromOffset(90, 100),
 			BackgroundColor3 = WHITE,
-			BackgroundTransparency = 0.93,
+			BackgroundTransparency = 0.95,
 			AutoButtonColor = false,
 			Text = "",
 		}, strip)
-		corner(tile, 9)
-		local outline = ring(tile, 2, 1, 9)
-		outline.Color = CONFIG.Accent
-		local lines = splitName(name, 68, 13)
-		local height = 48 + 1 + #lines * 13.26
-		local top = 2 + (80 - height) / 2
-		local pictureSize = isStructure(tab) and 46 or 34
-		local picture = image(tile, pictureSize, { Position = UDim2.fromOffset(37, top + 24) })
-		for index, line in ipairs(lines) do
-			text(tile, 13, {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.fromOffset(37, top + 49 + (index - 0.5) * 13.26),
-				Size = UDim2.fromOffset(72, 18),
-				Text = line,
-				TextXAlignment = Enum.TextXAlignment.Center,
-			})
+		corner(tile, 10)
+		local outlineHolder = new("Frame", { Position = UDim2.fromOffset(2, 2), Size = UDim2.new(1, -4, 1, -4), BackgroundTransparency = 1 }, tile)
+		corner(outlineHolder, 8)
+		local outline = new("UIStroke", { Color = CONFIG.Accent, Thickness = 2, Transparency = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, outlineHolder)
+		local holder = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, tile)
+		new("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			Padding = UDim.new(0, 6),
+		}, holder)
+		local iconHolder = new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1 }, holder)
+		local picture = image(iconHolder, 66, { Position = UDim2.new(0.5, -2, 0.5, 2) })
+		local nameSize = 25 / CONFIG.FontScale
+		local lines = { name }
+		if textWidth(name, nameSize) > 84 then
+			nameSize = 20 / CONFIG.FontScale
+			lines = { name }
+			if textWidth(name, nameSize) > 84 then
+				local best, bestDiff = nil, math.huge
+				for position in name:gmatch("() ") do
+					local a, b = name:sub(1, position - 1), name:sub(position + 1)
+					local diff = math.abs(textWidth(a, nameSize) - textWidth(b, nameSize))
+					if diff < bestDiff then
+						best, bestDiff = { a, b }, diff
+					end
+				end
+				lines = best or lines
+			end
 		end
+		local nameHolder = new("Frame", { LayoutOrder = 2, Size = UDim2.new(1, 0, 0, #lines == 1 and 20 or 33), BackgroundTransparency = 1 }, holder)
+		text(nameHolder, nameSize, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, 2),
+			Size = UDim2.new(1, -4, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			Text = table.concat(lines, "\n"),
+			LineHeight = 0.82,
+			TextWrapped = false,
+			TextXAlignment = Enum.TextXAlignment.Center,
+		})
 		tiles[tab][name] = { Button = tile, Stroke = outline, Picture = picture }
+		table.insert(allTiles, tile)
 	end
 end
 
 local preview = new("Frame", {
 	Name = "Preview",
-	Position = UDim2.fromOffset(0, 135),
-	Size = UDim2.new(0.5, -6, 0, 217),
+	Position = UDim2.fromOffset(20, 198),
+	Size = UDim2.new(0.5, -28, 0, 342),
 	BackgroundColor3 = WHITE,
 	BackgroundTransparency = 0.95,
 	BorderSizePixel = 0,
-}, content)
-corner(preview, 11)
-local previewPicture = image(preview, 104)
-local previewName = text(preview, 26, { AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.new(1, -28, 0, 26), TextXAlignment = Enum.TextXAlignment.Center })
-local previewCategory = text(preview, 14, { AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.new(1, -28, 0, 19), TextTransparency = 0.3, TextXAlignment = Enum.TextXAlignment.Center })
-local previewDesc = text(preview, 15, {
-	AnchorPoint = Vector2.new(0.5, 0),
-	Size = UDim2.new(1, -28, 0, 20),
+}, menu)
+corner(preview, 12)
+local previewIconHolder = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(156, 164), BackgroundTransparency = 1 }, preview)
+local previewPicture = image(previewIconHolder, 156, { Position = UDim2.fromOffset(78, 91) })
+local previewNameHolder = new("Frame", { Name = "NameHolder", AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.new(1, -25, 0, 31), BackgroundTransparency = 1 }, preview)
+local previewName = text(previewNameHolder, 39, {
+	Position = UDim2.fromOffset(0, 16),
+	Size = UDim2.fromScale(1, 1),
+	TextXAlignment = Enum.TextXAlignment.Center,
+})
+local previewCategoryHolder = new("Frame", { Name = "CategoryHolder", AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.new(1, -24, 0, 22), BackgroundTransparency = 1 }, preview)
+local previewCategory = text(previewCategoryHolder, 32 / CONFIG.FontScale, {
+	Position = UDim2.fromOffset(0, 30),
+	Size = UDim2.fromScale(1, 1),
+	TextTransparency = 0.3,
+	TextXAlignment = Enum.TextXAlignment.Center,
+})
+local previewDescHolder = new("Frame", { Name = "DescHolder", AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(240, 0), BackgroundTransparency = 1 }, preview)
+local previewDesc = text(previewDescHolder, 32 / CONFIG.FontScale, {
+	Position = UDim2.fromOffset(0, 13),
+	Size = UDim2.fromScale(1, 0),
+	AutomaticSize = Enum.AutomaticSize.Y,
 	TextTransparency = 0.15,
 	TextWrapped = true,
 	TextXAlignment = Enum.TextXAlignment.Center,
 	TextYAlignment = Enum.TextYAlignment.Top,
 })
+new("UIPadding", { PaddingTop = UDim.new(0, 12) }, previewDesc)
 
 local side = new("Frame", {
-	Name = "Side",
-	Position = UDim2.new(0.5, 6, 0, 135),
-	Size = UDim2.new(0.5, -6, 0, 217),
+	Name = "Requirements",
+	Position = UDim2.new(0.5, 8, 0, 198),
+	Size = UDim2.new(0.5, -28, 0, 342),
 	BackgroundTransparency = 1,
-}, content)
+}, menu)
 
-local typeRow = new("Frame", { Name = "TypeRow", Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1 }, side)
-text(typeRow, 30 / CONFIG.FontScale, { Size = UDim2.fromOffset(100, 30), Text = "Type", TextTransparency = 0.3 })
+local typeRow = new("Frame", { Name = "TypeRow", Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1 }, side)
+text(typeRow, 30 / CONFIG.FontScale, { Size = UDim2.fromOffset(100, 40), Text = "Type", TextTransparency = 0.3 })
 local typeButtons = {}
 do
-	local right = 290
+	local right = 0
 	for _, entry in ipairs({ { "stone", "Stone" }, { "wood", "Wood" } }) do
-		local width = math.ceil(textWidth(entry[2], 17)) + 30
-		right -= width
-		local pill = new("TextButton", {
-			Name = entry[2],
-			Position = UDim2.new(1, right - 290, 0, 0),
-			Size = UDim2.fromOffset(width, 30),
-			BackgroundColor3 = WHITE,
-			BackgroundTransparency = 0.93,
-			AutoButtonColor = false,
-			FontFace = FONT,
-			TextSize = ts(17),
-			TextColor3 = CONFIG.Text,
-			Text = entry[2],
-		}, typeRow)
-		corner(pill, 15)
-		typeButtons[entry[1]] = pill
-		right -= 6
+		local button = pill(typeRow, entry[2], entry[2])
+		local w = math.ceil(textWidth(entry[2], 30 / CONFIG.FontScale)) + 30
+		right -= w
+		button.TextSize = ts(30 / CONFIG.FontScale)
+		button.Size = UDim2.fromOffset(w, 40)
+		button.Position = UDim2.new(1, right, 0, 0)
+		right -= 8
+		typeButtons[entry[1]] = button
 	end
 end
 
@@ -626,9 +676,19 @@ local materialAmount = text(materialRow, 22, {
 	TextXAlignment = Enum.TextXAlignment.Right,
 })
 
+local noRecipe = new("Frame", {
+	Name = "NoRecipe",
+	Size = UDim2.new(1, 0, 0, 56),
+	BackgroundTransparency = 1,
+	Visible = false,
+}, side)
+corner(noRecipe, 10)
+new("UIStroke", { Color = CONFIG.Text, Thickness = 2, Transparency = 0.8, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, noRecipe)
+text(noRecipe, 18, { Position = UDim2.fromOffset(16, 0), Size = UDim2.new(1, -32, 0, 56), Text = "Recipe not set yet", TextTransparency = 0.25 })
+
 local selectButton = new("TextButton", {
 	Name = "Select",
-	Position = UDim2.fromOffset(0, 165),
+	Position = UDim2.fromOffset(0, 290),
 	Size = UDim2.new(1, 0, 0, 52),
 	BackgroundColor3 = CONFIG.Accent,
 	AutoButtonColor = false,
@@ -952,20 +1012,36 @@ local function isMobile()
 	return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 end
 
+local tabsLaidOut = nil
 local function updateMenuLayout()
 	local camera = workspace.CurrentCamera
 	if not camera then
 		return
 	end
 	local viewport = camera.ViewportSize
-	local safe = gui.AbsoluteSize
-	local sc = math.min(safe.X / CONFIG.DesignWidth, safe.Y / CONFIG.DesignHeight)
-	local top = GuiService:GetGuiInset().Y + 6
-	local scale = math.min(sc, (viewport.Y - top - 8) / MENU_H)
-	local half = MENU_H * scale / 2
-	local centerY = math.max(viewport.Y / 2, top + half)
+	local topInset = GuiService:GetGuiInset().Y
+	local sc = math.min(viewport.X / INV.DesignWidth, viewport.Y / INV.DesignHeight)
+	local touchOnly = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local hb = sc * (touchOnly and INV.HotbarTouchBoost or INV.HotbarBoost)
+	local top = math.max(topInset, 48 * sc) + 2 * sc
+	local bottom = viewport.Y - (14 + INV.HotbarSlot) * hb - (28 + INV.ExtraH) * sc
+	local availH = math.max(100, bottom - top)
+	local availW = viewport.X - 16 * sc
+	local fitH = math.min(sc, availH / INV.MenuH)
+	stretch = math.clamp((viewport.X * INV.MenuWidthFraction / fitH - INV.PanelGap) / INV.PanelsW, 1, INV.MaxWidthStretch)
+	local invMenuW = INV.PanelsW * stretch + INV.PanelGap
+	local scale = math.min(fitH, availW / invMenuW)
+	local panelWidth = PANEL_W * stretch
+	menuHolder.Size = UDim2.fromOffset(panelWidth, PANEL_H)
 	menuScale.Scale = scale
-	menuHolder.Position = UDim2.fromOffset(math.floor(viewport.X / 2 + 0.5), math.floor(centerY + 0.5))
+	menuHolder.Position = UDim2.fromOffset(viewport.X / 2, top + availH / 2)
+	for _, tile in ipairs(allTiles) do
+		tile.Size = UDim2.fromOffset(90 * stretch, 100)
+	end
+	if tabsLaidOut ~= panelWidth then
+		tabsLaidOut = panelWidth
+		layoutTabs(panelWidth)
+	end
 end
 
 local function pieceDesc(tab, name, stone)
@@ -989,34 +1065,31 @@ local function costInfo(name, stone)
 	return { material = material, amount = amount, have = have, ok = have >= amount }
 end
 
-local function layoutPreview(desc, pictureSize)
-	local columnWidth = (menuWidth - 28 - 12) / 2
-	local center = columnWidth / 2
-	local textWidthMax = columnWidth - 28
+local function layoutPreview()
 	local descHeight = 0
-	if desc ~= "" then
-		descHeight = TextService:GetTextSize(desc, ts(15), CONFIG.FontEnum, Vector2.new(textWidthMax, 1000)).Y
+	if previewDesc.Text ~= "" then
+		descHeight = TextService:GetTextSize(previewDesc.Text, previewDesc.TextSize, CONFIG.FontEnum, Vector2.new(240, 2000)).Y
 	end
-	local total = 104 + 2 + 26 + 2 + 19 + (desc ~= "" and (4 + descHeight) or 0)
-	local y = (217 - total) / 2
-	previewPicture.Size = UDim2.fromOffset(pictureSize, pictureSize)
-	previewPicture.Position = UDim2.fromOffset(center, y + 52)
-	y += 104 + 2
-	previewName.Position = UDim2.fromOffset(center, y)
-	y += 26 + 2
-	previewCategory.Position = UDim2.fromOffset(center, y)
-	y += 19 + 4
-	previewDesc.Position = UDim2.fromOffset(center, y)
-	previewDesc.Size = UDim2.fromOffset(textWidthMax, descHeight)
-	previewDesc.Visible = desc ~= ""
+	local descHolderHeight = 13 + 12 + descHeight
+	local gap = 4
+	local total = 164 + 31 + 22 + descHolderHeight + gap * 3
+	local y = (342 - total) / 2
+	previewIconHolder.Position = UDim2.new(0.5, 0, 0, y)
+	y += 164 + gap
+	previewNameHolder.Position = UDim2.new(0.5, 0, 0, y)
+	y += 31 + gap
+	previewCategoryHolder.Position = UDim2.new(0.5, 0, 0, y)
+	y += 22 + gap
+	previewDescHolder.Position = UDim2.new(0.5, 0, 0, y)
+	previewDescHolder.Size = UDim2.fromOffset(240, descHolderHeight)
 end
 
 local function renderMenu()
-	for name, pill in pairs(tabButtons) do
+	for name, button in pairs(tabButtons) do
 		local on = name == state.tab
-		pill.BackgroundColor3 = on and CONFIG.Accent or WHITE
-		pill.BackgroundTransparency = on and 0 or 0.93
-		pill.TextColor3 = on and CONFIG.Ink or CONFIG.Text
+		button.BackgroundColor3 = on and CONFIG.Accent or WHITE
+		button.BackgroundTransparency = on and 0 or 0.93
+		button.TextColor3 = on and CONFIG.Ink or CONFIG.Text
 	end
 	local structure = isStructure(state.tab)
 	local stone = structure and state.stone
@@ -1026,7 +1099,7 @@ local function renderMenu()
 	for name, tile in pairs(tiles[state.tab]) do
 		local on = name == state.selected
 		tile.Stroke.Transparency = on and 0 or 1
-		tile.Button.BackgroundTransparency = on and 0.9 or 0.93
+		tile.Button.BackgroundTransparency = on and 0.88 or 0.95
 		tile.Picture.Image = pieceImage(name, stone, structure)
 	end
 
@@ -1034,37 +1107,32 @@ local function renderMenu()
 	previewPicture.Image = pieceImage(name, stone, structure)
 	previewName.Text = fullName(name, stone, structure)
 	previewCategory.Text = state.tab
-	local desc = pieceDesc(state.tab, name, stone)
-	previewDesc.Text = desc
-	layoutPreview(desc, structure and 104 or 84)
+	previewDesc.Text = pieceDesc(state.tab, name, stone)
+	layoutPreview()
 
 	typeRow.Visible = structure
-	for key, pill in pairs(typeButtons) do
+	for key, button in pairs(typeButtons) do
 		local on = (key == "stone") == state.stone
-		pill.BackgroundColor3 = on and CONFIG.Accent or WHITE
-		pill.BackgroundTransparency = on and 0 or 0.93
-		pill.TextColor3 = on and CONFIG.Ink or CONFIG.Text
+		button.BackgroundColor3 = on and CONFIG.Accent or WHITE
+		button.BackgroundTransparency = on and 0 or 0.93
+		button.TextColor3 = on and CONFIG.Ink or CONFIG.Text
 	end
-	local top = structure and 37 or 0
-	materialsLabel.Position = UDim2.fromOffset(0, top + 2)
-	materialRow.Position = UDim2.fromOffset(0, top + 29)
+	local top = structure and 52 or 0
+	materialsLabel.Position = UDim2.fromOffset(0, top)
+	materialRow.Position = UDim2.fromOffset(0, top + 31)
+	noRecipe.Position = UDim2.fromOffset(0, top + 31)
 
 	local cost = costInfo(name, stone)
+	materialRow.Visible = cost ~= nil
+	noRecipe.Visible = cost == nil
 	if cost then
 		materialIcon.Image = CONFIG.MaterialIcons[cost.material] or ""
-		materialIcon.Visible = true
 		materialName.Text = cost.material
 		materialStatus.Text = cost.ok and "Ready" or ("Need " .. (cost.amount - cost.have) .. " more")
 		materialStatus.TextColor3 = cost.ok and CONFIG.Accent or CONFIG.Red
 		materialAmount.Text = cost.have .. " / " .. cost.amount
 		materialAmount.TextColor3 = cost.ok and CONFIG.Text or CONFIG.Red
-	else
-		materialIcon.Visible = false
-		materialName.Text = "No recipe yet"
-		materialStatus.Text = ""
-		materialAmount.Text = ""
 	end
-	materialName.Position = UDim2.fromOffset(cost and 64 or 16, cost and 4 or 16)
 
 	local can = cost ~= nil and cost.ok
 	selectButton.Active = can
@@ -1072,7 +1140,7 @@ local function renderMenu()
 	selectButton.BackgroundTransparency = can and 0 or 0.92
 	selectButton.TextColor3 = can and CONFIG.Ink or CONFIG.Text
 	selectButton.TextTransparency = can and 0 or 0.4
-	selectButton.Text = can and "Select" or (cost and "Missing materials" or "Not available yet")
+	selectButton.Text = can and "Select" or (cost and "Missing materials" or "Recipe not set")
 end
 
 local function renderPieceMenu()
