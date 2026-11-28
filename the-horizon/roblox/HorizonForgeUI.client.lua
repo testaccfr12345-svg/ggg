@@ -52,6 +52,7 @@ local CONFIG = {
 	},
 
 	ForgeSlots = 16,
+	DoubleTapTime = 0.35,
 	ForgeTitle = "Refining Forge",
 	TestFuelItems = { planks = true },
 	TestBurnTime = 16,
@@ -141,6 +142,7 @@ local pick = nil
 local hold = nil
 local tapGuardUntil = 0
 local isOpen = false
+local lastTap = nil
 
 local function new(className, props, parent)
 	local object = Instance.new(className)
@@ -513,12 +515,20 @@ end
 
 local storagePanel = panel(panels, "ForgePanel", INV_W + PANEL_GAP, 0, STORAGE_W, 560)
 storagePanel.Active = true
-text(storagePanel, { Position = UDim2.fromOffset(20, 11), Size = UDim2.fromOffset(300, 32), Text = CONFIG.ForgeTitle, TextSize = 44 / CONFIG.FontScale })
+for _, child in ipairs(invPanel:GetChildren()) do
+	if child:IsA("TextLabel") and child.Text == "Inventory" then
+		local forgeTitle = child:Clone()
+		forgeTitle.Name = "ForgeTitle"
+		forgeTitle.Text = CONFIG.ForgeTitle
+		forgeTitle.Parent = storagePanel
+		break
+	end
+end
 
 local headerRight = new("Frame", {
 	Name = "HeaderRight",
 	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -74, 0, 10),
+	Position = UDim2.new(1, -71, 0, 10),
 	Size = UDim2.fromOffset(0, 32),
 	AutomaticSize = Enum.AutomaticSize.X,
 	BackgroundTransparency = 1,
@@ -538,18 +548,18 @@ local forgeStatus = text(headerRight, {
 	TextColor3 = CONFIG.Accent,
 	Visible = false,
 })
-local storageCount = text(headerRight, {
-	LayoutOrder = 2,
-	Size = UDim2.fromOffset(0, 32),
-	AutomaticSize = Enum.AutomaticSize.X,
-	TextSize = 32 / CONFIG.FontScale,
+local storageCount = text(storagePanel, {
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -20, 0, 63),
+	Size = UDim2.fromOffset(120, 24),
+	TextSize = 28 / CONFIG.FontScale,
 	TextTransparency = 0.3,
 	TextXAlignment = Enum.TextXAlignment.Right,
 })
 
 local closeButton = textButton(storagePanel, {
 	Name = "Close",
-	Position = UDim2.new(1, -61, 0, 7),
+	Position = UDim2.new(1, -59, 0, 17),
 	Size = UDim2.fromOffset(41, 41),
 	BackgroundColor3 = Color3.new(1, 1, 1),
 	BackgroundTransparency = 0.93,
@@ -559,7 +569,7 @@ for _, rotation in ipairs({ 45, -45 }) do
 	local line = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(3, 17),
+		Size = UDim2.fromOffset(3, 16),
 		Rotation = rotation,
 		BackgroundColor3 = CONFIG.Text,
 		BorderSizePixel = 0,
@@ -567,7 +577,7 @@ for _, rotation in ipairs({ 45, -45 }) do
 	corner(line, 2)
 end
 
-local GRID_TOP = 66
+local GRID_TOP = 92
 local BUTTON_Y = 560 + INV_EXTRA_H - 20 - 52
 
 local storageSlots = {}
@@ -813,6 +823,9 @@ local function updateScale()
 	applyStretch(math.clamp((viewport.X * CONFIG.MenuWidthFraction / fitH - PANEL_GAP) / (INV_W + STORAGE_W), 1, CONFIG.MaxWidthStretch))
 	local menuScale = math.min(fitH, availW / MENU_W)
 	canvasScale.Scale = menuScale
+	local snapped = math.floor((INV_W * stretch + PANEL_GAP) * menuScale + 0.5) / menuScale
+	STORAGE_HOME = UDim2.fromOffset(snapped, 0)
+	storagePanel.Position = STORAGE_HOME
 	canvas.Position = UDim2.fromOffset(viewport.X / 2, top + availH / 2)
 end
 local cameraConnection
@@ -1174,6 +1187,7 @@ local function setOpen(open, kind)
 	stopMenuTweens()
 	if open then
 		forge.Id = kind
+		lastTap = nil
 		ForgeHooks.OpenForge(kind)
 		updateScale()
 		layoutStorageSlots()
@@ -1425,16 +1439,37 @@ local function moveAll(area)
 	afterItemsChanged()
 end
 
-local function tapSlot(area, index, amount)
+local function tapSlot(area, index)
 	if not isOpen then
 		return
 	end
-	pick = nil
-	if slotsOf(area)[index] and quickMove(area, index, false, false, amount) then
-		afterItemsChanged()
-	else
-		refreshSlots()
+	local now = os.clock()
+	local entry = slotsOf(area)[index]
+	local double = lastTap ~= nil and lastTap.area == area and lastTap.i == index and now - lastTap.t < CONFIG.DoubleTapTime
+	lastTap = { area = area, i = index, t = now }
+	if double and entry then
+		lastTap = nil
+		pick = nil
+		if quickMove(area, index) then
+			afterItemsChanged()
+		else
+			refreshSlots()
+		end
+		return
 	end
+	if not pick then
+		if entry then
+			pick = { area = area, i = index }
+			refreshSlots()
+		end
+		return
+	end
+	if pick.area == area and pick.i == index then
+		pick = nil
+		refreshSlots()
+		return
+	end
+	moveTo(area, index)
 end
 
 local function tapEquip(slotName, fromGhost, force)
@@ -1680,13 +1715,16 @@ local function endPress()
 	if h.done or h.shown then
 		tapGuardUntil = now + TAP_GUARD
 		if not h.done and h.kind == "pick" then
-			tapSlot(h.area, h.i, h.amount)
-			return
+			pick = { area = h.area, i = h.i, n = h.amount < h.total and h.amount or nil }
 		end
 		refreshSlots()
 		return
 	end
 	if now < tapGuardUntil then
+		return
+	end
+	if isOpen and pc and h.input.UserInputType == Enum.UserInputType.MouseButton1 then
+		pc.click(h.area, h.i)
 		return
 	end
 	tapSlot(h.area, h.i)
