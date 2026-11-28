@@ -31,11 +31,16 @@ local CONFIG = {
 	DesignHeight = 414,
 	Icons = {
 		Wood = "",
-		Planks = "",
-		Stone = "",
+		Planks = "rbxassetid://78387750873126",
+		Stone = "rbxassetid://127351259030040",
 		Thatch = "",
-		Fiber = "",
-		Rope = "",
+		Fiber = "rbxassetid://85899584797851",
+		Rope = "rbxassetid://94728420315409",
+		Leaves = "rbxassetid://94252892154991",
+		Scrap = "rbxassetid://123247338574784",
+		Plastic = "rbxassetid://126538877519520",
+		Nails = "rbxassetid://100720163739756",
+		Hide = "rbxassetid://137106848150031",
 	},
 }
 
