@@ -46,7 +46,7 @@ designed vs. actually working and the rules for working on this project.
   Added cream, removed rgb 224,122,110 (icon tinted). Newest on top, max 4, rank alpha 1/0.8/0.55/0.35, 3s then fade, same item+sign merges and resets timer.
 - Hook (no comments allowed): other LocalScripts call `shared.ItemFeed.Add(itemName, amount)` (amount < 0 = removed), or fire the BindableEvent
   `PlayerGui.HorizonItemFeed.ItemFeedAdd`. The inventory should call it wherever items are added/removed (addItem/removeItem/drop etc.).
-- `SHOW_TEST_BUTTONS = true` shows a Frame "TestButtons" (+ Item / - Item) on the left middle. Icons: `design/feed_icons/*.png` (cream, user uploads IDs into CONFIG.Icons).
+- `SHOW_TEST_BUTTONS = true` shows a Frame "TestButtons" (+ Item / - Item) on the left middle. Icons: the user supplies their own IDs in CONFIG.Icons. Do NOT make icons for the user unless asked.
 
 ## Decisions the user made (keep these)
 **Colours and font**
