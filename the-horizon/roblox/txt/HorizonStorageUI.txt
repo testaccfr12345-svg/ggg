@@ -505,10 +505,10 @@ end
 
 local storagePanel = panel(panels, "StoragePanel", INV_W + PANEL_GAP, 0, STORAGE_W, 560)
 storagePanel.Active = true
-local storageTitle = text(storagePanel, { Position = UDim2.fromOffset(20, 11), Size = UDim2.fromOffset(300, 32), Text = "Small Storage", TextSize = 44 / CONFIG.FontScale })
+local storageTitle = text(storagePanel, { Position = UDim2.fromOffset(20, 11), Size = UDim2.fromOffset(300, 32), Text = "Small Storage", TextSize = 40 / CONFIG.FontScale })
 local storageCount = text(storagePanel, {
 	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -68, 0, 10),
+	Position = UDim2.new(1, -74, 0, 10),
 	Size = UDim2.fromOffset(120, 32),
 	TextSize = 32 / CONFIG.FontScale,
 	TextTransparency = 0.3,
@@ -517,8 +517,8 @@ local storageCount = text(storagePanel, {
 
 local closeButton = textButton(storagePanel, {
 	Name = "Close",
-	Position = UDim2.new(1, -56, 0, 9),
-	Size = UDim2.fromOffset(36, 36),
+	Position = UDim2.new(1, -61, 0, 7),
+	Size = UDim2.fromOffset(41, 41),
 	BackgroundColor3 = Color3.new(1, 1, 1),
 	BackgroundTransparency = 0.93,
 })
@@ -527,7 +527,7 @@ for _, rotation in ipairs({ 45, -45 }) do
 	local line = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(3, 15),
+		Size = UDim2.fromOffset(3, 17),
 		Rotation = rotation,
 		BackgroundColor3 = CONFIG.Text,
 		BorderSizePixel = 0,
