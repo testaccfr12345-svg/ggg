@@ -41,6 +41,13 @@ designed vs. actually working and the rules for working on this project.
   interaction-prompt styling (UIShadow, keycap rgb 37,30,24). Own ScreenGui "HorizonBuildPieceMenu"; its bottom sits above the inventory hotbar and the held-item name (same hotbar math), scale like the prompt.
 - `ShowWithoutHammer = true` is a test switch (UI shows without the hammer). Place prompt = exact copy of the user's HorizonInteractionPrompt script (own ScreenGui "HorizonBuildPrompt", same settings, UIShadow, haze, fade). Text "PLACE WOODEN WALL"; keycap TAP on mobile, CLICK on PC (box widens to fit CLICK). The cost line under it was dropped to match their prompt.
 
+## Item feed (UI only, separate LocalScript)
+- `roblox/HorizonItemFeed.client.lua` (+ txt): top-centre feed of added/removed items (ref 896x414 safe area, 14px from top). No panel; 16px icon + Patrick Hand text with UIShadow.
+  Added cream, removed rgb 224,122,110 (icon tinted). Newest on top, max 4, rank alpha 1/0.8/0.55/0.35, 3s then fade, same item+sign merges and resets timer.
+- Hook (no comments allowed): other LocalScripts call `shared.ItemFeed.Add(itemName, amount)` (amount < 0 = removed), or fire the BindableEvent
+  `PlayerGui.HorizonItemFeed.ItemFeedAdd`. The inventory should call it wherever items are added/removed (addItem/removeItem/drop etc.).
+- `SHOW_TEST_BUTTONS = true` shows a Frame "TestButtons" (+ Item / - Item) on the left middle. Icons: `design/feed_icons/*.png` (cream, user uploads IDs into CONFIG.Icons).
+
 ## Decisions the user made (keep these)
 **Colours and font**
 - **Accent is yellow** `#E9B949` (RGB 233,185,73). No teal or second accent colour, and no black/white-only theme. The user rejected both.
