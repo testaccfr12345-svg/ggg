@@ -628,13 +628,14 @@ local confirmBox = new("Frame", {
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Size = UDim2.fromOffset(444, 200),
 	BackgroundColor3 = CONFIG.PanelColor,
-	BackgroundTransparency = CONFIG.PanelTransparency,
+	BackgroundTransparency = 0.08,
 	BorderSizePixel = 0,
 	Active = true,
 	Visible = false,
 	ZIndex = 21,
 }, gui)
 corner(confirmBox, 14)
+local confirmStroke = stroke(confirmBox, CONFIG.Text, 1, 0.9)
 local confirmScale = new("UIScale", {}, confirmBox)
 local confirmTitle = text(confirmBox, {
 	Position = UDim2.fromOffset(20, 18),
@@ -680,9 +681,10 @@ local confirmArea = nil
 local confirmFade = new("NumberValue", { Value = 0 }, confirmBox)
 local function applyConfirmFade()
 	local a = confirmFade.Value
-	confirmShade.BackgroundTransparency = 1 - 0.45 * a
-	confirmBox.BackgroundTransparency = 1 - (1 - CONFIG.PanelTransparency) * a
+	confirmShade.BackgroundTransparency = 1 - 0.5 * a
+	confirmBox.BackgroundTransparency = 1 - 0.92 * a
 	confirmTitle.TextTransparency = 1 - a
+	confirmStroke.Transparency = 1 - 0.1 * a
 	confirmBody.TextTransparency = 1 - 0.85 * a
 	confirmCancel.BackgroundTransparency = 1 - 0.07 * a
 	confirmCancel.TextTransparency = 1 - a
@@ -1358,7 +1360,7 @@ local function moveTo(area, index, fromGhost)
 	return true
 end
 
-local function quickMove(area, index, keepFlyers)
+local function quickMove(area, index, keepFlyers, instant)
 	local fromList = slotsOf(area)
 	local entry = fromList[index]
 	if not entry then
@@ -1376,10 +1378,16 @@ local function quickMove(area, index, keepFlyers)
 		local target = toList[i]
 		if target and target.id == id then
 			local dst = slotUi(toArea, i)
-			dst.FrozenCount = dst.FrozenCount or dst.Count.Text
+			if not instant then
+				dst.FrozenCount = dst.FrozenCount or dst.Count.Text
+			end
 			target.n += entry.n
 			entry.n = 0
-			flyInto(id, fromAbs, dst, dst.Icon.Image, false, false)
+			if instant then
+				dst.FrozenCount = nil
+			else
+				flyInto(id, fromAbs, dst, dst.Icon.Image, false, false)
+			end
 			moved = true
 			break
 		end
@@ -1389,8 +1397,10 @@ local function quickMove(area, index, keepFlyers)
 			if not toList[i] then
 				toList[i] = { id = id, n = entry.n }
 				entry.n = 0
-				local dst = slotUi(toArea, i)
-				flyInto(id, fromAbs, dst, dst.Icon.Image, true, false)
+				if not instant then
+					local dst = slotUi(toArea, i)
+					flyInto(id, fromAbs, dst, dst.Icon.Image, true, false)
+				end
 				moved = true
 				break
 			end
@@ -1410,7 +1420,7 @@ local function moveAll(area)
 	pick = nil
 	for index = 1, sizeOf(area) do
 		if slotsOf(area)[index] then
-			quickMove(area, index, true)
+			quickMove(area, index, true, true)
 		end
 	end
 	afterItemsChanged()
