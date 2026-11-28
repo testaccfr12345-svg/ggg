@@ -45,7 +45,7 @@ local CONFIG = {
 	},
 }
 
-local TEST_ITEMS = { "Wood", "Planks", "Stone", "Thatch", "Fiber", "Rope" }
+local TEST_ITEMS = { "Planks", "Stone", "Leaves" }
 
 local FONT = Font.fromEnum(CONFIG.FontEnum)
 
