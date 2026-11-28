@@ -57,6 +57,16 @@ designed vs. actually working and the rules for working on this project.
 - PC: same Minecraft controls as the inventory on both sides; Shift+click moves the whole stack to the other side (StorageModule.attachPC uses api.list(area) and api.quickMove).
 - Same freeze, dim, blur and open/close animation as the inventory. `SHOW_TEST_BUTTONS = true` shows a Frame "TestButtons" (Small / Large) on the left to open them.
 
+## Refining Forge (UI only, separate LocalScript)
+- `roblox/HorizonForgeUI.client.lua` (+ txt): copy of the chest script; needs the SAME `StorageModule` ModuleScript inside it (identical file). No hotbar.
+  Right panel = forge (same size as the inventory panel): "Refining Forge" title (same style as "Inventory"), yellow "Refining... (0:16)" status only while burning,
+  "used / 16", X; 16 backpack-style slots (6 per row) under the header; help text above the buttons; Fire button (No fuel grey / Light fire / Put out fire) + Take all (confirm box like the chest).
+- Tap = moves the whole stack straight to the other side (no pick). Hold = amount bar, release moves that amount. Drag works. PC click = same as tap; Shift+click too.
+  Full backpack/forge = nothing moves + toast "Backpack is full"/"Forge is full". Backpack hint "Tap ore or fuel to put it in". Tab or X closes.
+- Hooks (no comments allowed): `ForgeHooks.OpenForge(forgeId)`, `MoveToForge(slot, amount)`, `TakeFromForge(slot, amount)`, `TakeAll()`, `LightFire()`, `PutOutFire()` (all empty);
+  BindableEvents in PlayerGui.HorizonForgeUI: `OpenForge:Fire(forgeId)`, `CloseForge:Fire()` (walking away), `SetForgeState:Fire({ Items = {[slot]={id,n}}, HasFuel, Burning, TimeLeft })`.
+- Test mode (`SHOW_TEST_BUTTONS = true`): "Forge" button opens it with demo items; planks count as fuel; Light fire runs a fake 16s countdown display.
+
 ## Decisions the user made (keep these)
 **Colours and font**
 - **Accent is yellow** `#E9B949` (RGB 233,185,73). No teal or second accent colour, and no black/white-only theme. The user rejected both.
