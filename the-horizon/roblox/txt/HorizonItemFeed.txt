@@ -20,13 +20,14 @@ local CONFIG = {
 	TextSize = 16,
 	IconSize = 16,
 	LetterSpacing = 0.6,
-	Top = 14,
+	Top = 8,
 	LineHeight = 25,
-	MaxLines = 4,
-	RankAlpha = { 1, 0.8, 0.55, 0.35 },
-	ShowTime = 3,
-	FadeInTime = 0.2,
-	FadeOutTime = 0.4,
+	MaxLines = 3,
+	RankAlpha = { 1, 0.7, 0.4 },
+	ShowTime = 2,
+	FadeInTime = 0.18,
+	FadeOutTime = 0.25,
+	MoveTime = 0.18,
 	DesignWidth = 896,
 	DesignHeight = 414,
 	Icons = {
@@ -100,16 +101,28 @@ updateScale()
 local lines = {}
 
 local function applyLine(line)
-	local alpha = line.Fade.Value * (CONFIG.RankAlpha[line.Rank] or 0)
+	local alpha = line.Fade.Value * line.RankAlpha.Value
 	line.Label.TextTransparency = 1 - alpha
 	line.Icon.ImageTransparency = 1 - alpha
 	line.Shadow.Transparency = 1 - 0.6 * alpha
 end
 
+local MOVE = TweenInfo.new(CONFIG.MoveTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local function layout()
 	for index, line in ipairs(lines) do
+		local position = UDim2.new(0.5, 0, 0, CONFIG.Top + (index - 1) * CONFIG.LineHeight)
+		local rankAlpha = CONFIG.RankAlpha[index] or 0
+		if line.Placed then
+			if line.Rank ~= index then
+				TweenService:Create(line.Frame, MOVE, { Position = position }):Play()
+				TweenService:Create(line.RankAlpha, MOVE, { Value = rankAlpha }):Play()
+			end
+		else
+			line.Placed = true
+			line.Frame.Position = position
+			line.RankAlpha.Value = rankAlpha
+		end
 		line.Rank = index
-		line.Frame.Position = UDim2.new(0.5, 0, 0, CONFIG.Top + (index - 1) * CONFIG.LineHeight)
 		applyLine(line)
 	end
 end
@@ -196,6 +209,7 @@ local function makeLine(item, amount)
 		Transparency = 1,
 	}, label)
 	local fade = new("NumberValue", { Value = 0 }, frame)
+	local rankAlpha = new("NumberValue", { Value = 1 }, frame)
 	local line = {
 		Item = item,
 		Added = amount > 0,
@@ -205,11 +219,16 @@ local function makeLine(item, amount)
 		Label = label,
 		Shadow = shadow,
 		Fade = fade,
+		RankAlpha = rankAlpha,
+		Placed = false,
 		Rank = 1,
 		Token = 0,
 		Removed = false,
 	}
 	fade.Changed:Connect(function()
+		applyLine(line)
+	end)
+	rankAlpha.Changed:Connect(function()
 		applyLine(line)
 	end)
 	setText(line)
@@ -222,15 +241,6 @@ function ItemFeed.Add(itemName, amount)
 	amount = math.floor(tonumber(amount) or 0)
 	if amount == 0 or type(itemName) ~= "string" or itemName == "" then
 		return
-	end
-	local added = amount > 0
-	for _, line in ipairs(lines) do
-		if line.Item == itemName and line.Added == added and not line.Removed then
-			line.Amount += amount
-			setText(line)
-			startTimer(line)
-			return
-		end
 	end
 	local line = makeLine(itemName, amount)
 	table.insert(lines, 1, line)
