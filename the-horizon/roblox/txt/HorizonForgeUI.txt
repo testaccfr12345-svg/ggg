@@ -22,6 +22,7 @@ local SHOW_TEST_BUTTONS = true
 
 local CONFIG = {
 	ToggleKey = Enum.KeyCode.Tab,
+	Tuner = true,
 	Accent = Color3.fromRGB(233, 185, 73),
 	Text = Color3.fromRGB(237, 232, 220),
 	DarkText = Color3.fromRGB(27, 26, 20),
@@ -1716,3 +1717,10 @@ isOpen = true
 setOpen(false)
 panels.Visible = false
 dim.Visible = false
+
+if CONFIG.Tuner then
+	local tunerModule = script:FindFirstChild("ForgeTuner")
+	if tunerModule then
+		require(tunerModule)(gui, CONFIG, ITEMS, storagePanel)
+	end
+end

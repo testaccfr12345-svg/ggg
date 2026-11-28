@@ -67,6 +67,7 @@ designed vs. actually working and the rules for working on this project.
   Full backpack/forge = nothing moves + toast "Backpack is full"/"Forge is full". Backpack hint "Tap ore or fuel to put it in". Tab or X closes.
 - Hooks (no comments allowed): `ForgeHooks.OpenForge(forgeId)`, `MoveToForge(slot, amount)`, `TakeFromForge(slot, amount)`, `TakeAll()`, `LightFire()`, `PutOutFire()` (all empty);
   BindableEvents in PlayerGui.HorizonForgeUI: `OpenForge:Fire(forgeId)`, `CloseForge:Fire()` (walking away), `SetForgeState:Fire({ Items = {[slot]={id,n}}, HasFuel, Burning, TimeLeft })`.
+- Tuner: `ForgeTuner` ModuleScript (old UI tuner + optional 4th arg `root`) inside the forge script, `CONFIG.Tuner = true`; it can only pick things inside the forge panel (user: forge side only). HZT values from it apply to the forge panel only.
 - Test mode (`SHOW_TEST_BUTTONS = true`): "Forge" button opens it with demo items; planks count as fuel; Light fire runs a fake 16s countdown display.
 
 ## Decisions the user made (keep these)
