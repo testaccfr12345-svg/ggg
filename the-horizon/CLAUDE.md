@@ -49,16 +49,16 @@ designed vs. actually working and the rules for working on this project.
 - `SHOW_TEST_BUTTONS = true` shows a Frame "TestButtons" (+ Item / - Item) on the left middle. Icons: the user supplies their own IDs in CONFIG.Icons. Do NOT make icons for the user unless asked.
 
 ## Storage / chests (UI only, separate LocalScript)
-- `roblox/HorizonStorageUI.client.lua` (LocalScript, StarterPlayerScripts) + `roblox/StorageModule.module.lua` (ModuleScript named `StorageModule` INSIDE it).
+- `roblox/HorizonStorageUI.client.lua` (LocalScript, StarterPlayerScripts) + `roblox/ChestModule.module.lua` (ModuleScript named `ChestModule` INSIDE it).
   Built from a copy of the inventory script: inventory panel unchanged, crafting removed, right panel = storage (same width as the inventory panel, like the user's mockup).
   NO hotbar in this script (user: only inventory + chest). Own demo backpack (no server yet). Small = 18 slots, Large = 36 (scrolls, vertical edge fade in a CanvasGroup like the build tiles).
 - Storage panel: title "Small Storage"/"Large Storage", "used / size", X (only way to close), "Storage" label + hint, grid, Take all and Store all both yellow (same style). Both ask "Take/Store everything?" in a confirm box first (darker rgb 10,13,12 @ 0.05, 25% bigger than the panels scale, NO outline ever; Cancel + yellow button). Moving everything is instant (no flying animation). Take/Store all = backpack only.
 - Mobile: tap = pick, tap a slot = move there, double tap (0.35s) = move whole stack to the other side, hold = amount bar, drag works. Vertical swipe on a chest item scrolls instead of dragging.
-- PC: same Minecraft controls as the inventory on both sides; Shift+click moves the whole stack to the other side (StorageModule.attachPC uses api.list(area) and api.quickMove).
+- PC: same Minecraft controls as the inventory on both sides; Shift+click moves the whole stack to the other side (ChestModule.attachPC uses api.list(area) and api.quickMove).
 - Same freeze, dim, blur and open/close animation as the inventory. `SHOW_TEST_BUTTONS = true` shows a Frame "TestButtons" (Small / Large) on the left to open them.
 
 ## Refining Forge (UI only, separate LocalScript)
-- `roblox/HorizonForgeUI.client.lua` (+ txt): copy of the chest script; needs the SAME `StorageModule` ModuleScript inside it (identical file). No hotbar.
+- `roblox/HorizonForgeUI.client.lua` (+ txt): copy of the chest script; needs `ForgeModule` (roblox/ForgeModule.module.lua, same code as ChestModule) inside it. User wants every module named differently per script. No hotbar.
   Right panel = forge (same size as the inventory panel): "Refining Forge" title (same style as "Inventory"), yellow "Refining... (0:16)" status only while burning,
   "used / 16", X; 16 backpack-style slots (6 per row) under the header; help text above the buttons; Fire button (No fuel grey / Light fire / Put out fire) + Take all (confirm box like the chest).
 - Tap = moves the whole stack straight to the other side (no pick). Hold = amount bar, release moves that amount. Drag works. PC click = same as tap; Shift+click too.

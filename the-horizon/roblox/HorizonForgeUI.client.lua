@@ -290,7 +290,7 @@ local gui = new("ScreenGui", {
 }, playerGui)
 
 
-local motion = require(script:WaitForChild("StorageModule")).new(gui, CONFIG, ITEMS, {
+local motion = require(script:WaitForChild("ForgeModule")).new(gui, CONFIG, ITEMS, {
 	FLY_TIME = FLY_TIME,
 	FLY_START = FLY_START,
 	DRAG_SCALE = DRAG_SCALE,
