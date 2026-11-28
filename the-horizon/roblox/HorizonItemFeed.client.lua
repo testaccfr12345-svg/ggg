@@ -243,8 +243,6 @@ function ItemFeed.Add(itemName, amount)
 	startTimer(line)
 end
 
-shared.ItemFeed = ItemFeed
-
 local feedEvent = new("BindableEvent", { Name = "ItemFeedAdd" }, gui)
 feedEvent.Event:Connect(ItemFeed.Add)
 
