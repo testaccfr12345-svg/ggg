@@ -33,7 +33,7 @@ local CONFIG = {
 	HammerName = "Building Hammer",
 	TestPieceImage = "rbxassetid://137129354242963",
 	ShowWithoutHammer = true,
-	WidthTuner = true,
+	ShowPieceMenuForTesting = true,
 	ExtraWidth = 100,
 	BuildKey = Enum.KeyCode.B,
 	RotateKey = Enum.KeyCode.R,
@@ -173,6 +173,21 @@ function BuildHooks.IsHammerEquipped()
 end
 
 function BuildHooks.GetLookedAtPiece()
+	if CONFIG.ShowPieceMenuForTesting then
+		return {
+			Id = 0,
+			Name = "Wall",
+			Stone = false,
+			Structure = true,
+			Health = 60,
+			MaxHealth = 100,
+			UpgradeCost = 5,
+			RepairCost = 2,
+			RepairMaterial = "Planks",
+			Refund = 2,
+			RefundMaterial = "Planks",
+		}
+	end
 	return nil
 end
 
@@ -1289,82 +1304,6 @@ local function updateMenuLayout()
 	end
 end
 
-local tuner = nil
-if CONFIG.WidthTuner then
-	tuner = new("Frame", {
-		Name = "WidthTuner",
-		Position = UDim2.fromOffset(12, 60),
-		Size = UDim2.fromOffset(170, 74),
-		BackgroundColor3 = CONFIG.PanelColor,
-		BackgroundTransparency = 0.1,
-		Active = true,
-		Visible = false,
-		ZIndex = 50,
-	}, dimGui)
-	corner(tuner, 10)
-	new("UIStroke", { Color = CONFIG.Accent, Thickness = 1.5, Transparency = 0.3 }, tuner)
-	local title = new("TextLabel", {
-		Size = UDim2.new(1, 0, 0, 26),
-		BackgroundTransparency = 1,
-		FontFace = FONT,
-		TextSize = 18,
-		TextColor3 = CONFIG.Accent,
-		Text = "Width tuner (drag)",
-		ZIndex = 51,
-	}, tuner)
-	local value = new("TextLabel", {
-		Position = UDim2.fromOffset(50, 30),
-		Size = UDim2.fromOffset(70, 36),
-		BackgroundTransparency = 1,
-		FontFace = FONT,
-		TextSize = 22,
-		TextColor3 = CONFIG.Text,
-		ZIndex = 51,
-	}, tuner)
-	local function show()
-		value.Text = (CONFIG.ExtraWidth >= 0 and "+" or "") .. CONFIG.ExtraWidth
-	end
-	for _, entry in ipairs({ { "-", 8, -10 }, { "+", 126, 10 } }) do
-		local button = new("TextButton", {
-			Position = UDim2.fromOffset(entry[2], 30),
-			Size = UDim2.fromOffset(36, 36),
-			BackgroundColor3 = WHITE,
-			BackgroundTransparency = 0.88,
-			AutoButtonColor = false,
-			FontFace = FONT,
-			TextSize = 26,
-			TextColor3 = CONFIG.Text,
-			Text = entry[1],
-			ZIndex = 51,
-		}, tuner)
-		corner(button, 8)
-		button.Activated:Connect(function()
-			CONFIG.ExtraWidth += entry[3]
-			show()
-			updateMenuLayout()
-		end)
-	end
-	show()
-	local dragInput, dragStart, startPos = nil, nil, nil
-	title.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragInput, dragStart, startPos = input, input.Position, tuner.Position
-		end
-	end)
-	title.Active = true
-	UserInputService.InputChanged:Connect(function(input)
-		if dragInput and (input == dragInput or input.UserInputType == Enum.UserInputType.MouseMovement) then
-			local delta = input.Position - dragStart
-			tuner.Position = UDim2.fromOffset(startPos.X.Offset + delta.X, startPos.Y.Offset + delta.Y)
-		end
-	end)
-	UserInputService.InputEnded:Connect(function(input)
-		if input == dragInput or (dragInput and input.UserInputType == Enum.UserInputType.MouseButton1) then
-			dragInput = nil
-		end
-	end)
-end
-
 local leftEdge = new("NumberValue", { Value = 0 }, stripFade)
 local rightEdge = new("NumberValue", { Value = 0 }, stripFade)
 local function drawEdges()
@@ -1727,9 +1666,6 @@ local function setMenu(open, instant)
 		openScale.Scale = 0.985
 		menu.Visible = true
 		dim.Visible = true
-		if tuner then
-			tuner.Visible = true
-		end
 		fadeTween(openScale, 0.26, { Scale = 1 }, Quint, Out)
 		fadeTween(fadeValue, 0.2, { Value = 1 }, Sine, Out)
 		local fadeIn = fadeTween(textFadeValue, 0.2, { Value = 1 }, Sine, Out)
@@ -1744,9 +1680,6 @@ local function setMenu(open, instant)
 		endFade()
 		menu.Visible = false
 		dim.Visible = false
-		if tuner then
-			tuner.Visible = false
-		end
 		dim.BackgroundTransparency = 1
 		blur.Size = 0
 		openScale.Scale = 1
@@ -1763,9 +1696,6 @@ local function setMenu(open, instant)
 			if playback == Enum.PlaybackState.Completed and not state.menuOpen then
 				menu.Visible = false
 				dim.Visible = false
-				if tuner then
-					tuner.Visible = false
-				end
 				endFade()
 				openScale.Scale = 1
 			end
