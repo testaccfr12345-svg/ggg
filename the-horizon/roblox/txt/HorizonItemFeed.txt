@@ -119,8 +119,9 @@ local function layout()
 			end
 		else
 			line.Placed = true
-			line.Frame.Position = position
+			line.Frame.Position = position - UDim2.fromOffset(0, 10)
 			line.RankAlpha.Value = rankAlpha
+			TweenService:Create(line.Frame, MOVE, { Position = position }):Play()
 		end
 		line.Rank = index
 		applyLine(line)
@@ -132,7 +133,7 @@ local function setText(line)
 	line.Label.Text = spaced(sign .. math.abs(line.Amount) .. " " .. line.Item, CONFIG.LetterSpacing)
 end
 
-local function removeLine(line)
+local function removeLine(line, pushed)
 	local index = table.find(lines, line)
 	if index then
 		table.remove(lines, index)
@@ -147,6 +148,11 @@ local function removeLine(line)
 		line.Frame:Destroy()
 	end)
 	out:Play()
+	if pushed then
+		TweenService:Create(line.Frame, TweenInfo.new(CONFIG.FadeOutTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = UDim2.new(0.5, 0, 0, CONFIG.Top + CONFIG.MaxLines * CONFIG.LineHeight),
+		}):Play()
+	end
 	layout()
 end
 
@@ -245,7 +251,9 @@ function ItemFeed.Add(itemName, amount)
 	local line = makeLine(itemName, amount)
 	table.insert(lines, 1, line)
 	while #lines > CONFIG.MaxLines do
-		removeLine(lines[#lines])
+		local oldest = lines[#lines]
+		table.remove(lines, #lines)
+		removeLine(oldest, true)
 	end
 	layout()
 	line.Tween = TweenService:Create(line.Fade, TweenInfo.new(CONFIG.FadeInTime, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { Value = 1 })
