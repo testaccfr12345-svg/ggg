@@ -627,8 +627,8 @@ local confirmBox = new("Frame", {
 	Name = "Confirm",
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Size = UDim2.fromOffset(444, 200),
-	BackgroundColor3 = CONFIG.PanelColor,
-	BackgroundTransparency = 0.08,
+	BackgroundColor3 = Color3.fromRGB(10, 13, 12),
+	BackgroundTransparency = 0.05,
 	BorderSizePixel = 0,
 	Active = true,
 	Visible = false,
@@ -681,7 +681,7 @@ local confirmFade = new("NumberValue", { Value = 0 }, confirmBox)
 local function applyConfirmFade()
 	local a = confirmFade.Value
 	confirmShade.BackgroundTransparency = 1 - 0.45 * a
-	confirmBox.BackgroundTransparency = 1 - 0.92 * a
+	confirmBox.BackgroundTransparency = 1 - 0.95 * a
 	confirmTitle.TextTransparency = 1 - a
 	confirmBody.TextTransparency = 1 - 0.85 * a
 	confirmCancel.BackgroundTransparency = 1 - 0.07 * a
@@ -724,7 +724,7 @@ local function askMoveAll(area)
 	confirmBody.Text = "Are you sure? This will move all " .. count .. " item" .. (count == 1 and "" or "s")
 		.. (take and " from storage to your backpack." or " from your backpack to storage.")
 	confirmOk.Text = take and "Take all" or "Store all"
-	confirmScale.Scale = canvasScale.Scale * 1.15
+	confirmScale.Scale = canvasScale.Scale * 1.25
 	confirmBox.Position = canvas.Position
 	confirmShade.Visible = true
 	confirmBox.Visible = true
