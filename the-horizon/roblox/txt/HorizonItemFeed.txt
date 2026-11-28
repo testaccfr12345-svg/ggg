@@ -190,7 +190,7 @@ local function makeLine(item, amount)
 		BackgroundTransparency = 1,
 		ScaleType = Enum.ScaleType.Fit,
 		Image = iconId,
-		ImageColor3 = color,
+		ImageColor3 = Color3.new(1, 1, 1),
 		ImageTransparency = 1,
 		Visible = iconId ~= "",
 	}, frame)

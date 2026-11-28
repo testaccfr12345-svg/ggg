@@ -43,7 +43,7 @@ designed vs. actually working and the rules for working on this project.
 
 ## Item feed (UI only, separate LocalScript)
 - `roblox/HorizonItemFeed.client.lua` (+ txt): top-centre feed of added/removed items (ref 896x414 safe area, 8px from top (user: slightly up)). No panel; 16px icon + Patrick Hand text with UIShadow.
-  Added cream, removed rgb 224,122,110 (icon tinted). Newest on top, max 3, rank alpha 1/0.7/0.4, 2s then fade. NO merging: every gain/loss is its own new line (user). Older lines slide down and dim smoothly (0.18s); new line drops in from 10px above; the pushed-out oldest slides one slot down while fading.
+  Added cream, removed rgb 224,122,110 (text only; icons keep their normal colours). Newest on top, max 3, rank alpha 1/0.7/0.4, 2s then fade. NO merging: every gain/loss is its own new line (user). Older lines slide down and dim smoothly (0.18s); new line drops in from 10px above; the pushed-out oldest slides one slot down while fading.
 - Hook (no comments allowed): other LocalScripts fire the BindableEvent (`shared`/`_G` are blocked in the user's in-game script runner, SLVM)
   `PlayerGui.HorizonItemFeed.ItemFeedAdd:Fire(itemName, amount)` (amount < 0 = removed). The inventory should call it wherever items are added/removed (addItem/removeItem/drop etc.).
 - `SHOW_TEST_BUTTONS = true` shows a Frame "TestButtons" (+ Item / - Item) on the left middle. Icons: the user supplies their own IDs in CONFIG.Icons. Do NOT make icons for the user unless asked.
