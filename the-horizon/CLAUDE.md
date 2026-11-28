@@ -48,6 +48,15 @@ designed vs. actually working and the rules for working on this project.
   `PlayerGui.HorizonItemFeed.ItemFeedAdd:Fire(itemName, amount)` (amount < 0 = removed). The inventory should call it wherever items are added/removed (addItem/removeItem/drop etc.).
 - `SHOW_TEST_BUTTONS = true` shows a Frame "TestButtons" (+ Item / - Item) on the left middle. Icons: the user supplies their own IDs in CONFIG.Icons. Do NOT make icons for the user unless asked.
 
+## Storage / chests (UI only, separate LocalScript)
+- `roblox/HorizonStorageUI.client.lua` (LocalScript, StarterPlayerScripts) + `roblox/StorageModule.module.lua` (ModuleScript named `StorageModule` INSIDE it).
+  Built from a copy of the inventory script: inventory panel unchanged, crafting removed, right panel = storage (same width as the inventory panel, like the user's mockup).
+  NO hotbar in this script (user: only inventory + chest). Own demo backpack (no server yet). Small = 18 slots, Large = 36 (scrolls, vertical edge fade in a CanvasGroup like the build tiles).
+- Storage panel: title "Small Storage"/"Large Storage", "used / size", X (only way to close), "Storage" label + hint, grid, Take all (yellow) / Store all (yellow outline). Take/Store all = backpack only.
+- Mobile: tap = pick, tap a slot = move there, double tap (0.35s) = move whole stack to the other side, hold = amount bar, drag works. Vertical swipe on a chest item scrolls instead of dragging.
+- PC: same Minecraft controls as the inventory on both sides; Shift+click moves the whole stack to the other side (StorageModule.attachPC uses api.list(area) and api.quickMove).
+- Same freeze, dim, blur and open/close animation as the inventory. `SHOW_TEST_BUTTONS = true` shows a Frame "TestButtons" (Small / Large) on the left to open them.
+
 ## Decisions the user made (keep these)
 **Colours and font**
 - **Accent is yellow** `#E9B949` (RGB 233,185,73). No teal or second accent colour, and no black/white-only theme. The user rejected both.
