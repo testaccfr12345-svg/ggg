@@ -68,6 +68,7 @@ designed vs. actually working and the rules for working on this project.
 - Hooks (no comments allowed): `ForgeHooks.OpenForge(forgeId)`, `MoveToForge(slot, amount)`, `TakeFromForge(slot, amount)`, `TakeAll()`, `LightFire()`, `PutOutFire()` (all empty);
   BindableEvents in PlayerGui.HorizonForgeUI: `OpenForge:Fire(forgeId)`, `CloseForge:Fire()` (walking away), `SetForgeState:Fire({ Items = {[slot]={id,n}}, HasFuel, Burning, TimeLeft })`.
 - Tuner: `ForgeTuner` ModuleScript (old UI tuner + optional 4th arg `root`) inside the forge script, `CONFIG.Tuner = true`; it can only pick things inside the forge panel (user: forge side only). HZT values from it apply to the forge panel only.
+  Applied HZT#2: Close (1,-54,0,12) 41x41; ForgeTitle TextSize 42; count (1,-21,0,63) T32; help text (0.5,0,0,477) T28. Status "Refining..." is its own label "RefiningStatus" (movable). "Items" label = clone of the Backpack label at (20,63).
 - Test mode (`SHOW_TEST_BUTTONS = true`): "Forge" button opens it with demo items; planks count as fuel; Light fire runs a fake 16s countdown display.
 
 ## Decisions the user made (keep these)

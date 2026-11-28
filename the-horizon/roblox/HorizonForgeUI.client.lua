@@ -445,46 +445,45 @@ for _, child in ipairs(invPanel:GetChildren()) do
 		local forgeTitle = child:Clone()
 		forgeTitle.Name = "ForgeTitle"
 		forgeTitle.Text = CONFIG.ForgeTitle
+		forgeTitle.TextSize = 42
 		forgeTitle.Parent = storagePanel
 		break
 	end
 end
 
-local headerRight = new("Frame", {
-	Name = "HeaderRight",
+local forgeStatus = text(storagePanel, {
+	Name = "RefiningStatus",
 	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -71, 0, 10),
-	Size = UDim2.fromOffset(0, 32),
-	AutomaticSize = Enum.AutomaticSize.X,
-	BackgroundTransparency = 1,
-}, storagePanel)
-new("UIListLayout", {
-	FillDirection = Enum.FillDirection.Horizontal,
-	HorizontalAlignment = Enum.HorizontalAlignment.Right,
-	VerticalAlignment = Enum.VerticalAlignment.Center,
-	SortOrder = Enum.SortOrder.LayoutOrder,
-	Padding = UDim.new(0, 16),
-}, headerRight)
-local forgeStatus = text(headerRight, {
-	LayoutOrder = 1,
+	Position = UDim2.new(1, -66, 0, 10),
 	Size = UDim2.fromOffset(0, 32),
 	AutomaticSize = Enum.AutomaticSize.X,
 	TextSize = 30 / CONFIG.FontScale,
 	TextColor3 = CONFIG.Accent,
+	TextXAlignment = Enum.TextXAlignment.Right,
 	Visible = false,
 })
+for _, child in ipairs(invPanel:GetChildren()) do
+	if child:IsA("TextLabel") and child.Text == "Backpack" then
+		local itemsLabel = child:Clone()
+		itemsLabel.Name = "ItemsLabel"
+		itemsLabel.Text = "Items"
+		itemsLabel.Position = UDim2.fromOffset(20, 63)
+		itemsLabel.Parent = storagePanel
+		break
+	end
+end
 local storageCount = text(storagePanel, {
 	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -20, 0, 63),
+	Position = UDim2.new(1, -21, 0, 63),
 	Size = UDim2.fromOffset(120, 24),
-	TextSize = 28 / CONFIG.FontScale,
+	TextSize = 32 / CONFIG.FontScale,
 	TextTransparency = 0.3,
 	TextXAlignment = Enum.TextXAlignment.Right,
 })
 
 local closeButton = textButton(storagePanel, {
 	Name = "Close",
-	Position = UDim2.new(1, -59, 0, 17),
+	Position = UDim2.new(1, -54, 0, 12),
 	Size = UDim2.fromOffset(41, 41),
 	BackgroundColor3 = Color3.new(1, 1, 1),
 	BackgroundTransparency = 0.93,
@@ -531,10 +530,10 @@ end
 
 text(storagePanel, {
 	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 0, BUTTON_Y - 14),
+	Position = UDim2.new(0.5, 0, 0, 477),
 	Size = UDim2.new(1, -40, 0, 44),
 	Text = "Requires fuel to activate. Put unrefined resources in this to refine them.",
-	TextSize = 21 / CONFIG.FontScale,
+	TextSize = 28 / CONFIG.FontScale,
 	TextTransparency = 0.4,
 	TextWrapped = true,
 	TextXAlignment = Enum.TextXAlignment.Center,
