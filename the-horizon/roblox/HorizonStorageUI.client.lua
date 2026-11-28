@@ -605,15 +605,131 @@ local storeAllButton = textButton(storagePanel, {
 	Name = "StoreAll",
 	Position = UDim2.new(0.5, 6, 0, BUTTON_Y),
 	Size = UDim2.new(0.5, -26, 0, 52),
-	BackgroundTransparency = 1,
-	TextColor3 = CONFIG.Accent,
+	BackgroundColor3 = CONFIG.Accent,
+	TextColor3 = CONFIG.DarkText,
 	TextSize = 32,
 	Text = "Store all",
 })
 corner(storeAllButton, 12)
-local storeAllRing = new("Frame", { Position = UDim2.fromOffset(1, 1), Size = UDim2.new(1, -2, 1, -2), BackgroundTransparency = 1 }, storeAllButton)
-corner(storeAllRing, 11)
-stroke(storeAllRing, CONFIG.Accent, 2, 0)
+
+local confirmShade = new("TextButton", {
+	Name = "ConfirmShade",
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.new(0, 0, 0),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	AutoButtonColor = false,
+	Text = "",
+	Visible = false,
+	ZIndex = 20,
+}, gui)
+local confirmBox = new("Frame", {
+	Name = "Confirm",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Size = UDim2.fromOffset(444, 200),
+	BackgroundColor3 = CONFIG.PanelColor,
+	BackgroundTransparency = CONFIG.PanelTransparency,
+	BorderSizePixel = 0,
+	Active = true,
+	Visible = false,
+	ZIndex = 21,
+}, gui)
+corner(confirmBox, 14)
+local confirmScale = new("UIScale", {}, confirmBox)
+local confirmTitle = text(confirmBox, {
+	Position = UDim2.fromOffset(20, 18),
+	Size = UDim2.new(1, -40, 0, 34),
+	TextSize = 38 / CONFIG.FontScale,
+	TextXAlignment = Enum.TextXAlignment.Center,
+	ZIndex = 22,
+})
+local confirmBody = text(confirmBox, {
+	Position = UDim2.fromOffset(22, 60),
+	Size = UDim2.new(1, -44, 0, 50),
+	TextSize = 22 / CONFIG.FontScale,
+	TextTransparency = 0.15,
+	TextWrapped = true,
+	TextXAlignment = Enum.TextXAlignment.Center,
+	TextYAlignment = Enum.TextYAlignment.Top,
+	ZIndex = 22,
+})
+local confirmCancel = textButton(confirmBox, {
+	Name = "Cancel",
+	Position = UDim2.new(0, 22, 1, -70),
+	Size = UDim2.new(0.5, -28, 0, 48),
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	BackgroundTransparency = 0.93,
+	TextSize = 26 / CONFIG.FontScale,
+	Text = "Cancel",
+	ZIndex = 22,
+})
+corner(confirmCancel, 12)
+local confirmOk = textButton(confirmBox, {
+	Name = "Confirm",
+	Position = UDim2.new(0.5, 6, 1, -70),
+	Size = UDim2.new(0.5, -28, 0, 48),
+	BackgroundColor3 = CONFIG.Accent,
+	TextColor3 = CONFIG.DarkText,
+	TextSize = 26 / CONFIG.FontScale,
+	Text = "",
+	ZIndex = 22,
+})
+corner(confirmOk, 12)
+
+local confirmArea = nil
+local confirmFade = new("NumberValue", { Value = 0 }, confirmBox)
+local function applyConfirmFade()
+	local a = confirmFade.Value
+	confirmShade.BackgroundTransparency = 1 - 0.45 * a
+	confirmBox.BackgroundTransparency = 1 - (1 - CONFIG.PanelTransparency) * a
+	confirmTitle.TextTransparency = 1 - a
+	confirmBody.TextTransparency = 1 - 0.85 * a
+	confirmCancel.BackgroundTransparency = 1 - 0.07 * a
+	confirmCancel.TextTransparency = 1 - a
+	confirmOk.BackgroundTransparency = 1 - a
+	confirmOk.TextTransparency = 1 - a
+end
+confirmFade.Changed:Connect(applyConfirmFade)
+
+local function hideConfirm(instant)
+	confirmArea = nil
+	if instant then
+		confirmFade.Value = 0
+		confirmShade.Visible = false
+		confirmBox.Visible = false
+		return
+	end
+	local out = tween(confirmFade, 0.12, { Value = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+	out.Completed:Once(function(state)
+		if state == Enum.PlaybackState.Completed and not confirmArea then
+			confirmShade.Visible = false
+			confirmBox.Visible = false
+		end
+	end)
+end
+
+local function askMoveAll(area)
+	local count = 0
+	for index = 1, sizeOf(area) do
+		if slotsOf(area)[index] then
+			count += 1
+		end
+	end
+	if count == 0 then
+		return
+	end
+	confirmArea = area
+	local take = area == "st"
+	confirmTitle.Text = take and "Take everything?" or "Store everything?"
+	confirmBody.Text = "Are you sure? This will move all " .. count .. " item" .. (count == 1 and "" or "s")
+		.. (take and " from storage to your backpack." or " from your backpack to storage.")
+	confirmOk.Text = take and "Take all" or "Store all"
+	confirmScale.Scale = canvasScale.Scale
+	confirmBox.Position = canvas.Position
+	confirmShade.Visible = true
+	confirmBox.Visible = true
+	tween(confirmFade, 0.15, { Value = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+end
 
 local testButtons = nil
 if SHOW_TEST_BUTTONS then
@@ -1052,6 +1168,9 @@ local function setOpen(open, kind)
 	end
 	if testButtons then
 		testButtons.Visible = not open
+	end
+	if not open then
+		hideConfirm(true)
 	end
 	snapOutlines = not open
 	refreshSlots()
@@ -1725,13 +1844,25 @@ connect(closeButton.Activated, function()
 	setOpen(false)
 end)
 connect(takeAllButton.Activated, function()
-	if isOpen then
-		moveAll("st")
+	if isOpen and not confirmArea then
+		askMoveAll("st")
 	end
 end)
 connect(storeAllButton.Activated, function()
-	if isOpen then
-		moveAll("bp")
+	if isOpen and not confirmArea then
+		askMoveAll("bp")
+	end
+end)
+connect(confirmCancel.Activated, function()
+	if confirmArea then
+		hideConfirm()
+	end
+end)
+connect(confirmOk.Activated, function()
+	local area = confirmArea
+	if area and isOpen then
+		hideConfirm()
+		moveAll(area)
 	end
 end)
 
