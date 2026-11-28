@@ -37,6 +37,8 @@ designed vs. actually working and the rules for working on this project.
 - Tiles never show the word "Wooden" (only the preview name does). Tiles are square 100x100, gap 7, no scrollbar. ExtraWidth = 100 (user tuned). Row is 100 tall (no scrollbar gap), preview/side moved up to y 186 and 354 tall. Build button + PC key legend stay visible while the menu is open (button gui DisplayOrder 13, above the dim). Tapping the dim does NOT close the menu. The row sits in a CanvasGroup (user asked) with a UIGradient edge fade (22%):
   right fade while more tiles are to the right, left fade once scrolled; no fades if everything fits (fades tween in/out 0.18s). Detected from first/last tile positions.
 - The width tuner was removed (user). `ShowPieceMenuForTesting = true` makes GetLookedAtPiece return a demo Wooden Wall (60/100 hp) so the Upgrade/Repair/Destroy menu always shows (no building system yet).
+- Piece menu = the user's mockup: centred, name in spaced caps + thin health bar, then 3 columns (keycap icon/E R X, UPGRADE / REPAIR / DESTROY, cost) with no row boxes,
+  interaction-prompt styling (UIShadow, keycap rgb 37,30,24). Own ScreenGui "HorizonBuildPieceMenu"; its bottom sits above the inventory hotbar and the held-item name (same hotbar math), scale like the prompt.
 - `ShowWithoutHammer = true` is a test switch (UI shows without the hammer). Place prompt = exact copy of the user's HorizonInteractionPrompt script (own ScreenGui "HorizonBuildPrompt", same settings, UIShadow, haze, fade). Text "PLACE WOODEN WALL"; keycap TAP on mobile, CLICK on PC (box widens to fit CLICK). The cost line under it was dropped to match their prompt.
 
 ## Decisions the user made (keep these)

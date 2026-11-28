@@ -9,7 +9,7 @@ local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-for _, name in ipairs({ "HorizonBuildUI", "HorizonBuildDim", "HorizonBuildButtons", "HorizonBuildPrompt" }) do
+for _, name in ipairs({ "HorizonBuildUI", "HorizonBuildDim", "HorizonBuildButtons", "HorizonBuildPrompt", "HorizonBuildPieceMenu" }) do
 	local existing = playerGui:FindFirstChild(name)
 	if existing then
 		existing:Destroy()
@@ -903,18 +903,6 @@ local function setKeycapOn(cap, on)
 	cap.Stroke.Transparency = on and 0.3 or 0.82
 end
 
-local function setKeycapContent(cap, label, iconId, iconSize)
-	if iconId then
-		cap.Label.Text = ""
-		cap.Icon.Image = iconId
-		cap.Icon.Size = UDim2.fromOffset(iconSize or 15, iconSize or 15)
-		cap.Icon.Visible = true
-	else
-		cap.Label.Text = label
-		cap.Icon.Visible = false
-	end
-end
-
 local legend = new("Frame", {
 	Name = "BuildKeys",
 	AnchorPoint = Vector2.new(1, 1),
@@ -1201,55 +1189,140 @@ applyPromptOpacity()
 promptGui.Parent = playerGui
 updatePromptInput()
 
+local pieceGui = new("ScreenGui", {
+	Name = "HorizonBuildPieceMenu",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	DisplayOrder = 19,
+}, playerGui)
+
+local PIECE_W = 320
 local pieceMenu = new("Frame", {
 	Name = "PieceMenu",
-	Position = UDim2.new(0.5, -306, 0.5, -44),
-	Size = UDim2.fromOffset(280, 160),
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.fromScale(0.5, 0.8),
+	Size = UDim2.fromOffset(PIECE_W, 126),
 	BackgroundTransparency = 1,
 	Visible = false,
-}, stage)
-local pieceName = text(pieceMenu, 15, { Position = UDim2.fromOffset(4, 0), Size = UDim2.fromOffset(276, 20), RichText = true, TextTransparency = 0.2 })
-addShadow(pieceName)
+}, pieceGui)
+local pieceScale = new("UIScale", {}, pieceMenu)
+
+local function pieceText(parent, size, props)
+	local label = new("TextLabel", {
+		BackgroundTransparency = 1,
+		FontFace = FONT,
+		TextSize = size,
+		TextColor3 = PROMPT_IVORY,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		RichText = true,
+		Text = "",
+		ZIndex = 2,
+	}, parent)
+	for key, value in pairs(props) do
+		label[key] = value
+	end
+	local shadow = promptTextShadow(label, "Shadow")
+	shadow.Offset = UDim2.fromOffset(0, 2)
+	shadow.BlurRadius = UDim.new(0, 2)
+	shadow.Transparency = 0.45
+	return label, shadow
+end
+
+local pieceName = pieceText(pieceMenu, 21, { Size = UDim2.new(1, 0, 0, 24) })
 local healthBack = new("Frame", {
-	Position = UDim2.fromOffset(4, 24),
-	Size = UDim2.fromOffset(80, 3),
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 30),
+	Size = UDim2.fromOffset(86, 3),
 	BackgroundColor3 = WHITE,
-	BackgroundTransparency = 0.8,
+	BackgroundTransparency = 0.75,
 	BorderSizePixel = 0,
 }, pieceMenu)
 corner(healthBack, 2)
-local healthFill = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = CONFIG.Text, BorderSizePixel = 0 }, healthBack)
+local healthFill = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = PROMPT_IVORY, BorderSizePixel = 0 }, healthBack)
 corner(healthFill, 2)
-local healthText = text(pieceMenu, 12, { Position = UDim2.fromOffset(4, 29), Size = UDim2.fromOffset(120, 16), TextTransparency = 0.3 })
 
 local function pieceRow(kind, title, keyLabel, iconId)
-	local row = new("TextButton", {
+	local column = new("TextButton", {
 		Name = kind,
-		Size = UDim2.fromOffset(280, 34),
-		BackgroundColor3 = CONFIG.PanelColor,
-		BackgroundTransparency = 0.5,
+		Size = UDim2.fromOffset(100, 82),
+		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
 		Visible = false,
 	}, pieceMenu)
-	corner(row, 8)
-	local cap = keycap(row, { Position = UDim2.fromOffset(6, 4) })
-	local name = text(row, 17, { Position = UDim2.fromOffset(45, 0), Size = UDim2.fromOffset(170, 34), RichText = true, Text = spaced(title, 1.2) })
-	local cost = text(row, 13, {
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -12, 0, 0),
-		Size = UDim2.fromOffset(100, 34),
-		TextTransparency = 0.3,
-		TextXAlignment = Enum.TextXAlignment.Right,
-	})
-	return { Kind = kind, Button = row, Cap = cap, Name = name, Cost = cost, KeyLabel = keyLabel, IconId = iconId }
+	local cap = new("Frame", {
+		Name = "Keycap",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 2),
+		Size = UDim2.fromOffset(29, 29),
+		BackgroundColor3 = PROMPT_KEY_BACKGROUND,
+		BackgroundTransparency = 0.5,
+		BorderSizePixel = 0,
+	}, column)
+	corner(cap, 5)
+	local capShadow = new("UIShadow", {
+		Color = PROMPT_KEY_BACKGROUND,
+		Offset = UDim2.fromOffset(0, 0),
+		Spread = UDim2.fromOffset(0, 0),
+		ShowBehindParent = false,
+		Transparency = 0.45,
+		BlurRadius = UDim.new(0, 5),
+	}, cap)
+	local icon = new("ImageLabel", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(17, 17),
+		BackgroundTransparency = 1,
+		ScaleType = Enum.ScaleType.Fit,
+		Image = iconId,
+		ZIndex = 2,
+	}, cap)
+	local key = new("TextLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		FontFace = FONT,
+		TextSize = 19,
+		TextColor3 = PROMPT_IVORY,
+		Text = keyLabel,
+		ZIndex = 2,
+	}, cap)
+	local name, nameShadow = pieceText(column, 25, { Position = UDim2.fromOffset(-20, 35), Size = UDim2.new(1, 40, 0, 28), Text = spaced(title, 1.5) })
+	local cost, costShadow = pieceText(column, 19, { Position = UDim2.fromOffset(-20, 62), Size = UDim2.new(1, 40, 0, 20) })
+	return {
+		Kind = kind,
+		Button = column,
+		Cap = cap,
+		CapShadow = capShadow,
+		Icon = icon,
+		Key = key,
+		Name = name,
+		NameShadow = nameShadow,
+		Cost = cost,
+		CostShadow = costShadow,
+	}
 end
 
 local pieceRows = {
-	pieceRow("Upgrade", "UPGRADE TO STONE", "E", CONFIG.Icons.Upgrade),
+	pieceRow("Upgrade", "UPGRADE", "E", CONFIG.Icons.Upgrade),
 	pieceRow("Repair", "REPAIR", "R", CONFIG.Icons.Repair),
 	pieceRow("Destroy", "DESTROY", "X", CONFIG.Icons.Destroy),
 }
+
+local function placePieceMenu()
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return
+	end
+	local viewport = camera.ViewportSize
+	local sc = math.min(viewport.X / 1280, viewport.Y / 720)
+	local touchOnly = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local hb = sc * (touchOnly and 1.3 or 1)
+	local hotbarTop = viewport.Y - (9 + 62) * hb
+	local bottom = hotbarTop - 35 * sc - 8 * sc
+	pieceScale.Scale = math.clamp(math.min(viewport.X, viewport.Y) / 610, 0.8, 1.35) * 1.17
+	pieceMenu.Position = UDim2.new(0.5, 0, 0, math.floor(bottom + 0.5))
+end
 
 local state = {
 	hammer = false,
@@ -1487,15 +1560,15 @@ local function renderPieceMenu()
 	if not show then
 		return
 	end
+	placePieceMenu()
 	local mobile = isMobile()
 	local maxHealth = math.max(1, piece.MaxHealth or 100)
 	local health = math.clamp(piece.Health or maxHealth, 0, maxHealth)
-	pieceName.Text = spaced(string.upper(fullName(piece.Name, piece.Stone, piece.Structure)), 1.5)
+	pieceName.Text = spaced(string.upper(fullName(piece.Name, piece.Stone, piece.Structure)), 2)
 	healthFill.Size = UDim2.fromScale(health / maxHealth, 1)
-	healthText.Text = math.floor(health + 0.5) .. " / " .. math.floor(maxHealth + 0.5)
 
-	local y = 54
-	for index, row in ipairs(pieceRows) do
+	local shown = {}
+	for _, row in ipairs(pieceRows) do
 		local visible = true
 		local costText, bad, off = "", false, false
 		if row.Kind == "Upgrade" then
@@ -1518,27 +1591,26 @@ local function renderPieceMenu()
 		row.Button.Visible = visible
 		state.rowOff[row.Kind] = off or not visible
 		if visible then
-			row.Button.Position = UDim2.fromOffset(0, y)
-			y += 39
-			local first = index == 1 or (index == 2 and not pieceRows[1].Button.Visible)
-			local base = first and 0.38 or 0.5
-			local fade = off and 0.55 or 0
-			row.Button.BackgroundTransparency = 1 - (1 - base) * (1 - fade)
+			table.insert(shown, row)
+			local keep = off and 0.45 or 1
 			row.Cost.Text = costText
-			row.Cost.TextColor3 = bad and CONFIG.Red or CONFIG.Text
-			row.Cost.TextTransparency = 1 - (bad and 1 or 0.7) * (1 - fade)
-			row.Name.TextTransparency = fade
-			row.Cap.Frame.BackgroundTransparency = 1 - 0.5 * (1 - fade)
-			row.Cap.Stroke.Transparency = 1 - 0.18 * (1 - fade)
-			row.Cap.Label.TextTransparency = fade
-			row.Cap.Icon.ImageTransparency = fade
-			if mobile then
-				setKeycapContent(row.Cap, nil, row.IconId, 15)
-			else
-				setKeycapContent(row.Cap, row.KeyLabel)
-			end
+			row.Cost.TextColor3 = bad and CONFIG.Red or PROMPT_IVORY
+			row.Cost.TextTransparency = 1 - (bad and 1 or 0.75) * keep
+			row.Name.TextTransparency = 1 - keep
+			row.NameShadow.Transparency = 1 - 0.55 * keep
+			row.CostShadow.Transparency = 1 - 0.55 * keep
+			row.Cap.BackgroundTransparency = 1 - 0.5 * keep
+			row.CapShadow.Transparency = 1 - 0.55 * keep
+			row.Icon.ImageTransparency = 1 - keep
+			row.Key.TextTransparency = 1 - keep
+			row.Icon.Visible = mobile
+			row.Key.Visible = not mobile
 			row.Button.Active = mobile and not off
 		end
+	end
+	for index, row in ipairs(shown) do
+		local center = PIECE_W / 2 + (index - (#shown + 1) / 2) * 100
+		row.Button.Position = UDim2.fromOffset(center - 50, 44)
 	end
 end
 
@@ -1925,6 +1997,7 @@ gui.Destroying:Connect(function()
 	dimGui:Destroy()
 	buttonGui:Destroy()
 	promptGui:Destroy()
+	pieceGui:Destroy()
 end)
 
 renderMenu()
