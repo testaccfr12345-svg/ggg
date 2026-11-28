@@ -69,26 +69,26 @@ local ITEMS = {
 	planks = { Name = "Planks", Image = "rbxassetid://78387750873126" },
 	stone = { Name = "Stone", Image = "rbxassetid://127351259030040" },
 	leaves = { Name = "Leaves", Image = "rbxassetid://94252892154991" },
-	rope = { Name = "Rope", Image = "rbxassetid://94728420315409", Desc = "Used in most tool recipes." },
+	rope = { Name = "Rope", Image = "rbxassetid://94728420315409" },
 	fiber = { Name = "Fiber", Image = "rbxassetid://85899584797851" },
 	scrap = { Name = "Scrap", Image = "rbxassetid://123247338574784" },
 	plastic = { Name = "Plastic", Image = "rbxassetid://126538877519520" },
-	nails = { Name = "Nails", Image = "rbxassetid://100720163739756", Desc = "Used for building." },
+	nails = { Name = "Nails", Image = "rbxassetid://100720163739756" },
 	hide = { Name = "Hide", Image = "rbxassetid://137106848150031" },
-	cup_clean = { Name = "Clean Water Cup", Image = "rbxassetid://75855735142648", Desc = "Safe drinking water." },
+	cup_clean = { Name = "Clean Water Cup", Image = "rbxassetid://75855735142648" },
 	cup_sea = { Name = "Seawater Cup", Image = "rbxassetid://94755334875949" },
-	stone_axe = { Name = "Stone Axe", Image = "rbxassetid://73396827796121", Desc = "Chops trees for wood." },
-	stone_pickaxe = { Name = "Stone Pickaxe", Image = "rbxassetid://103209016597189", Desc = "Mines stone from rocks." },
-	stone_spear = { Name = "Stone Spear", Image = "rbxassetid://131953404883594", Desc = "A long-reach thrusting weapon." },
-	wooden_club = { Name = "Wooden Club", Image = "rbxassetid://77142435102160", Desc = "A heavy, simple striking weapon." },
-	stone_sword = { Name = "Stone Sword", Image = "rbxassetid://99964958308218", Desc = "A basic slashing weapon." },
-	torch = { Name = "Torch", Image = "rbxassetid://128672619441958", Desc = "Lights up the dark." },
-	bow = { Name = "Bow", Image = "rbxassetid://103839860687597", Desc = "A wooden bow for firing arrows." },
-	stone_arrows = { Name = "Stone Arrows", Image = "rbxassetid://87510233891000", Desc = "Stone-tipped arrows for a bow." },
-	wooden_shield = { Name = "Wooden Shield", Image = "rbxassetid://104624286311499", Desc = "Blocks incoming attacks." },
-	building_hammer = { Name = "Building Hammer", Image = "rbxassetid://85234448517206", Desc = "A tool for planning and placing structures." },
-	map = { Name = "Map", Image = "", Desc = "Shows the islands and where you are." },
-	compass = { Name = "Compass", Image = "", Desc = "Points the way while you explore." },
+	stone_axe = { Name = "Stone Axe", Image = "rbxassetid://73396827796121" },
+	stone_pickaxe = { Name = "Stone Pickaxe", Image = "rbxassetid://103209016597189" },
+	stone_spear = { Name = "Stone Spear", Image = "rbxassetid://131953404883594" },
+	wooden_club = { Name = "Wooden Club", Image = "rbxassetid://77142435102160" },
+	stone_sword = { Name = "Stone Sword", Image = "rbxassetid://99964958308218" },
+	torch = { Name = "Torch", Image = "rbxassetid://128672619441958" },
+	bow = { Name = "Bow", Image = "rbxassetid://103839860687597" },
+	stone_arrows = { Name = "Stone Arrows", Image = "rbxassetid://87510233891000" },
+	wooden_shield = { Name = "Wooden Shield", Image = "rbxassetid://104624286311499" },
+	building_hammer = { Name = "Building Hammer", Image = "rbxassetid://85234448517206" },
+	map = { Name = "Map", Image = "" },
+	compass = { Name = "Compass", Image = "" },
 }
 
 local HOLD_DELAY = 0.30
@@ -103,7 +103,6 @@ local DRAG_START_PX = 10
 local DRAG_SCALE = 1.15
 local DRAG_TOUCH_UP = 36
 local DROP_IN_TIME = 0.12
-local CORAL = Color3.fromRGB(244, 164, 124)
 
 local HOTBAR_SLOT = 62
 local bp = {}
@@ -225,38 +224,6 @@ local function panel(parent, name, x, y, w, h)
 	return frame
 end
 
-local function itemIcon(parent, size, position, anchor)
-	local image = new("ImageLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromOffset(size, size),
-		Position = position,
-		AnchorPoint = anchor or Vector2.new(0.5, 0.5),
-		ScaleType = Enum.ScaleType.Fit,
-		Image = "",
-	}, parent)
-	local fallback = text(image, {
-		Size = UDim2.fromScale(1, 1),
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextWrapped = true,
-		TextSize = math.max(12, math.floor(size / 3.6)),
-		Visible = false,
-	})
-	return {
-		Image = image,
-		Set = function(itemId)
-			local item = itemId and ITEMS[itemId]
-			local hasImage = item and item.Image ~= "" or false
-			image.Image = hasImage and item.Image or ""
-			fallback.Text = item and item.Name or ""
-			fallback.Visible = item ~= nil and not hasImage
-			image.Visible = item ~= nil
-		end,
-		SetFaded = function(faded)
-			image.ImageTransparency = faded and 0.55 or 0
-			fallback.TextTransparency = faded and 0.55 or 0
-		end,
-	}
-end
 
 local function slotsOf(area)
 	return area == "bp" and bp or storage.Slots
@@ -302,6 +269,7 @@ local motion = require(script:WaitForChild("ForgeModule")).new(gui, CONFIG, ITEM
 	local size = camera and camera.ViewportSize or Vector2.new(CONFIG.DesignWidth, CONFIG.DesignHeight)
 	return math.min(size.X / CONFIG.DesignWidth, size.Y / CONFIG.DesignHeight)
 end)
+local itemIcon = motion:iconMaker(text)
 local hoverKey = nil
 local pc = nil
 local snapOutlines = false
@@ -426,51 +394,7 @@ local invInfo = text(invPanel, {
 	Text = "",
 })
 
-local BAR_PICK = ColorSequence.new(Color3.fromRGB(246, 213, 122), Color3.fromRGB(233, 185, 73))
-local BAR_THROW = ColorSequence.new(Color3.fromRGB(248, 196, 168), CORAL)
-
-local function makeBar(button)
-	local track = new("Frame", {
-		Name = "AmountBar",
-		Position = UDim2.fromOffset(5, 4),
-		Size = UDim2.new(1, -10, 0, 5),
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 0.28,
-		BorderSizePixel = 0,
-		Visible = false,
-		ZIndex = 4,
-	}, button)
-	corner(track, 3)
-	stroke(track, CONFIG.Text, 1, 0.88)
-	new("UIPadding", {
-		PaddingTop = UDim.new(0, 1),
-		PaddingBottom = UDim.new(0, 1),
-		PaddingLeft = UDim.new(0, 1),
-		PaddingRight = UDim.new(0, 1),
-	}, track)
-	local fill = new("Frame", {
-		Name = "Fill",
-		Size = UDim2.fromScale(0, 1),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BorderSizePixel = 0,
-		ZIndex = 5,
-	}, track)
-	corner(fill, 2)
-	local gradient = new("UIGradient", { Rotation = 90, Color = BAR_PICK }, fill)
-	local glow = stroke(fill, CONFIG.Accent, 1.5, 0.6)
-	return { Track = track, Fill = fill, Gradient = gradient, Glow = glow }
-end
-
-local function setBar(bar, kind, fraction)
-	if not kind then
-		bar.Track.Visible = false
-		return
-	end
-	bar.Track.Visible = true
-	bar.Gradient.Color = kind == "throw" and BAR_THROW or BAR_PICK
-	bar.Glow.Color = kind == "throw" and CORAL or CONFIG.Accent
-	bar.Fill.Size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1)
-end
+local makeBar, setBar = motion:bars({ corner = corner, stroke = stroke })
 
 local function makeSlotHolder(parent, name, props)
 	local holder = new("Frame", { Name = name .. "Holder", BackgroundTransparency = 1 }, parent)
@@ -637,101 +561,7 @@ local takeAllButton = textButton(storagePanel, {
 })
 corner(takeAllButton, 12)
 
-local confirmShade = new("TextButton", {
-	Name = "ConfirmShade",
-	Size = UDim2.fromScale(1, 1),
-	BackgroundColor3 = Color3.new(0, 0, 0),
-	BackgroundTransparency = 1,
-	BorderSizePixel = 0,
-	AutoButtonColor = false,
-	Text = "",
-	Visible = false,
-	ZIndex = 20,
-}, gui)
-local confirmBox = new("Frame", {
-	Name = "Confirm",
-	AnchorPoint = Vector2.new(0.5, 0.5),
-	Size = UDim2.fromOffset(444, 200),
-	BackgroundColor3 = Color3.fromRGB(10, 13, 12),
-	BackgroundTransparency = 0.05,
-	BorderSizePixel = 0,
-	Active = true,
-	Visible = false,
-	ZIndex = 21,
-}, gui)
-corner(confirmBox, 14)
-local confirmScale = new("UIScale", {}, confirmBox)
-local confirmTitle = text(confirmBox, {
-	Position = UDim2.fromOffset(20, 18),
-	Size = UDim2.new(1, -40, 0, 34),
-	TextSize = 38 / CONFIG.FontScale,
-	TextXAlignment = Enum.TextXAlignment.Center,
-	ZIndex = 22,
-})
-local confirmBody = text(confirmBox, {
-	Position = UDim2.fromOffset(22, 60),
-	Size = UDim2.new(1, -44, 0, 50),
-	TextSize = 22 / CONFIG.FontScale,
-	TextTransparency = 0.15,
-	TextWrapped = true,
-	TextXAlignment = Enum.TextXAlignment.Center,
-	TextYAlignment = Enum.TextYAlignment.Top,
-	ZIndex = 22,
-})
-local confirmCancel = textButton(confirmBox, {
-	Name = "Cancel",
-	Position = UDim2.new(0, 22, 1, -70),
-	Size = UDim2.new(0.5, -28, 0, 48),
-	BackgroundColor3 = Color3.new(1, 1, 1),
-	BackgroundTransparency = 0.93,
-	TextSize = 26 / CONFIG.FontScale,
-	Text = "Cancel",
-	ZIndex = 22,
-})
-corner(confirmCancel, 12)
-local confirmOk = textButton(confirmBox, {
-	Name = "Confirm",
-	Position = UDim2.new(0.5, 6, 1, -70),
-	Size = UDim2.new(0.5, -28, 0, 48),
-	BackgroundColor3 = CONFIG.Accent,
-	TextColor3 = CONFIG.DarkText,
-	TextSize = 26 / CONFIG.FontScale,
-	Text = "",
-	ZIndex = 22,
-})
-corner(confirmOk, 12)
-
-local confirmArea = nil
-local confirmFade = new("NumberValue", { Value = 0 }, confirmBox)
-local function applyConfirmFade()
-	local a = confirmFade.Value
-	confirmShade.BackgroundTransparency = 1 - 0.45 * a
-	confirmBox.BackgroundTransparency = 1 - 0.95 * a
-	confirmTitle.TextTransparency = 1 - a
-	confirmBody.TextTransparency = 1 - 0.85 * a
-	confirmCancel.BackgroundTransparency = 1 - 0.07 * a
-	confirmCancel.TextTransparency = 1 - a
-	confirmOk.BackgroundTransparency = 1 - a
-	confirmOk.TextTransparency = 1 - a
-end
-confirmFade.Changed:Connect(applyConfirmFade)
-
-local function hideConfirm(instant)
-	confirmArea = nil
-	if instant then
-		confirmFade.Value = 0
-		confirmShade.Visible = false
-		confirmBox.Visible = false
-		return
-	end
-	local out = tween(confirmFade, 0.12, { Value = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-	out.Completed:Once(function(state)
-		if state == Enum.PlaybackState.Completed and not confirmArea then
-			confirmShade.Visible = false
-			confirmBox.Visible = false
-		end
-	end)
-end
+local confirm = motion:confirm({ text = text, textButton = textButton, corner = corner, canvas = canvas, canvasScale = canvasScale })
 
 local function askMoveAll(area)
 	local count = 0
@@ -740,20 +570,9 @@ local function askMoveAll(area)
 			count += 1
 		end
 	end
-	if count == 0 then
-		return
+	if count > 0 then
+		confirm.ask(area, count)
 	end
-	confirmArea = area
-	local take = area == "st"
-	confirmTitle.Text = take and "Take everything?" or "Store everything?"
-	confirmBody.Text = "Are you sure? This will move all " .. count .. " item" .. (count == 1 and "" or "s")
-		.. (take and " from the forge to your backpack." or " from your backpack to storage.")
-	confirmOk.Text = take and "Take all" or "Store all"
-	confirmScale.Scale = canvasScale.Scale * 1.25
-	confirmBox.Position = canvas.Position
-	confirmShade.Visible = true
-	confirmBox.Visible = true
-	tween(confirmFade, 0.15, { Value = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 end
 
 local testButtons = nil
@@ -1033,40 +852,7 @@ local function refreshSlots()
 end
 
 local touchControlsBefore = nil
-local controls = nil
-local frozen = false
-local cameraBefore = nil
-local function freeze(on)
-	if controls and frozen ~= on then
-		if on then
-			controls:Disable()
-		else
-			controls:Enable()
-		end
-	end
-	frozen = on
-	local camera = workspace.CurrentCamera
-	if on then
-		if not cameraBefore then
-			cameraBefore = camera.CameraType
-		end
-		camera.CameraType = Enum.CameraType.Scriptable
-	elseif cameraBefore then
-		camera.CameraType = cameraBefore
-		cameraBefore = nil
-	end
-end
-task.spawn(function()
-	local ok, module = pcall(function()
-		return require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule", 10))
-	end)
-	if ok and module then
-		controls = module:GetControls()
-		if frozen then
-			controls:Disable()
-		end
-	end
-end)
+local freeze = motion:freezer()
 local menuTweens = {}
 local function stopMenuTweens()
 	for _, t in ipairs(menuTweens) do
@@ -1080,64 +866,9 @@ local function menuTween(object, duration, props, style, direction)
 	return t
 end
 
-local fadeEntries = {}
-local fadeActive = false
-local fadeValue = new("NumberValue", { Name = "MenuFade", Value = 1 }, gui)
-local textFadeValue = new("NumberValue", { Name = "MenuTextFade", Value = 1 }, gui)
-
-local function applyFade(a, textA)
-	for _, entry in ipairs(fadeEntries) do
-		local object = entry[1]
-		for prop, base in pairs(entry[2]) do
-			object[prop] = 1 - (1 - base) * a
-		end
-		if entry[3] then
-			for prop, base in pairs(entry[3]) do
-				object[prop] = 1 - (1 - base) * textA
-			end
-		end
-	end
-end
-
-local function endFade()
-	if fadeActive then
-		applyFade(1, 1)
-		fadeActive = false
-	end
-end
-
-local function startFade()
-	endFade()
-	table.clear(fadeEntries)
-	for _, d in ipairs(panels:GetDescendants()) do
-		local props, textProps = nil, nil
-		if d:IsA("GuiObject") then
-			props = { BackgroundTransparency = d.BackgroundTransparency }
-			if d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then
-				textProps = { TextTransparency = d.TextTransparency, TextStrokeTransparency = d.TextStrokeTransparency }
-			elseif d:IsA("ImageLabel") or d:IsA("ImageButton") then
-				props.ImageTransparency = d.ImageTransparency
-			end
-			if d:IsA("ScrollingFrame") then
-				props.ScrollBarImageTransparency = d.ScrollBarImageTransparency
-			end
-		elseif d:IsA("UIStroke") then
-			props = { Transparency = d.Transparency }
-		end
-		if props then
-			table.insert(fadeEntries, { d, props, textProps })
-		end
-	end
-	fadeActive = true
-end
-
-local function onFadeChanged()
-	if fadeActive then
-		applyFade(fadeValue.Value, textFadeValue.Value)
-	end
-end
-fadeValue.Changed:Connect(onFadeChanged)
-textFadeValue.Changed:Connect(onFadeChanged)
+local fader = motion:fader(panels)
+local fadeValue, textFadeValue = fader.value, fader.textValue
+local applyFade, startFade, endFade = fader.apply, fader.start, fader.finish
 
 local menuLockUntil = 0
 local function setOpen(open, kind)
@@ -1167,7 +898,7 @@ local function setOpen(open, kind)
 		testButtons.Visible = not open
 	end
 	if not open then
-		hideConfirm(true)
+		confirm.hide(true)
 	end
 	snapOutlines = not open
 	refreshSlots()
@@ -1854,7 +1585,7 @@ connect(closeButton.Activated, function()
 	setOpen(false)
 end)
 connect(takeAllButton.Activated, function()
-	if isOpen and not confirmArea then
+	if isOpen and not confirm.area() then
 		askMoveAll("st")
 	end
 end)
@@ -1876,15 +1607,15 @@ connect(fireButton.Activated, function()
 	end
 	refreshForgeState()
 end)
-connect(confirmCancel.Activated, function()
-	if confirmArea then
-		hideConfirm()
+connect(confirm.cancel.Activated, function()
+	if confirm.area() then
+		confirm.hide()
 	end
 end)
-connect(confirmOk.Activated, function()
-	local area = confirmArea
+connect(confirm.ok.Activated, function()
+	local area = confirm.area()
 	if area and isOpen then
-		hideConfirm()
+		confirm.hide()
 		moveAll(area)
 	end
 end)

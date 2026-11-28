@@ -58,7 +58,7 @@ designed vs. actually working and the rules for working on this project.
 - Same freeze, dim, blur and open/close animation as the inventory. `SHOW_TEST_BUTTONS = true` shows a Frame "TestButtons" (Small / Large) on the left to open them.
 
 ## Refining Forge (UI only, separate LocalScript)
-- `roblox/HorizonForgeUI.client.lua` (+ txt): copy of the chest script; needs `ForgeModule` (roblox/ForgeModule.module.lua, same code as ChestModule) inside it. User wants every module named differently per script. No hotbar.
+- `roblox/HorizonForgeUI.client.lua` (+ txt): copy of the chest script; needs `ForgeModule` inside it (roblox/ForgeModule.module.lua: ChestModule code + confirm box, freezer, menu fader, slot bars and itemIcon moved in, because the forge LocalScript hit the 200k coloured-text limit; keep the forge script under ~47k raw). User wants every module named differently per script. No hotbar.
   Right panel = forge (same size as the inventory panel): "Refining Forge" title (same style as "Inventory"), yellow "Refining... (0:16)" status only while burning,
   "used / 16", X; 16 backpack-style slots (6 per row) under the header; help text above the buttons; Fire button (No fuel grey / Light fire / Put out fire) + Take all (confirm box like the chest).
 - Controls = same as the chest (user): tap = pick, tap a slot = place, double tap = whole stack to the other side, hold = amount pick, drag, PC Minecraft + Shift+click.

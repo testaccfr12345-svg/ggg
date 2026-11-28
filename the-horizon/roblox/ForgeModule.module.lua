@@ -25,6 +25,7 @@ function Motion.new(gui, CONFIG, ITEMS, settings, getScale)
 	self.ITEMS = ITEMS
 	self.S = settings
 	self.getScale = getScale
+	self.gui = gui
 	self.playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 	self.flyers = {}
 	self.layer = new("Frame", {
@@ -356,6 +357,312 @@ function Motion:hit(absolute, lookup, root)
 		end
 	end
 	return nil
+end
+
+function Motion:confirm(d)
+	local CONFIG = self.CONFIG
+	local confirmShade = new("TextButton", {
+		Name = "ConfirmShade",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Text = "",
+		Visible = false,
+		ZIndex = 20,
+	}, self.gui)
+	local confirmBox = new("Frame", {
+		Name = "Confirm",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.fromOffset(444, 200),
+		BackgroundColor3 = Color3.fromRGB(10, 13, 12),
+		BackgroundTransparency = 0.05,
+		BorderSizePixel = 0,
+		Active = true,
+		Visible = false,
+		ZIndex = 21,
+	}, self.gui)
+	d.corner(confirmBox, 14)
+	local confirmScale = new("UIScale", {}, confirmBox)
+	local confirmTitle = d.text(confirmBox, {
+		Position = UDim2.fromOffset(20, 18),
+		Size = UDim2.new(1, -40, 0, 34),
+		TextSize = 38 / CONFIG.FontScale,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		ZIndex = 22,
+	})
+	local confirmBody = d.text(confirmBox, {
+		Position = UDim2.fromOffset(22, 60),
+		Size = UDim2.new(1, -44, 0, 50),
+		TextSize = 22 / CONFIG.FontScale,
+		TextTransparency = 0.15,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		ZIndex = 22,
+	})
+	local confirmCancel = d.textButton(confirmBox, {
+		Name = "Cancel",
+		Position = UDim2.new(0, 22, 1, -70),
+		Size = UDim2.new(0.5, -28, 0, 48),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.93,
+		TextSize = 26 / CONFIG.FontScale,
+		Text = "Cancel",
+		ZIndex = 22,
+	})
+	d.corner(confirmCancel, 12)
+	local confirmOk = d.textButton(confirmBox, {
+		Name = "Confirm",
+		Position = UDim2.new(0.5, 6, 1, -70),
+		Size = UDim2.new(0.5, -28, 0, 48),
+		BackgroundColor3 = CONFIG.Accent,
+		TextColor3 = CONFIG.DarkText,
+		TextSize = 26 / CONFIG.FontScale,
+		Text = "",
+		ZIndex = 22,
+	})
+	d.corner(confirmOk, 12)
+
+	local confirmArea = nil
+	local confirmFade = new("NumberValue", { Value = 0 }, confirmBox)
+	local function applyConfirmFade()
+		local a = confirmFade.Value
+		confirmShade.BackgroundTransparency = 1 - 0.45 * a
+		confirmBox.BackgroundTransparency = 1 - 0.95 * a
+		confirmTitle.TextTransparency = 1 - a
+		confirmBody.TextTransparency = 1 - 0.85 * a
+		confirmCancel.BackgroundTransparency = 1 - 0.07 * a
+		confirmCancel.TextTransparency = 1 - a
+		confirmOk.BackgroundTransparency = 1 - a
+		confirmOk.TextTransparency = 1 - a
+	end
+	confirmFade.Changed:Connect(applyConfirmFade)
+
+	local function hideConfirm(instant)
+		confirmArea = nil
+		if instant then
+			confirmFade.Value = 0
+			confirmShade.Visible = false
+			confirmBox.Visible = false
+			return
+		end
+		local out = tween(confirmFade, 0.12, { Value = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+		out.Completed:Once(function(state)
+			if state == Enum.PlaybackState.Completed and not confirmArea then
+				confirmShade.Visible = false
+				confirmBox.Visible = false
+			end
+		end)
+	end
+
+	local api = { cancel = confirmCancel, ok = confirmOk }
+	function api.area()
+		return confirmArea
+	end
+	api.hide = hideConfirm
+	function api.ask(area, count)
+		confirmArea = area
+		local take = area == "st"
+		confirmTitle.Text = take and "Take everything?" or "Store everything?"
+		confirmBody.Text = "Are you sure? This will move all " .. count .. " item" .. (count == 1 and "" or "s")
+			.. (take and " from the forge to your backpack." or " from your backpack to the forge.")
+		confirmOk.Text = take and "Take all" or "Store all"
+		confirmScale.Scale = d.canvasScale.Scale * 1.25
+		confirmBox.Position = d.canvas.Position
+		confirmShade.Visible = true
+		confirmBox.Visible = true
+		tween(confirmFade, 0.15, { Value = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	end
+	return api
+end
+
+function Motion:freezer()
+	local player = Players.LocalPlayer
+	local controls = nil
+	local frozen = false
+	local cameraBefore = nil
+	local function freeze(on)
+		if controls and frozen ~= on then
+			if on then
+				controls:Disable()
+			else
+				controls:Enable()
+			end
+		end
+		frozen = on
+		local camera = workspace.CurrentCamera
+		if on then
+			if not cameraBefore then
+				cameraBefore = camera.CameraType
+			end
+			camera.CameraType = Enum.CameraType.Scriptable
+		elseif cameraBefore then
+			camera.CameraType = cameraBefore
+			cameraBefore = nil
+		end
+	end
+	task.spawn(function()
+		local ok, module = pcall(function()
+			return require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule", 10))
+		end)
+		if ok and module then
+			controls = module:GetControls()
+			if frozen then
+				controls:Disable()
+			end
+		end
+	end)
+	return freeze
+end
+
+function Motion:fader(panels)
+	local fadeEntries = {}
+	local fadeActive = false
+	local fadeValue = new("NumberValue", { Name = "MenuFade", Value = 1 }, self.gui)
+	local textFadeValue = new("NumberValue", { Name = "MenuTextFade", Value = 1 }, self.gui)
+
+	local function applyFade(a, textA)
+		for _, entry in ipairs(fadeEntries) do
+			local object = entry[1]
+			for prop, base in pairs(entry[2]) do
+				object[prop] = 1 - (1 - base) * a
+			end
+			if entry[3] then
+				for prop, base in pairs(entry[3]) do
+					object[prop] = 1 - (1 - base) * textA
+				end
+			end
+		end
+	end
+
+	local function endFade()
+		if fadeActive then
+			applyFade(1, 1)
+			fadeActive = false
+		end
+	end
+
+	local function startFade()
+		endFade()
+		table.clear(fadeEntries)
+		for _, d in ipairs(panels:GetDescendants()) do
+			local props, textProps = nil, nil
+			if d:IsA("GuiObject") then
+				props = { BackgroundTransparency = d.BackgroundTransparency }
+				if d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then
+					textProps = { TextTransparency = d.TextTransparency, TextStrokeTransparency = d.TextStrokeTransparency }
+				elseif d:IsA("ImageLabel") or d:IsA("ImageButton") then
+					props.ImageTransparency = d.ImageTransparency
+				end
+				if d:IsA("ScrollingFrame") then
+					props.ScrollBarImageTransparency = d.ScrollBarImageTransparency
+				end
+			elseif d:IsA("UIStroke") then
+				props = { Transparency = d.Transparency }
+			end
+			if props then
+				table.insert(fadeEntries, { d, props, textProps })
+			end
+		end
+		fadeActive = true
+	end
+
+	local function onFadeChanged()
+		if fadeActive then
+			applyFade(fadeValue.Value, textFadeValue.Value)
+		end
+	end
+	fadeValue.Changed:Connect(onFadeChanged)
+	textFadeValue.Changed:Connect(onFadeChanged)
+	return { value = fadeValue, textValue = textFadeValue, apply = applyFade, start = startFade, finish = endFade }
+end
+
+function Motion:bars(d)
+	local CONFIG = self.CONFIG
+	local BAR_PICK = ColorSequence.new(Color3.fromRGB(246, 213, 122), Color3.fromRGB(233, 185, 73))
+	local BAR_THROW = ColorSequence.new(Color3.fromRGB(248, 196, 168), Color3.fromRGB(244, 164, 124))
+
+	local function makeBar(button)
+		local track = new("Frame", {
+			Name = "AmountBar",
+			Position = UDim2.fromOffset(5, 4),
+			Size = UDim2.new(1, -10, 0, 5),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 0.28,
+			BorderSizePixel = 0,
+			Visible = false,
+			ZIndex = 4,
+		}, button)
+		d.corner(track, 3)
+		d.stroke(track, CONFIG.Text, 1, 0.88)
+		new("UIPadding", {
+			PaddingTop = UDim.new(0, 1),
+			PaddingBottom = UDim.new(0, 1),
+			PaddingLeft = UDim.new(0, 1),
+			PaddingRight = UDim.new(0, 1),
+		}, track)
+		local fill = new("Frame", {
+			Name = "Fill",
+			Size = UDim2.fromScale(0, 1),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BorderSizePixel = 0,
+			ZIndex = 5,
+		}, track)
+		d.corner(fill, 2)
+		local gradient = new("UIGradient", { Rotation = 90, Color = BAR_PICK }, fill)
+		local glow = d.stroke(fill, CONFIG.Accent, 1.5, 0.6)
+		return { Track = track, Fill = fill, Gradient = gradient, Glow = glow }
+	end
+
+	local function setBar(bar, kind, fraction)
+		if not kind then
+			bar.Track.Visible = false
+			return
+		end
+		bar.Track.Visible = true
+		bar.Gradient.Color = kind == "throw" and BAR_THROW or BAR_PICK
+		bar.Glow.Color = kind == "throw" and Color3.fromRGB(244, 164, 124) or CONFIG.Accent
+		bar.Fill.Size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1)
+	end
+	return makeBar, setBar
+end
+
+function Motion:iconMaker(textFn)
+	local function itemIcon(parent, size, position, anchor)
+		local image = new("ImageLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(size, size),
+			Position = position,
+			AnchorPoint = anchor or Vector2.new(0.5, 0.5),
+			ScaleType = Enum.ScaleType.Fit,
+			Image = "",
+		}, parent)
+		local fallback = textFn(image, {
+			Size = UDim2.fromScale(1, 1),
+			TextXAlignment = Enum.TextXAlignment.Center,
+			TextWrapped = true,
+			TextSize = math.max(12, math.floor(size / 3.6)),
+			Visible = false,
+		})
+		return {
+			Image = image,
+			Set = function(itemId)
+				local item = itemId and self.ITEMS[itemId]
+				local hasImage = item and item.Image ~= "" or false
+				image.Image = hasImage and item.Image or ""
+				fallback.Text = item and item.Name or ""
+				fallback.Visible = item ~= nil and not hasImage
+				image.Visible = item ~= nil
+			end,
+			SetFaded = function(faded)
+				image.ImageTransparency = faded and 0.55 or 0
+				fallback.TextTransparency = faded and 0.55 or 0
+			end,
+		}
+	end
+	return itemIcon
 end
 
 function Motion:attachPC(api)
